@@ -1,0 +1,31 @@
+[project]
+name = "python_x509_pkcs11"
+description = "Python library for signing x509 using keys in an pkcs11 device"
+readme = "README.md"
+requires-python = ">=3.7"
+version = "0.1.1"
+keywords = ["x509", "pkcs11"]
+license = {file = "LICENSE"}
+authors = [
+    { name = "Victor Näslund", email = "victor@sunet.se" }
+]
+
+
+dependencies = [
+    "asn1crypto",
+    "python-pkcs11"
+]
+
+# [project.optional-dependencies]
+# dev = [
+#     "tox",
+#     "pre-commit",
+#     "bump2version"
+# ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.urls]
+"Homepage" = "https://github.com/SUNET/python_x509_pkcs11"
