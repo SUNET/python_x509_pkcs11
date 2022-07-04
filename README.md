@@ -1,12 +1,19 @@
-## First commit
+## python_x509_pkcs11
 
-First commit
+Seamless signing x509 using PKCS11 device for key storage
 
+Currently supports
+* Creating a root CA and generating its RSA key in the PKCS11 device
+* Using the key in the PKCS11 device to sign certificates (or Intermediate CAs)
+* Creating CRLs with the PKCS11 device key
+* Store multiple keys in the PKCS11 device enabling a full PKI infrastructure
+* 'Advanced' handling of fragile persistent PKCS11 sessions, including recreating the session if PKCS11 operation timeout
 
-## Try pkcs11
+This package is pretty much a wrapper around python-pkcs11 and asn1crypto
 
 
 ## Setup
+
 ```
 # Install this package
 pip install python_x509_pkcs11
@@ -21,8 +28,12 @@ export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
 export PKCS11_PIN="1234"
 export PKCS11_TOKEN="my_test_token_1"
 
-# 
+# Initialize the token
 softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
 
 ```
+
+## Usage
+
+Look at the tests/test_root_ca.py
 
