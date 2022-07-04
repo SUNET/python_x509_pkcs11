@@ -17,14 +17,14 @@ import unittest
 from asn1crypto import x509 as asn1_x509
 from asn1crypto import pem as asn1_pem
 
-import python_x509_pkcs11.root_ca as root_ca
+from python_x509_pkcs11.root_ca import create
 from python_x509_pkcs11.PKCS11Handle import PKCS11Session
 
 class TestRootCa(unittest.TestCase):
     """
     Test our root ca module.
     """
-    def test_create_root_ca(self) -> None:
+    def test_create_root_ca(self) -> asn1_x509.Certificate:
         """
         Create and selfsign a CSR with the key with the key_label in the pkcs11 device.
         """
@@ -38,7 +38,7 @@ class TestRootCa(unittest.TestCase):
 
 
         PKCS11Session.create_keypair_if_not_exists(4096, "test_3")
-        root_cert_pem = root_ca.create(subject_name_dict, 4096, "test_3")
+        root_cert_pem = create(subject_name_dict, 4096, "test_3")
 
         data = root_cert_pem.encode('utf-8')
         if asn1_pem.detect(data):
@@ -47,3 +47,4 @@ class TestRootCa(unittest.TestCase):
         test_cert = asn1_x509.Certificate.load(data)
 
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+        return b'sdf'

@@ -37,3 +37,22 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 
 Look at the tests/test_root_ca.py
 
+## Tests
+```
+# Install the package
+pip install python_x509_pkcs11
+
+# Export env vars
+export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+export PKCS11_TOKEN='my_test_token_1'
+export PKCS11_PIN='1234'
+
+# Delete and init a token
+softhsm2-util --delete-token --token my_test_token_1
+softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
+
+# Run unittest with mypy and pylint
+mypy --strict --namespace-packages --ignore-missing-imports tests/*.py
+pylint tests/*.py
+python3 -m unittest tests/*.py
+```

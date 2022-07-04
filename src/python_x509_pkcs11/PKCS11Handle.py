@@ -25,7 +25,7 @@ from pkcs11._pkcs11 import Session
 from pkcs11._pkcs11 import Token
 from pkcs11.util.rsa import encode_rsa_public_key
 
-from .error import PKCS11TimeoutException
+from python_x509_pkcs11.error import PKCS11TimeoutException
 
 #export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
 #export PKCS11_TOKEN = 'my_test_token_1'
