@@ -14,7 +14,7 @@ from asn1crypto import pem as asn1_pem
 from asn1crypto.core import OctetString
 from asn1crypto.algos import SignedDigestAlgorithm, SignedDigestAlgorithmId
 
-from .PKCS11Handle import PKCS11Session
+from .pkcs11_handle import PKCS11Session
 
 # FIXME allow optional company name when generating csr with openssl
 # THAT IS NOT TESTED

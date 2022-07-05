@@ -15,7 +15,7 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 """
 import unittest
 
-from python_x509_pkcs11.PKCS11Handle import PKCS11Session
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 class TestPKCS11Handle(unittest.TestCase):

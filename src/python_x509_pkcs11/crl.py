@@ -13,7 +13,7 @@ from asn1crypto import crl as asn1_crl
 from asn1crypto import pem as asn1_pem
 from asn1crypto.algos import SignedDigestAlgorithm, SignedDigestAlgorithmId
 
-from .PKCS11Handle import PKCS11Session
+from .pkcs11_handle import PKCS11Session
 
 # Keep only the first one
 def _set_tbs_remove_duplicate_extensions(tbs: asn1_crl.TbsCertList

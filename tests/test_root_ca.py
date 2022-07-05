@@ -18,7 +18,7 @@ from asn1crypto import x509 as asn1_x509
 from asn1crypto import pem as asn1_pem
 
 from python_x509_pkcs11.root_ca import create
-from python_x509_pkcs11.PKCS11Handle import PKCS11Session
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 class TestRootCa(unittest.TestCase):
     """

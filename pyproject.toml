@@ -3,7 +3,7 @@ name = "python_x509_pkcs11"
 description = "Python library for signing x509 using keys in an pkcs11 device such as a HSM"
 readme = "README.md"
 requires-python = ">=3.7"
-version = "0.1.5"
+version = "0.1.6"
 keywords = ["x509", "pkcs11", "HSM"]
 license = {file = "LICENSE"}
 authors = [
@@ -19,11 +19,11 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.targets.sdist]
+[tool.hatch.build]
 exclude = [
   "/.github",
   "/docs",
-  "*.mypi_cache*",
+  "*.mypy_cache*",
   "*__pycache__*",
   "*.csr",
   "*.crl",

@@ -18,14 +18,18 @@ from contextlib import contextmanager
 from collections.abc import Generator
 
 import asn1crypto
-
 from pkcs11.exceptions import NoSuchKey
-from pkcs11 import KeyType, ObjectClass, Mechanism, lib
-from pkcs11._pkcs11 import Session
-from pkcs11._pkcs11 import Token
+from pkcs11 import (
+    KeyType,
+    ObjectClass,
+    Mechanism,
+    lib,
+    Session,
+    Token
+)
 from pkcs11.util.rsa import encode_rsa_public_key
 
-from python_x509_pkcs11.error import PKCS11TimeoutException
+from .error import PKCS11TimeoutException
 
 #export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
 #export PKCS11_TOKEN = 'my_test_token_1'
@@ -39,7 +43,7 @@ from python_x509_pkcs11.error import PKCS11TimeoutException
 
 LOCK = threading.Lock()
 DEBUG = False
-    
+
 @contextmanager
 def _time_limit(seconds: int
                 ) -> Generator[None, None, None]:
@@ -74,7 +78,7 @@ class PKCS11Session():
 
     session: Session = None
     token: Token = None
-    
+
     @classmethod
     def _healthy_session(cls
                          ) -> None:

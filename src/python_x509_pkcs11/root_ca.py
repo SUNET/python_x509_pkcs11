@@ -11,7 +11,7 @@ from asn1crypto import csr as asn1_csr
 from asn1crypto import pem as asn1_pem
 from asn1crypto.algos import SignedDigestAlgorithm, SignedDigestAlgorithmId
 
-from .PKCS11Handle import PKCS11Session
+from .pkcs11_handle import PKCS11Session
 from .csr import sign_csr
 
 def _set_tbs_version(tbs: asn1_csr.CertificationRequestInfo
@@ -135,4 +135,3 @@ def create(subject_name: dict[str, str],
     assert isinstance(pem_enc, bytes)
 
     return sign_csr(key_label, subject_name, pem_enc.decode('utf-8'))
-

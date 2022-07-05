@@ -17,8 +17,8 @@ import unittest
 from asn1crypto import crl as asn1_crl
 from asn1crypto import pem as asn1_pem
 
-import python_x509_pkcs11.crl as crl
-from python_x509_pkcs11.PKCS11Handle import PKCS11Session
+from python_x509_pkcs11 import crl
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 class TestCrl(unittest.TestCase):
     """
