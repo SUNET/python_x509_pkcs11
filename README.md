@@ -51,8 +51,9 @@ export PKCS11_PIN='1234'
 softhsm2-util --delete-token --token my_test_token_1
 softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
 
-# Run unittest with mypy and pylint
+# Run unittest with mypy, pylint pycodestyle
 mypy --strict --namespace-packages --ignore-missing-imports tests/*.py
 pylint tests/*.py
+pycodestyle tests/*.py
 python3 -m unittest tests/*.py
 ```

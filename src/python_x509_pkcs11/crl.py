@@ -14,29 +14,38 @@ from asn1crypto import pem as asn1_pem
 from asn1crypto.algos import SignedDigestAlgorithm, SignedDigestAlgorithmId
 
 from .pkcs11_handle import PKCS11Session
+from .error import DuplicateExtensionException
 
-# Keep only the first one
-def _set_tbs_remove_duplicate_extensions(tbs: asn1_crl.TbsCertList
-                                         ) -> asn1_crl.TbsCertList:
-    if len(tbs["crl_extensions"]) == 0:
-        return tbs
+
+def _check_tbs_duplicate_extensions(tbs: asn1_crl.TbsCertList
+                                    ) -> None:
+    """
+    A certificate MUST NOT include more
+    than one instance of a particular extension. For example, a
+    certificate may contain only one authority key identifier extension
+    https://www.rfc-editor.org/rfc/rfc5280#section-4.2
+
+    Parameters:
+    tbs (asn1_crl.TbsCertList): The 'To be signed' crl
+
+    Returns:
+    None
+    """
 
     extensions = []
-    exts = asn1_crl.TBSCertListExtensions()
+    for _, ext in enumerate(tbs["crl_extensions"]):
+        if ext["extn_id"].dotted in extensions:
+            raise DuplicateExtensionException("Found duplicate extension "
+                                              + ext["extn_id"].dotted)
+        extensions.append(ext["extn_id"].dotted)
 
-    for ext in range(len(tbs["crl_extensions"])):
-        if tbs["crl_extensions"][ext]["extn_id"].dotted not in extensions:
-            exts.append(tbs["crl_extensions"][ext])
-            extensions.append(tbs["crl_extensions"][ext]["extn_id"].dotted)
-
-    tbs["crl_extensions"] = exts
-    return tbs
 
 def _set_tbs_version(tbs: asn1_crl.TbsCertList
                      ) -> asn1_crl.TbsCertList:
 
     tbs["version"] = 2
     return tbs
+
 
 def _set_tbs_issuer(tbs: asn1_crl.TbsCertList,
                     subject_name: dict[str, str]
@@ -45,7 +54,7 @@ def _set_tbs_issuer(tbs: asn1_crl.TbsCertList,
     tbs["issuer"] = asn1_crl.Name().build(subject_name)
     return tbs
 
-# FIXME allow setting next update
+
 def _set_tbs_next_update(tbs: asn1_crl.TbsCertList
                          ) -> asn1_crl.TbsCertList:
 
@@ -54,6 +63,7 @@ def _set_tbs_next_update(tbs: asn1_crl.TbsCertList
                                            datetime.timezone.utc)
                                        + datetime.timedelta(days=3*365))
     return tbs
+
 
 def _set_tbs_this_update(tbs: asn1_crl.TbsCertList
                          ) -> asn1_crl.TbsCertList:
@@ -64,6 +74,7 @@ def _set_tbs_this_update(tbs: asn1_crl.TbsCertList
                                        - datetime.timedelta(minutes=2))
     return tbs
 
+
 def _set_tbs_aki(tbs: asn1_crl.TbsCertList,
                  identifier: bytes
                  ) -> asn1_crl.TbsCertList:
@@ -71,9 +82,9 @@ def _set_tbs_aki(tbs: asn1_crl.TbsCertList,
     aki = asn1_crl.AuthorityKeyIdentifier()
     aki["key_identifier"] = identifier
 
-    for extension, _ in enumerate(tbs["crl_extensions"]):
-        if tbs["crl_extensions"][extension]["extn_id"].dotted == "2.5.29.35":
-            tbs["crl_extensions"][extension]["extn_value"] = aki
+    for _, extension in enumerate(tbs["crl_extensions"]):
+        if extension["extn_id"].dotted == "2.5.29.35":
+            extension["extn_value"] = aki
             return tbs
 
     ext = asn1_crl.TBSCertListExtension()
@@ -88,13 +99,13 @@ def _set_tbs_aki(tbs: asn1_crl.TbsCertList,
         tbs["crl_extensions"].append(ext)
     return tbs
 
+
 def _set_tbs_update_crl_number(tbs: asn1_crl.TbsCertList
                                ) -> asn1_crl.TbsCertList:
 
-    for extension, _ in enumerate(tbs["crl_extensions"]):
-        if tbs["crl_extensions"][extension]["extn_id"].dotted == "2.5.29.20":
-            tbs["crl_extensions"][extension]["extn_value"] \
-                = tbs["crl_extensions"][extension]["extn_value"].native + 1
+    for _, extension in enumerate(tbs["crl_extensions"]):
+        if extension["extn_id"].dotted == "2.5.29.20":
+            extension["extn_value"] = extension["extn_value"].native + 1
             return tbs
 
     ext = asn1_crl.TBSCertListExtension()
@@ -109,15 +120,16 @@ def _set_tbs_update_crl_number(tbs: asn1_crl.TbsCertList
         tbs["crl_extensions"].append(ext)
     return tbs
 
+
 def _set_tbs_signature(tbs: asn1_crl.TbsCertList
                        ) -> asn1_crl.TbsCertList:
 
-    sda = SignedDigestAlgorithm()
-    sda["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
-    tbs["signature"] = sda
+    algo = SignedDigestAlgorithm()
+    algo["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
+    tbs["signature"] = algo
     return tbs
 
-# FIXME add CRLEntryExtension as well
+
 def _set_tbs_revoke_serial_numer(tbs: asn1_crl.TbsCertList,
                                  serial_number: int,
                                  reason: int
@@ -144,20 +156,22 @@ def _set_tbs_revoke_serial_numer(tbs: asn1_crl.TbsCertList,
 
     if len(tbs["revoked_certificates"]) != 0:
         # Overwrite the old entry for this serial number
-        for revoked, _ in enumerate(tbs["revoked_certificates"]):
-            if serial_number != tbs["revoked_certificates"][revoked]["user_certificate"].native:
-                rcs.append(tbs["revoked_certificates"][revoked])
+        for _, revoked in enumerate(tbs["revoked_certificates"]):
+            if serial_number != revoked["user_certificate"].native:
+                rcs.append(revoked)
 
     rcs.append(r_cert)
     tbs["revoked_certificates"] = rcs
     return tbs
 
+
 def _create_tbs_cert_list(tbs: asn1_crl.TbsCertList,
                           subject_name: dict[str, str],
                           aki: bytes
-                          )-> asn1_crl.TbsCertList:
+                          ) -> asn1_crl.TbsCertList:
 
-    tbs = _set_tbs_remove_duplicate_extensions(tbs)
+    _check_tbs_duplicate_extensions(tbs)
+
     tbs = _set_tbs_version(tbs)
     tbs = _set_tbs_issuer(tbs, subject_name)
     tbs = _set_tbs_next_update(tbs)
@@ -166,6 +180,7 @@ def _create_tbs_cert_list(tbs: asn1_crl.TbsCertList,
     tbs = _set_tbs_update_crl_number(tbs)
     tbs = _set_tbs_aki(tbs, aki)
     return tbs
+
 
 def _load_crl(crl_pem: str
               ) -> asn1_crl.CertificateList:
@@ -176,7 +191,7 @@ def _load_crl(crl_pem: str
     cert_list = asn1_crl.CertificateList.load(data)
     return cert_list
 
-    # FIXME add CRLEntryExtension as well to revoked serial number
+
 def create(key_label: str,
            subject_name: dict[str, str],
            old_crl_pem: Union[str, None] = None,
@@ -189,9 +204,9 @@ def create(key_label: str,
     Parameters:
     key_label (str): Keypair label.
     subject_name (dict[str, str]): Dict with x509 Names
-    old_crl_pem (Union[str, None] = None]): A pem encoded CRL to append to
-    serial_number (Union[int, None] = None]): A serial number to add to the CRL, skip if None
-    resaon (Union[int, None] = None]): The revokation reason to add to the CRL, skip if None
+    old_crl_pem (Union[str, None]=None]): A pem encoded CRL to append to
+    serial_number (Union[int, None]=None]): Serial to the CRL, skip if None
+    resaon (Union[int, None]=None]): The reason for revocation, skip if None
 
     Returns:
     str

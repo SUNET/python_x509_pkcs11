@@ -9,15 +9,20 @@ import asn1crypto
 from asn1crypto import x509 as asn1_x509
 from asn1crypto import csr as asn1_csr
 from asn1crypto import pem as asn1_pem
-from asn1crypto.algos import SignedDigestAlgorithm, SignedDigestAlgorithmId
+from asn1crypto.algos import (
+    SignedDigestAlgorithm,
+    SignedDigestAlgorithmId
+)
 
 from .pkcs11_handle import PKCS11Session
 from .csr import sign_csr
+
 
 def _set_tbs_version(tbs: asn1_csr.CertificationRequestInfo
                      ) -> asn1_csr.CertificationRequestInfo:
     tbs["version"] = 0
     return tbs
+
 
 def _set_tbs_subject(tbs: asn1_csr.CertificationRequestInfo,
                      subject_name: dict[str, str]
@@ -25,11 +30,13 @@ def _set_tbs_subject(tbs: asn1_csr.CertificationRequestInfo,
     tbs["subject"] = asn1_csr.Name().build(subject_name)
     return tbs
 
+
 def _set_tbs_subject_pk_info(tbs: asn1_csr.CertificationRequestInfo,
                              pk_info: asn1crypto.keys.PublicKeyInfo
                              ) -> asn1_csr.CertificationRequestInfo:
     tbs["subject_pk_info"] = pk_info
     return tbs
+
 
 def _set_tbs_basic_constraints(tbs: asn1_csr.CertificationRequestInfo
                                ) -> asn1_csr.CertificationRequestInfo:
@@ -58,6 +65,7 @@ def _set_tbs_basic_constraints(tbs: asn1_csr.CertificationRequestInfo
     else:
         tbs["attributes"].append(cria)
     return tbs
+
 
 def _set_tbs_key_usage(tbs: asn1_csr.CertificationRequestInfo
                        ) -> asn1_csr.CertificationRequestInfo:
@@ -100,12 +108,14 @@ def _create_tbs(subject_name: dict[str, str],
     tbs = _set_tbs_key_usage(tbs)
     return tbs
 
+
 def create(subject_name: dict[str, str],
            key_size: int,
            key_label: str
            ) -> str:
     """
-    Create and selfsign a CSR with the key with the key_label in the PKCS11 device.
+    Create and selfsign a CSR with
+    the key_label in the PKCS11 device.
 
     Parameters:
     subject_name (dict[str, str]): Dict with the new root CA x509 Names
@@ -116,7 +126,8 @@ def create(subject_name: dict[str, str],
     str
 
     """
-    pk_info, _ = PKCS11Session().create_keypair_if_not_exists(key_size, key_label)
+    pk_info, _ = PKCS11Session().create_keypair_if_not_exists(
+        key_size, key_label)
 
     tbs = _create_tbs(subject_name, pk_info)
 

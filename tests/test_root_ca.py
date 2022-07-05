@@ -10,7 +10,8 @@ export PKCS11_PIN='1234'
 softhsm2-util --delete-token --token my_test_token_1
 
 # Create a new pkcs11 token
-softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
+softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
+--pin $PKCS11_PIN --so-pin $PKCS11_PIN
 
 """
 import unittest
@@ -20,25 +21,26 @@ from asn1crypto import pem as asn1_pem
 from python_x509_pkcs11.root_ca import create
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
+
 class TestRootCa(unittest.TestCase):
     """
     Test our root ca module.
     """
-    def test_create_root_ca(self) -> asn1_x509.Certificate:
+    def test_create_root_ca(self
+                            ) -> asn1_x509.Certificate:
         """
-        Create and selfsign a CSR with the key with the key_label in the pkcs11 device.
+        Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
-        subject_name_dict = {"country_name": "SE",
-                             "state_or_province_name": "Stockholm",
-                             "locality_name": "Stockholm",
-                             "organization_name": "SUNET",
-                             "organizational_unit_name": "SUNET Infrastructure",
-                             "common_name": "ca-test.sunet.se",
-                             "email_address": "soc@sunet.se"}
-
+        name_dict = {"country_name": "SE",
+                     "state_or_province_name": "Stockholm",
+                     "locality_name": "Stockholm",
+                     "organization_name": "SUNET",
+                     "organizational_unit_name": "SUNET Infrastructure",
+                     "common_name": "ca-test.sunet.se",
+                     "email_address": "soc@sunet.se"}
 
         PKCS11Session.create_keypair_if_not_exists(4096, "test_3")
-        root_cert_pem = create(subject_name_dict, 4096, "test_3")
+        root_cert_pem = create(name_dict, 4096, "test_3")
 
         data = root_cert_pem.encode('utf-8')
         if asn1_pem.detect(data):

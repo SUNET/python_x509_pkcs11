@@ -10,7 +10,8 @@ export PKCS11_PIN='1234'
 softhsm2-util --delete-token --token my_test_token_1
 
 # Create a new pkcs11 token
-softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
+softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
+--pin $PKCS11_PIN --so-pin $PKCS11_PIN
 
 """
 import unittest
@@ -22,7 +23,8 @@ class TestPKCS11Handle(unittest.TestCase):
     """
     Test our PKCS11 session handler.
     """
-    def test_create_keypair(self) -> None:
+    def test_create_keypair(self
+                            ) -> None:
         """
         Create keypair with key_label in the PKCS11 device.
         """
@@ -32,7 +34,8 @@ class TestPKCS11Handle(unittest.TestCase):
 
         self.assertTrue(isinstance(identifier, bytes))
 
-    def test_create_keypair_if_not_exists(self) -> None:
+    def test_create_keypair_if_not_exists(self
+                                          ) -> None:
         """
         Create keypair with key_label in the PKCS11 device.
         """
@@ -42,7 +45,8 @@ class TestPKCS11Handle(unittest.TestCase):
 
         self.assertTrue(isinstance(identifier, bytes))
 
-    def test_get_identifier(self) -> None:
+    def test_get_identifier(self
+                            ) -> None:
         """
         Get key identifier from public key with key_label in the PKCS11 device.
         """
@@ -50,7 +54,8 @@ class TestPKCS11Handle(unittest.TestCase):
 
         self.assertTrue(isinstance(identifier, bytes))
 
-    def test_sign_data(self) -> None:
+    def test_sign_data(self
+                       ) -> None:
         """
         Sign bytes with key_label in the PKCS11 device.
         """

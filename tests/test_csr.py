@@ -10,7 +10,8 @@ export PKCS11_PIN='1234'
 softhsm2-util --delete-token --token my_test_token_1
 
 # Create a new pkcs11 token
-softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
+softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
+--pin $PKCS11_PIN --so-pin $PKCS11_PIN
 
 """
 import unittest
@@ -20,11 +21,13 @@ from asn1crypto import pem as asn1_pem
 from python_x509_pkcs11 import csr
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
+
 class TestCsr(unittest.TestCase):
     """
     Test our csr module.
     """
-    def test_sign_csr(self) -> None:
+    def test_sign_csr(self
+                      ) -> None:
         """
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
