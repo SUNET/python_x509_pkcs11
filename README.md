@@ -35,7 +35,17 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 
 ## Usage
 
-Look at the tests/test_root_ca.py
+Look at the [documentation]("https://github.com/SUNET/python_x509_pkcs11/blob/main/docs/README.md")
+
+The [tests]("https://github.com/SUNET/python_x509_pkcs11/blob/main/README.md") are also a good starting point
+If you are using the code in tests then dont forget to change
+
+```python
+from src.python_x509_pkcs11 import csr
+# to
+from python_x509_pkcs11 import csr
+```
+
 
 ## Tests
 ```
@@ -51,9 +61,9 @@ export PKCS11_PIN='1234'
 softhsm2-util --delete-token --token my_test_token_1
 softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
 
-# Run unittest with mypy, pylint pycodestyle
-mypy --strict --namespace-packages --ignore-missing-imports tests/*.py
-pylint tests/*.py
-pycodestyle tests/*.py
-python3 -m unittest tests/*.py
+# Run unittest with mypy, pylint and pycodestyle
+mypy --strict --namespace-packages --ignore-missing-imports tests/*.py \
+&& pylint tests/*.py \
+&& pycodestyle tests/*.py \
+&& python3 -m unittest
 ```

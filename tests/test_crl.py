@@ -18,8 +18,8 @@ import unittest
 from asn1crypto import crl as asn1_crl
 from asn1crypto import pem as asn1_pem
 
-from python_x509_pkcs11 import crl
-from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+from src.python_x509_pkcs11 import crl
+from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 class TestCrl(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestCrl(unittest.TestCase):
                         "common_name": "ca-test.sunet.se",
                         "email_address": "soc@sunet.se"}
 
-        PKCS11Session.create_keypair_if_not_exists(4096, "test_3")
+        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
 
         crl_pem = crl.create("test_3", subject_name)
 
@@ -87,7 +87,7 @@ wPJMBBDuchfFtgit0yJr2V/BD8Iadw==
                         "common_name": "ca-test.sunet.se",
                         "email_address": "soc@sunet.se"}
 
-        PKCS11Session.create_keypair_if_not_exists(4096, "test_3")
+        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
 
         crl_pem = crl.create("test_3", subject_name, old_crl_pem=old_crl_pem)
 
@@ -113,7 +113,7 @@ wPJMBBDuchfFtgit0yJr2V/BD8Iadw==
                         "common_name": "ca-test.sunet.se",
                         "email_address": "soc@sunet.se"}
 
-        PKCS11Session.create_keypair_if_not_exists(4096, "test_3")
+        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
 
         crl_pem = crl.create("test_3",
                              subject_name,
@@ -163,7 +163,7 @@ wPJMBBDuchfFtgit0yJr2V/BD8Iadw==
                         "common_name": "ca-test.sunet.se",
                         "email_address": "soc@sunet.se"}
 
-        PKCS11Session.create_keypair_if_not_exists(4096, "test_3")
+        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
 
         crl_pem = crl.create("test_3",
                              subject_name,

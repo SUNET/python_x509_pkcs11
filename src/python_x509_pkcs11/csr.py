@@ -190,8 +190,8 @@ def sign_csr(key_label: str,
 
     Parameters:
     key_label (str): Keypair label.
-    issuer_name (dict[str, str]): Dict with the signers x509 Names
-    csr_pem (Union[str, None] = None]): A CRL to append to
+    issuer_name (dict[str, str]): Dict with the signers x509 Names.
+    csr_pem (Union[str, None] = None]): A CRL to append to.
 
     Returns:
     str
@@ -208,7 +208,7 @@ def sign_csr(key_label: str,
     signed_cert["tbs_certificate"] = tbs
     signed_cert["signature_algorithm"] = tbs["signature"]
     signed_cert["signature_value"] = PKCS11Session(
-    ).sign(tbs.dump(), key_label)
+    ).sign(key_label, tbs.dump())
 
     pem_enc = asn1_pem.armor('CERTIFICATE', signed_cert.dump())
 

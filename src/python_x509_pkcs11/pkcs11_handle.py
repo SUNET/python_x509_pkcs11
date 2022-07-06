@@ -51,7 +51,7 @@ def _time_limit(seconds: int
     Context manager to call PKCS11 functions with a time limit.
 
     Parameters:
-    seconds (int): Time limit in seconds
+    seconds (int): Time limit in seconds.
 
     Returns:
     None
@@ -115,8 +115,8 @@ class PKCS11Session():
 
     @classmethod
     def sign(cls,
-             data: bytes,
-             key_label: str
+             key_label: str,
+             data: bytes
              ) -> bytes:
         """
         Sign the data: bytes using the private key
@@ -126,8 +126,8 @@ class PKCS11Session():
         'Authority Key Identifier' valid for this keypair.
 
         Parameters:
-        data (bytes): Bytes to be signed.
         key_label (str): Keypair label.
+        data (bytes): Bytes to be signed.
 
         Returns:
         typing.Tuple[PublicKeyInfo, bytes]
@@ -156,8 +156,8 @@ class PKCS11Session():
 
     @classmethod
     def create_keypair_if_not_exists(cls,
-                                     key_size: int,
-                                     key_label: str
+                                     key_label: str,
+                                     key_size: int
                                      ) -> typing.Tuple[
                                          PublicKeyInfo,
                                          bytes]:
@@ -168,8 +168,8 @@ class PKCS11Session():
         and x509 extension 'Subject Key Identifier' valid for this keypair.
 
         Parameters:
-        key_size (int): Size of the key
         key_label (str): Keypair label.
+        key_size (int): Size of the key.
 
         Returns:
         typing.Tuple[PublicKeyInfo, bytes]
@@ -218,8 +218,8 @@ class PKCS11Session():
 
     @classmethod
     def create_keypair(cls,
-                       key_size: int,
-                       key_label: str
+                       key_label: str,
+                       key_size: int
                        ) -> typing.Tuple[PublicKeyInfo, bytes]:
         """
         Create a RSA keypair in the PKCS11 device with this label.
@@ -227,8 +227,8 @@ class PKCS11Session():
         and x509 extension 'Subject Key Identifier' valid for this keypair.
 
         Parameters:
-        key_size (int): Size of the key
         key_label (str): Keypair label.
+        key_size (int): Size of the key.
 
         Returns:
         typing.Tuple[PublicKeyInfo, bytes]

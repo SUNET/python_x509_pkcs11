@@ -18,8 +18,8 @@ import unittest
 from asn1crypto import x509 as asn1_x509
 from asn1crypto import pem as asn1_pem
 
-from python_x509_pkcs11 import csr
-from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+from src.python_x509_pkcs11 import csr
+from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 class TestCsr(unittest.TestCase):
@@ -62,7 +62,7 @@ C+FhkjWYaDrKJDYh2Q==
                        "common_name": "ca-test.sunet.se",
                        "email_address": "soc@sunet.se"}
 
-        PKCS11Session.create_keypair_if_not_exists(4096, "test_3")
+        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
         cert_pem = csr.sign_csr("test_3", issuer_name, csr_pem)
 
         data = cert_pem.encode('utf-8')

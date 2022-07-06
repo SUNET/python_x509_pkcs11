@@ -109,25 +109,25 @@ def _create_tbs(subject_name: dict[str, str],
     return tbs
 
 
-def create(subject_name: dict[str, str],
+def create(key_label: str,
            key_size: int,
-           key_label: str
+           subject_name: dict[str, str],
            ) -> str:
     """
     Create and selfsign a CSR with
     the key_label in the PKCS11 device.
 
     Parameters:
-    subject_name (dict[str, str]): Dict with the new root CA x509 Names
-    key_size (int): Key size, 2048 and 4096 works best
     key_label (str): Keypair label.
+    key_size (int): Key size, 2048 and 4096 works best.
+    subject_name (dict[str, str]): Dict with the new root CA x509 Names.
 
     Returns:
     str
 
     """
     pk_info, _ = PKCS11Session().create_keypair_if_not_exists(
-        key_size, key_label)
+        key_label, key_size)
 
     tbs = _create_tbs(subject_name, pk_info)
 
@@ -138,7 +138,7 @@ def create(subject_name: dict[str, str],
     sda["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
 
     signed_csr["signature_algorithm"] = sda
-    signed_csr["signature"] = PKCS11Session().sign(tbs.dump(), key_label)
+    signed_csr["signature"] = PKCS11Session().sign(key_label, tbs.dump())
 
     pem_enc = asn1_pem.armor('CERTIFICATE REQUEST', signed_csr.dump())
 

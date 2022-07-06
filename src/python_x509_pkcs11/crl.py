@@ -203,10 +203,10 @@ def create(key_label: str,
 
     Parameters:
     key_label (str): Keypair label.
-    subject_name (dict[str, str]): Dict with x509 Names
-    old_crl_pem (Union[str, None]=None]): A pem encoded CRL to append to
-    serial_number (Union[int, None]=None]): Serial to the CRL, skip if None
-    resaon (Union[int, None]=None]): The reason for revocation, skip if None
+    subject_name (dict[str, str]): Dict with x509 Names.
+    old_crl_pem (Union[str, None]=None]): A pem encoded CRL to append to.
+    serial_number (Union[int, None]=None]): Serial to the CRL, skip if None.
+    resaon (Union[int, None]=None]): The reason for revocation, skip if None.
 
     Returns:
     str
@@ -229,7 +229,7 @@ def create(key_label: str,
     cert_list = asn1_crl.CertificateList()
     cert_list["tbs_cert_list"] = tbs
     cert_list["signature_algorithm"] = tbs["signature"]
-    cert_list["signature"] = PKCS11Session.sign(tbs.dump(), key_label)
+    cert_list["signature"] = PKCS11Session.sign(key_label, tbs.dump())
     pem_enc = asn1_pem.armor('X509 CRL', cert_list.dump())
 
     # Needed for mypy strict

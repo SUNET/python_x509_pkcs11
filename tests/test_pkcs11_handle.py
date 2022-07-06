@@ -15,8 +15,9 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
 
 """
 import unittest
+import os
 
-from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 class TestPKCS11Handle(unittest.TestCase):
@@ -29,8 +30,9 @@ class TestPKCS11Handle(unittest.TestCase):
         Create keypair with key_label in the PKCS11 device.
         """
 
-        PKCS11Session.create_keypair(4096, "test_4")
-        identifier = PKCS11Session.key_identifier("test_4")
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        PKCS11Session.create_keypair(new_key_label, 4096)
+        identifier = PKCS11Session.key_identifier(new_key_label)
 
         self.assertTrue(isinstance(identifier, bytes))
 
@@ -40,7 +42,7 @@ class TestPKCS11Handle(unittest.TestCase):
         Create keypair with key_label in the PKCS11 device.
         """
 
-        PKCS11Session.create_keypair_if_not_exists(4096, "test_4")
+        PKCS11Session.create_keypair_if_not_exists("test_4", 4096)
         identifier = PKCS11Session.key_identifier("test_4")
 
         self.assertTrue(isinstance(identifier, bytes))
@@ -61,6 +63,6 @@ class TestPKCS11Handle(unittest.TestCase):
         """
 
         data_to_be_signed = b'MY TEST DATA TO BE SIGNED HERE'
-        signature = PKCS11Session.sign(data_to_be_signed, "test_4")
+        signature = PKCS11Session.sign("test_4", data_to_be_signed)
 
         self.assertTrue(isinstance(signature, bytes))
