@@ -1,3 +1,27 @@
+# Setup your PKCS11 device
+
+First we need to setup a PKCS11 device.
+We will use softhsm for easy testing but any PKCS11 device should work.
+
+```bash
+# Install this package
+pip install python_x509_pkcs11
+
+# Install deps
+sudo apt-get install opensc softhsm2
+sudo usermod -a -G softhsm $USER
+sudo reboot # Yeah seem to not update your groups without a reboot
+
+# export environment values the package will use
+# Replace with your PKCS11 device .so file
+export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+export PKCS11_PIN="1234"
+export PKCS11_TOKEN="my_test_token_1"
+
+# Initialize the token
+softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
+```
+
 # Sign an CSR
 
 The [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py") module currently includes one function:
