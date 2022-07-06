@@ -53,10 +53,16 @@ cert_pem = csr.sign_csr("my_rsa_key", issuer_name, csr_pem)
 
 The [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/root_ca.py) module currently includes one function:
 
- - `create(key_label: str, key_size: int, subject_name: dict[str, str])`
+ - `create(key_label: str,
+           key_size: int,
+	   subject_name: dict[str, str],
+	   exta_extensions: Union[asn1_x509.Extensions] = None])`
 
-The `create()` function generate a CSR and then signs it with the same
-same key from the key_label in the pkcs11 device.
+The `create()` function generate a CSR and then signs it
+with the same key from the key_label in the pkcs11 device.
+
+If extra_extensions is not None then those extensions will be written into the root CA certificate.
+
 
 This function uses the `sign_csr()` from the `csr` module to sign
 the generated CSR.

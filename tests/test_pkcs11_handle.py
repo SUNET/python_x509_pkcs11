@@ -18,6 +18,7 @@ import unittest
 import os
 
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
 # Replace the above with this should you use this code
 # from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
@@ -26,8 +27,8 @@ class TestPKCS11Handle(unittest.TestCase):
     """
     Test our PKCS11 session handler.
     """
-    def test_create_keypair(self
-                            ) -> None:
+
+    def test_create_keypair(self) -> None:
         """
         Create keypair with key_label in the PKCS11 device.
         """
@@ -38,8 +39,7 @@ class TestPKCS11Handle(unittest.TestCase):
 
         self.assertTrue(isinstance(identifier, bytes))
 
-    def test_create_keypair_if_not_exists(self
-                                          ) -> None:
+    def test_create_keypair_if_not_exists(self) -> None:
         """
         Create keypair with key_label in the PKCS11 device.
         """
@@ -49,8 +49,7 @@ class TestPKCS11Handle(unittest.TestCase):
 
         self.assertTrue(isinstance(identifier, bytes))
 
-    def test_get_identifier(self
-                            ) -> None:
+    def test_get_identifier(self) -> None:
         """
         Get key identifier from public key with key_label in the PKCS11 device.
         """
@@ -58,13 +57,12 @@ class TestPKCS11Handle(unittest.TestCase):
 
         self.assertTrue(isinstance(identifier, bytes))
 
-    def test_sign_data(self
-                       ) -> None:
+    def test_sign_data(self) -> None:
         """
         Sign bytes with key_label in the PKCS11 device.
         """
 
-        data_to_be_signed = b'MY TEST DATA TO BE SIGNED HERE'
+        data_to_be_signed = b"MY TEST DATA TO BE SIGNED HERE"
         signature = PKCS11Session.sign("test_4", data_to_be_signed)
 
         self.assertTrue(isinstance(signature, bytes))

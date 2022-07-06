@@ -40,23 +40,10 @@ Look at the [documentation](https://github.com/SUNET/python_x509_pkcs11/blob/mai
 The [tests](https://github.com/SUNET/python_x509_pkcs11/tree/main/tests) are also a good starting point
 
 
-## Tests
-```
-# Install the package
-pip install python_x509_pkcs11
+## Contributing / Tests
+```bash
 
-# Export env vars
-export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
-export PKCS11_TOKEN='my_test_token_1'
-export PKCS11_PIN='1234'
-
-# Delete and init a token
-softhsm2-util --delete-token --token my_test_token_1
-softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
-
-# Run unittest with mypy, pylint and pycodestyle
-mypy --strict --namespace-packages --ignore-missing-imports tests/*.py \
-&& pylint tests/*.py \
-&& pycodestyle tests/*.py \
-&& python3 -m unittest
+# Make your code changes
+# Then in the root folder, where this README is
+bash dev-run.sh
 ```

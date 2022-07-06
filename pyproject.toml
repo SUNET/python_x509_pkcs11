@@ -2,8 +2,8 @@
 name = "python_x509_pkcs11"
 description = "Python library for signing x509 using keys in an pkcs11 device such as a HSM"
 readme = "README.md"
-requires-python = ">=3.7"
-version = "0.1.8"
+requires-python = ">=3.6"
+version = "0.1.82"
 keywords = ["x509", "pkcs11", "HSM"]
 license = {file = "LICENSE"}
 authors = [
