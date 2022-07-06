@@ -18,6 +18,8 @@ import unittest
 import os
 
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
+# Replace the above with this should you use this code
+# from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 class TestPKCS11Handle(unittest.TestCase):

@@ -38,13 +38,6 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 Look at the [documentation](https://github.com/SUNET/python_x509_pkcs11/blob/main/docs/README.md)
 
 The [tests](https://github.com/SUNET/python_x509_pkcs11/tree/main/tests) are also a good starting point
-If you are using the code in tests then dont forget to change
-
-```python
-from src.python_x509_pkcs11 import csr
-# to
-from python_x509_pkcs11 import csr
-```
 
 
 ## Tests

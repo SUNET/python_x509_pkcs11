@@ -20,6 +20,9 @@ from asn1crypto import pem as asn1_pem
 
 from src.python_x509_pkcs11 import crl
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
+# Replace the above with this should you use this code
+# from python_x509_pkcs11 import crl
+# from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 class TestCrl(unittest.TestCase):
