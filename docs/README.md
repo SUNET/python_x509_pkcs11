@@ -23,8 +23,7 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 ```
 
 # Sign an CSR
-
-The [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py") module currently includes one function:
+The [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py) module currently includes one function:
 
  - `sign_csr(key_label: str, issuer_name: dict[str, str], csr_pem: str)`
  
@@ -52,7 +51,7 @@ cert_pem = csr.sign_csr("my_rsa_key", issuer_name, csr_pem)
 
 # Create a root CA
 
-The [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/root_ca.py") module currently includes one function:
+The [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/root_ca.py) module currently includes one function:
 
  - `create(key_label: str, key_size: int, subject_name: dict[str, str])`
 
@@ -80,7 +79,7 @@ root_cert_pem = create("my_rsa_key", 4096, name_dict)
 
 # Create a CRL
 
-The [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/crl.py") module currently includes one function:
+The [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/crl.py) module currently includes one function:
 
  - `create(key_label: str,
            subject_name: dict[str, str],
