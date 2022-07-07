@@ -16,6 +16,7 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
 """
 import unittest
 import datetime
+import os
 
 from asn1crypto.core import GeneralizedTime
 from asn1crypto import x509 as asn1_x509
@@ -23,11 +24,9 @@ from asn1crypto import csr as asn1_csr
 from asn1crypto import pem as asn1_pem
 
 from src.python_x509_pkcs11.root_ca import create
-from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
 # from python_x509_pkcs11.root_ca import create
-# from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 name_dict = {
     "country_name": "SE",
@@ -39,19 +38,20 @@ name_dict = {
     "email_address": "soc@sunet.se",
 }
 
+new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+
 
 class TestRootCa(unittest.TestCase):
     """
     Test our root ca module.
     """
 
-    def test_create_root_ca(self) -> asn1_x509.Certificate:
+    def test_create_root_ca(self) -> None:
         """
         Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
-        root_cert_pem = create("test_3", 4096, name_dict)
+        root_cert_pem = create(new_key_label[:-1], 4096, name_dict)
 
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -66,7 +66,7 @@ class TestRootCa(unittest.TestCase):
         # + authority and subject key identifier = 4
         self.assertTrue(len(cert_exts) == 4)
 
-    def test_create_root_ca_with_extensions(self) -> asn1_x509.Certificate:
+    def test_create_root_ca_with_extensions(self) -> None:
         """
         Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
@@ -88,8 +88,7 @@ class TestRootCa(unittest.TestCase):
         ext["extn_value"] = pkup
         exts.append(ext)
 
-        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
-        root_cert_pem = create("test_3", 4096, name_dict, exts)
+        root_cert_pem = create(new_key_label[:-2], 4096, name_dict, exts)
 
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):

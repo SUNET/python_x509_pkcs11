@@ -166,13 +166,13 @@ def create(
     key_label (str): Keypair label.
     key_size (int): Key size, 2048 and 4096 works best.
     subject_name (dict[str, str]): Dict with the new root CA x509 Names.
-    extra_extensions (Union[asn1_x509.Extensions, None] = None]): x509 extensions to write into the root certificate, skip if None
+    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the root certificate, skip if None.
 
     Returns:
     str
 
     """
-    pk_info, _ = PKCS11Session().create_keypair_if_not_exists(key_label, key_size)
+    pk_info, _ = PKCS11Session().create_keypair(key_label, key_size, False)
 
     tbs = _create_tbs(subject_name, pk_info, extra_extensions)
 

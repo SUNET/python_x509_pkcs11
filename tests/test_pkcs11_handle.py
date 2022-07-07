@@ -17,6 +17,10 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
 import unittest
 import os
 
+from pkcs11 import Mechanism
+from pkcs11.exceptions import NoSuchKey, MultipleObjectsReturned
+from asn1crypto.keys import PublicKeyInfo
+
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
@@ -34,35 +38,62 @@ class TestPKCS11Handle(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label, 4096)
-        identifier = PKCS11Session.key_identifier(new_key_label)
-
+        PKCS11Session.create_keypair(new_key_label, 4096, False)
+        pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
         self.assertTrue(isinstance(identifier, bytes))
+        self.assertTrue(isinstance(pk_info, PublicKeyInfo))
 
-    def test_create_keypair_if_not_exists(self) -> None:
-        """
-        Create keypair with key_label in the PKCS11 device.
-        """
+        with self.assertRaises(MultipleObjectsReturned):
+            PKCS11Session.create_keypair(new_key_label, 4096, False)
+            pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
 
-        PKCS11Session.create_keypair_if_not_exists("test_4", 4096)
-        identifier = PKCS11Session.key_identifier("test_4")
-
-        self.assertTrue(isinstance(identifier, bytes))
-
-    def test_get_identifier(self) -> None:
+    def test_get_public_key_data(self) -> None:
         """
         Get key identifier from public key with key_label in the PKCS11 device.
         """
-        identifier = PKCS11Session.key_identifier("test_4")
-
+        PKCS11Session.create_keypair("test_4", 4096)
+        pk_info, identifier = PKCS11Session.public_key_data("test_4")
         self.assertTrue(isinstance(identifier, bytes))
+        self.assertTrue(isinstance(pk_info, PublicKeyInfo))
 
-    def test_sign_data(self) -> None:
+        with self.assertRaises(NoSuchKey):
+            pk_info, identifier = PKCS11Session.public_key_data("test_4"[:-2])
+
+    def test_sign_and_verify_data(self) -> None:
         """
         Sign bytes with key_label in the PKCS11 device.
         """
 
+        PKCS11Session.create_keypair("test_4", 4096)
         data_to_be_signed = b"MY TEST DATA TO BE SIGNED HERE"
-        signature = PKCS11Session.sign("test_4", data_to_be_signed)
 
+        signature = PKCS11Session.sign("test_4", data_to_be_signed)
         self.assertTrue(isinstance(signature, bytes))
+
+        signature = PKCS11Session.sign(
+            "test_4", data_to_be_signed, Mechanism.SHA512_RSA_PKCS
+        )
+        self.assertTrue(isinstance(signature, bytes))
+
+        self.assertTrue(PKCS11Session.verify("test_4", data_to_be_signed, signature))
+
+        self.assertFalse(
+            PKCS11Session.verify(
+                "test_4", data_to_be_signed, b"NOT VALID SIGNATURE HERE"
+            )
+        )
+
+        self.assertFalse(
+            PKCS11Session.verify(
+                "test_4",
+                data_to_be_signed,
+                b"NOT VALID SIGNATURE HERE",
+                Mechanism.SHA512_RSA_PKCS,
+            )
+        )
+
+        self.assertFalse(
+            PKCS11Session.verify(
+                "test_4", data_to_be_signed, signature, Mechanism.SHA512_RSA_PKCS
+            )
+        )

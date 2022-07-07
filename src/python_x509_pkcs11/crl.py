@@ -209,7 +209,7 @@ def create(
     Parameters:
     key_label (str): Keypair label.
     subject_name (dict[str, str]): Dict with x509 Names.
-    old_crl_pem (Union[str, None] = None]): A pem encoded CRL to append to, skip if None
+    old_crl_pem (Union[str, None] = None]): A pem encoded CRL to append to, skip if None.
     serial_number (Union[int, None] = None]): Serial to the CRL, skip if None.
     resaon (Union[int, None] = None]): The reason for revocation, skip if None.
 
@@ -217,7 +217,7 @@ def create(
     str
 
     """
-    aki = PKCS11Session().key_identifier(key_label)
+    _, aki = PKCS11Session().public_key_data(key_label)
 
     # If appending to existing crl or creating a new empty crl
     if old_crl_pem is not None:

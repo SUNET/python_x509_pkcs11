@@ -28,7 +28,7 @@ from src.python_x509_pkcs11.error import DuplicateExtensionException
 # from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 # from python_x509_pkcs11.error import DuplicateExtensionException
 
-csr_pem = """-----BEGIN CERTIFICATE REQUEST-----
+CSR_PEM = """-----BEGIN CERTIFICATE REQUEST-----
 MIIDOTCCAiECAQAwRDELMAkGA1UEBhMCU0UxGzAZBgNVBAoMEkV4YW1wbGUgVW5p
 dmVyc2l0eTEYMBYGA1UEAwwPZm9vLmV4YW1wbGUub3JnMIIBIjANBgkqhkiG9w0B
 AQEFAAOCAQ8AMIIBCgKCAQEA0gTQK7ogA8Lu+z2ygADguk49XZe6bL7WMfto4Fi+
@@ -71,8 +71,8 @@ class TestCsr(unittest.TestCase):
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
-        cert_pem = csr.sign_csr("test_3", issuer_name, csr_pem)
+        PKCS11Session.create_keypair("test_3", 4096)
+        cert_pem = csr.sign_csr("test_3", issuer_name, CSR_PEM)
 
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -96,9 +96,9 @@ class TestCsr(unittest.TestCase):
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
+        PKCS11Session.create_keypair("test_3", 4096)
         cert_pem = csr.sign_csr(
-            "test_3", issuer_name, csr_pem, keep_csr_extensions=False
+            "test_3", issuer_name, CSR_PEM, keep_csr_extensions=False
         )
 
         data = cert_pem.encode("utf-8")
@@ -151,11 +151,11 @@ class TestCsr(unittest.TestCase):
         ext2["extn_value"] = b_c
         exts.append(ext2)
 
-        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
+        PKCS11Session.create_keypair("test_3", 4096)
         cert_pem = csr.sign_csr(
             "test_3",
             issuer_name,
-            csr_pem,
+            CSR_PEM,
             keep_csr_extensions=False,
             extra_extensions=exts,
         )
@@ -184,7 +184,7 @@ class TestCsr(unittest.TestCase):
         self.assertTrue(exts[1]["extn_id"].native == "basic_constraints")
 
         self.assertTrue(isinstance(exts[1]["extn_value"].native["ca"], bool))
-        self.assertTrue(exts[1]["extn_value"].native["ca"] == True)
+        self.assertTrue(exts[1]["extn_value"].native["ca"])
 
     def test_sign_csr_duplicate_extensions(self) -> None:
         """
@@ -202,10 +202,10 @@ class TestCsr(unittest.TestCase):
         exts.append(ext1)
 
         with self.assertRaises(DuplicateExtensionException):
-            cert_pem = csr.sign_csr(
+            _ = csr.sign_csr(
                 "test_3",
                 issuer_name,
-                csr_pem,
+                CSR_PEM,
                 keep_csr_extensions=False,
                 extra_extensions=exts,
             )

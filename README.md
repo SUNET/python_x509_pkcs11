@@ -35,7 +35,7 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 
 ## Usage
 
-Look at the [documentation](https://github.com/SUNET/python_x509_pkcs11/blob/main/docs/README.md)
+Look at the [documentation](https://github.com/SUNET/python_x509_pkcs11/blob/main/docs/README.md) for quick examples to begin.
 
 The [tests](https://github.com/SUNET/python_x509_pkcs11/tree/main/tests) are also a good starting point
 

@@ -35,7 +35,7 @@ subject_name = {
     "email_address": "soc@sunet.se",
 }
 
-old_crl_pem = """-----BEGIN X509 CRL-----
+OLD_CRL_PEM = """-----BEGIN X509 CRL-----
 MIIDQjCCASoCAQIwDQYJKoZIhvcNAQELBQAwgZwxCzAJBgNVBAYTAlNFMRIwEAYD
 VQQIDAlTdG9ja2hvbG0xEjAQBgNVBAcMCVN0b2NraG9sbTEOMAwGA1UECgwFU1VO
 RVQxHTAbBgNVBAsMFFNVTkVUIEluZnJhc3RydWN0dXJlMRkwFwYDVQQDDBBjYS10
@@ -67,7 +67,7 @@ class TestCrl(unittest.TestCase):
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
+        PKCS11Session.create_keypair("test_3", 4096)
 
         crl_pem = crl.create("test_3", subject_name)
 
@@ -84,9 +84,9 @@ class TestCrl(unittest.TestCase):
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
+        PKCS11Session.create_keypair("test_3", 4096)
 
-        crl_pem = crl.create("test_3", subject_name, old_crl_pem=old_crl_pem)
+        crl_pem = crl.create("test_3", subject_name, old_crl_pem=OLD_CRL_PEM)
 
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -101,7 +101,7 @@ class TestCrl(unittest.TestCase):
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
+        PKCS11Session.create_keypair("test_3", 4096)
 
         crl_pem = crl.create(
             "test_3", subject_name, serial_number=2342342342343456, reason=3
@@ -120,12 +120,12 @@ class TestCrl(unittest.TestCase):
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair_if_not_exists("test_3", 4096)
+        PKCS11Session.create_keypair("test_3", 4096)
 
         crl_pem = crl.create(
             "test_3",
             subject_name,
-            old_crl_pem=old_crl_pem,
+            old_crl_pem=OLD_CRL_PEM,
             serial_number=2342348342341456,
             reason=2,
         )

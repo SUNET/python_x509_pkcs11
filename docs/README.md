@@ -22,10 +22,83 @@ export PKCS11_TOKEN="my_test_token_1"
 softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
 ```
 
+# PKCS11 device usage
+This is basically a wrapper around the [python-pkcs11](https://python-pkcs11.readthedocs.io/en/stable/) package.
+The [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/pkcs11_handle.py) module currently includes 4 functions:
+
+- `create_keypair(key_label: str,
+          	  key_size: int,
+		  use_existing: bool = True)`
+
+ - `sign(key_label: str,
+         data: bytes,
+	 verify_signature: bool = True,
+	 mechanism: pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS)`
+
+ - `verify(key_label: str,
+          data: bytes,
+	  signature: bytes,
+	  mechanism: pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS)`
+
+- `public_key_data(key_label: str)`
+
+## create_keypair()
+
+The `create_keypair()` function generate a keypair in the PKCS11 device with this label
+Returns typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes] which is a tuple of
+the public key info and the public keys x509 'Subject Key identifier' value.
+
+If a keypair with label already exists then use that one instead.
+
+```python
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+pk_info, idenfifier = PKCS11Session().create_keypair(key_label, key_size)
+```
+
+## sign()
+
+The `sign()` function signs the data using the private_key in the PKCS11 device with this label.
+
+```python
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+data = b"DATA TO BE SIGNED"
+signature = PKCS11Session.sign("my_rsa_key", data)
+```
+
+## verify()
+
+The `verify()` function verifies a signature and its data using the private_key in the PKCS11 device with this label.
+
+```python
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+data = b"DATA TO BE SIGNED"
+signature = PKCS11Session.sign("my_rsa_key", data)
+if PKCS11Session.verify("my_rsa_key", data, signature):
+    print("OK sig")
+else:
+    print("BAD sig")
+```
+
+## public_key_data()
+
+The `public_key_data()` function returns the data for the x509 'Public Key Info'
+and 'Key Identifier' valid for this keypair from the public key in the PKCS11 device with this label.
+
+```python
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+pk_info, identifier = PKCS11Session.public_key_data("my_rsa_key")
+```
+
 # Sign an CSR
 The [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py) module currently includes one function:
 
- - `sign_csr(key_label: str, issuer_name: dict[str, str], csr_pem: str)`
+ - `sign_csr(key_label: str,
+   	     issuer_name: dict[str, str],
+	     csr_pem: str)`
  
 ## sign_csr()
 
@@ -45,7 +118,7 @@ issuer_name = {"country_name": "SE",
                "common_name": "ca-test.sunet.se",
                "email_address": "soc@sunet.se"}
 
-PKCS11Session.create_keypair_if_not_exists(4096, "my_rsa_key")
+PKCS11Session.create_keypair("my_rsa_key", 4096)
 cert_pem = csr.sign_csr("my_rsa_key", issuer_name, csr_pem)
 ```
 
@@ -56,7 +129,7 @@ The [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x
  - `create(key_label: str,
            key_size: int,
 	   subject_name: dict[str, str],
-	   exta_extensions: Union[asn1_x509.Extensions] = None])`
+	   exta_extensions: Union[asn1crypto.x509.Extensions] = None])`
 
 The `create()` function generate a CSR and then signs it
 with the same key from the key_label in the pkcs11 device.
@@ -79,7 +152,7 @@ name_dict = {"country_name": "SE",
              "common_name": "ca-test.sunet.se",
              "email_address": "soc@sunet.se"}
 
-PKCS11Session.create_keypair_if_not_exists("my_rsa_key", 4096)
+PKCS11Session.create_keypair("my_rsa_key", 4096, False)
 root_cert_pem = create("my_rsa_key", 4096, name_dict)
 ```
 
@@ -116,6 +189,6 @@ name_dict = {"country_name": "SE",
              "common_name": "ca-test.sunet.se",
              "email_address": "soc@sunet.se"}
 
-PKCS11Session.create_keypair_if_not_exists("my_rsa_key", 4096)
+PKCS11Session.create_keypair("my_rsa_key", 4096)
 root_cert_pem = create("my_rsa_key", 4096, name_dict)
 ```

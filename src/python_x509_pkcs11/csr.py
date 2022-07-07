@@ -233,16 +233,16 @@ def sign_csr(
     Parameters:
     key_label (str): Keypair label.
     issuer_name (dict[str, str]): Dict with the signers x509 Names.
-    csr_pem (Union[str, None] = None]): A CSR to sign
-    keep_csr_extensions (bool = True]): If we should keep or remove the x509 extensions in the CSR
-    extra_extensions (Union[asn1_x509.Extensions, None] = None]): x509 extensions to write into the certificate, skip if None
+    csr_pem (Union[str, None] = None]): A CSR to sign.
+    keep_csr_extensions (bool = True]): If we should keep or remove the x509 extensions in the CSR.
+    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the certificate, skip if None.
 
     Returns:
     str
 
     """
 
-    aki = PKCS11Session().key_identifier(key_label)
+    _, aki = PKCS11Session().public_key_data(key_label)
 
     tbs = _request_to_tbs_certificate(csr_pem, keep_csr_extensions)
 
