@@ -18,7 +18,10 @@ export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
 export PKCS11_PIN="1234"
 export PKCS11_TOKEN="my_test_token_1"
 
-# Initialize the token
+# Delete the previous token if exists
+softhsm2-util --delete-token --token $PKCS11_TOKEN
+
+# Initialize a new fresh PKCS11 token
 softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
 ```
 
