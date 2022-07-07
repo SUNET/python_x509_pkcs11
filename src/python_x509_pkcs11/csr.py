@@ -45,7 +45,8 @@ def _request_to_tbs_certificate(
             for _, extension in enumerate(extensions):
                 exts.append(extension)
 
-    tbs["extensions"] = exts
+    if len(exts) > 0:
+        tbs["extensions"] = exts
     return tbs
 
 

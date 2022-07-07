@@ -66,6 +66,43 @@ class TestCsr(unittest.TestCase):
     Test our csr module.
     """
 
+    def test_sign_csr_no_extensions_keep_extensions(self) -> None:
+        """
+        Sign a CSR with the key with the key_label in the pkcs11 device.
+        """
+
+        csr_no_exts = """-----BEGIN CERTIFICATE REQUEST-----
+MIICwzCCAasCAQAwfjELMAkGA1UEBhMCU0UxEjAQBgNVBAgMCVN0b2NraG9sbTEh
+MB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMRswGQYDVQQDDBJjYS10
+ZXN0LTJAc3VuZXQuc2UxGzAZBgkqhkiG9w0BCQEWDHNvY0BzdW5ldC5zZTCCASIw
+DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALDZWJtcRC/xhft4956paxXhHn95
+09XqJvMGDM8ToYNIw8BIH8Id774RjLjaa2Z9UU6OSN0IoTiH/h3wq1hTH9IovkvG
+/rNwieo1cvZ0Q3YJblEJ3R450t04w11fp+fOsZSA8NOoINav3b15Zd0ugYYFip+7
+4/Meni73FYkrKs8ctsw1bVudDwbRwnPoWcHEEbZwOgMSifgk9k8ST+1OlfdKeUr4
+LO+ss/pU516wQoVN0W0gQhahrL5plP8M1a0qo6yaNF68hXa/LmFDi7z6078S6Mpm
+fUpLQJ2CiIQL5jFaXaQhp6Uwjbmm+Mnyn+Gqb8NDd5STIG1FhMurjAC+Q6MCAwEA
+AaAAMA0GCSqGSIb3DQEBCwUAA4IBAQBSeA9xgZSuEUenuNsYqe9pDm0xagBCuSgo
+ROBkrutn/L4cP1y2ZTSkcKScezPeMcYhK3A9ktpXxVVSwjFOvCJT1Lz+JN4Vn3kG
+23TCqfTOxgB+ecHKPyKA3112WdXu5B0yRDHrecumxEJDtn3H823xn1WpxzCvqvWX
+IgukK0VlN7pUPKMtAx1Y+sY8z4bwgOmZRQVvYaRbsMJHyjBl/I4XU+W0nOyq6nAW
+eHqaFEFZApnEybHb7JgdpW5TsnvPN1O5YC6bgbRTgLmwGe+pJ5cEtTwrSvWJra8G
+grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
+-----END CERTIFICATE REQUEST-----"""
+
+        PKCS11Session.create_keypair("test_3", 4096)
+        cert_pem = csr.sign_csr("test_3", issuer_name, csr_no_exts)
+
+        data = cert_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+
+        test_cert = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+
+        exts = test_cert["tbs_certificate"]["extensions"]
+        # CSR exts + authority and subject key identifier = 2
+        self.assertTrue(len(exts) == 2)
+
     def test_sign_csr_keep_extensions(self) -> None:
         """
         Sign a CSR with the key with the key_label in the pkcs11 device.
@@ -201,6 +238,7 @@ class TestCsr(unittest.TestCase):
         exts.append(ext1)
         exts.append(ext1)
 
+        PKCS11Session.create_keypair("test_3", 4096)
         with self.assertRaises(DuplicateExtensionException):
             _ = csr.sign_csr(
                 "test_3",
