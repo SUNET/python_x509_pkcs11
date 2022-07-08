@@ -67,7 +67,7 @@ class TestCrl(unittest.TestCase):
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair("test_3", 4096)
+        PKCS11Session.create_keypair("test_3")
 
         crl_pem = crl.create("test_3", subject_name)
 
@@ -79,13 +79,6 @@ class TestCrl(unittest.TestCase):
 
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
 
-    def test_add_none_to_old_crl(self) -> None:
-        """
-        Create and sign a CRL with the key_label in the pkcs11 device.
-        """
-
-        PKCS11Session.create_keypair("test_3", 4096)
-
         crl_pem = crl.create("test_3", subject_name, old_crl_pem=OLD_CRL_PEM)
 
         data = crl_pem.encode("utf-8")
@@ -96,12 +89,12 @@ class TestCrl(unittest.TestCase):
 
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
 
-    def test_add_serial_to_empty_crl(self) -> None:
+    def test_add_serial_crl(self) -> None:
         """
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair("test_3", 4096)
+        PKCS11Session.create_keypair("test_3")
 
         crl_pem = crl.create(
             "test_3", subject_name, serial_number=2342342342343456, reason=3
@@ -114,13 +107,6 @@ class TestCrl(unittest.TestCase):
         test_crl = asn1_crl.CertificateList.load(data)
 
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
-
-    def test_add_serial_to_old_crl(self) -> None:
-        """
-        Create and sign a CRL with the key_label in the pkcs11 device.
-        """
-
-        PKCS11Session.create_keypair("test_3", 4096)
 
         crl_pem = crl.create(
             "test_3",

@@ -4,17 +4,30 @@ First we need to setup a PKCS11 device.
 We will use softhsm for easy testing but any PKCS11 device should work.
 
 ```bash
+if awk -F= '/^NAME/{print $2}' /etc/os-release | grep -i "debian\|ubuntu"
+then
+    # Ubuntu / Debian
+    sudo apt-get install python3-dev python3-pip softhsm2
+    sudo usermod -a -G softhsm $USER
+else
+    # Redhat / Centos / Fedora
+    sudo dnf install python3-devel python3-pip softhsm gcc 
+    sudo usermod -a -G ods $USER
+fi
+
+# Or reboot, just make sure your shell now has the new group	
+echo "logout and login again to fix the softhsm group now"
+
 # Install this package
-pip install python_x509_pkcs11
+pip3 install python_x509_pkcs11
 
-# Install deps
-sudo apt-get install opensc softhsm2
-sudo usermod -a -G softhsm $USER
-sudo reboot # Yeah seem to not update your groups without a reboot
-
-# export environment values the package will use
-# Replace with your PKCS11 device .so file
-export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+# export env values the code will use
+if awk -F= '/^NAME/{print $2}' /etc/os-release | grep -i "debian\|ubuntu"
+then
+    export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+else
+    export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so"
+fi
 export PKCS11_PIN="1234"
 export PKCS11_TOKEN="my_test_token_1"
 
@@ -27,10 +40,10 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 
 # PKCS11 device usage
 This is basically a wrapper around the [python-pkcs11](https://python-pkcs11.readthedocs.io/en/stable/) package.
-The [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/pkcs11_handle.py) module currently includes 4 functions:
+Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/pkcs11_handle.py) module currently exposes 4 functions:
 
 - `create_keypair(key_label: str,
-          	  key_size: int,
+         	  key_size: int = 2048,
 		  use_existing: bool = True)`
 
  - `sign(key_label: str,
@@ -56,7 +69,7 @@ If a keypair with label already exists then use that one instead.
 ```python
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key", 2048)
+pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
 print(pk_info)
 print(identifier)
 ```
@@ -69,7 +82,7 @@ The `sign()` function signs the data using the private_key in the PKCS11 device 
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 data = b"DATA TO BE SIGNED"
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key", 2048)
+pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
 signature = PKCS11Session.sign("my_rsa_key", data)
 print(signature)
 ```
@@ -82,7 +95,7 @@ The `verify()` function verifies a signature and its data using the private_key 
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 data = b"DATA TO BE SIGNED"
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key", 2048)
+pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
 signature = PKCS11Session.sign("my_rsa_key", data)
 if PKCS11Session.verify("my_rsa_key", data, signature):
     print("OK sig")
@@ -98,7 +111,7 @@ and 'Key Identifier' valid for this keypair from the public key in the PKCS11 de
 ```python
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
-pk_info_created, identifier_created = PKCS11Session.create_keypair("my_rsa_key", 2048)
+pk_info_created, identifier_created = PKCS11Session.create_keypair("my_rsa_key")
 pk_info_loaded, identifier_loaded = PKCS11Session.public_key_data("my_rsa_key")
 assert (pk_info_created.native == pk_info_loaded.native)
 assert (identifier_created == identifier_loaded)
@@ -107,7 +120,7 @@ print(identifier_loaded)
 ```
 
 # Sign an CSR
-The [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py) module currently includes one function:
+The [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py) module currently exposes one function:
 
  - `sign_csr(key_label: str,
    	     issuer_name: dict[str, str],
@@ -150,14 +163,14 @@ issuer_name = {"country_name": "SE",
                "common_name": "ca-test.sunet.se",
                "email_address": "soc@sunet.se"}
 
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key", 2048)
+pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
 cert_pem = csr.sign_csr("my_rsa_key", issuer_name, csr_pem)
 print(cert_pem)
 ```
 
 # Create a root CA
 
-The [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/root_ca.py) module currently includes one function:
+The [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/root_ca.py) module currently exposes one function:
 
  - `create(key_label: str,
            key_size: int,
@@ -185,13 +198,13 @@ name_dict = {"country_name": "SE",
              "common_name": "ca-test.sunet.se",
              "email_address": "soc@sunet.se"}
 
-root_cert_pem = create("my_rsa_key", 4096, name_dict)
+root_cert_pem = create("my_rsa_key", name_dict)
 print(root_cert_pem)
 ```
 
 # Create a CRL
 
-The [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/crl.py) module currently includes one function:
+The [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/crl.py) module currently exposes one function:
 
  - `create(key_label: str,
            subject_name: dict[str, str],
@@ -222,7 +235,7 @@ name_dict = {"country_name": "SE",
              "common_name": "ca-test.sunet.se",
              "email_address": "soc@sunet.se"}
 
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key", 2048)
+pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
 crl_pem = create("my_rsa_key", name_dict)
 print(crl_pem)
 ```

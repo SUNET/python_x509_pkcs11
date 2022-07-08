@@ -51,7 +51,16 @@ class TestRootCa(unittest.TestCase):
         Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
 
-        root_cert_pem = create(new_key_label[:-1], 4096, name_dict)
+        # Test non default key size
+        root_cert_pem = create(new_key_label[:-1], name_dict, 4096)
+        data = root_cert_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+
+        test_cert = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+
+        root_cert_pem = create(new_key_label[:-2], name_dict)
 
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -61,7 +70,7 @@ class TestRootCa(unittest.TestCase):
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
 
         cert_exts = test_cert["tbs_certificate"]["extensions"]
-        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+        self.assertTrue(isinstance(cert_exts, asn1_x509.Extensions))
         # CSR exts (key usage and basic constraints
         # + authority and subject key identifier = 4
         self.assertTrue(len(cert_exts) == 4)
@@ -88,7 +97,7 @@ class TestRootCa(unittest.TestCase):
         ext["extn_value"] = pkup
         exts.append(ext)
 
-        root_cert_pem = create(new_key_label[:-2], 4096, name_dict, exts)
+        root_cert_pem = create(new_key_label[:-3], name_dict, extra_extensions=exts)
 
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):

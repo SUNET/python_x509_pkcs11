@@ -154,8 +154,8 @@ def _create_tbs(
 
 def create(
     key_label: str,
-    key_size: int,
     subject_name: dict[str, str],
+    key_size: int = 2048,
     extra_extensions: Union[asn1_x509.Extensions, None] = None,
 ) -> str:
     """
@@ -164,8 +164,8 @@ def create(
 
     Parameters:
     key_label (str): Keypair label.
-    key_size (int): Key size, 2048 and 4096 works best.
     subject_name (dict[str, str]): Dict with the new root CA x509 Names.
+    key_size (int = 2048): Key size, 2048 and 4096 works best.
     extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the root certificate, skip if None.
 
     Returns:

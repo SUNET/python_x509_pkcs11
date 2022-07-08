@@ -35,7 +35,7 @@ from .error import PKCS11TimeoutException
 
 LOCK = threading.Lock()
 DEBUG = False
-TIMEOUT = 5  # Seconds
+TIMEOUT = 10  # Seconds
 
 
 @contextmanager
@@ -105,7 +105,7 @@ class PKCS11Session:
 
     @classmethod
     def create_keypair(
-        cls, key_label: str, key_size: int, use_existing: bool = True
+        cls, key_label: str, key_size: int = 2048, use_existing: bool = True
     ) -> typing.Tuple[PublicKeyInfo, bytes]:
         """
         Create a RSA keypair in the PKCS11 device with this label.
@@ -115,7 +115,7 @@ class PKCS11Session:
 
         Parameters:
         key_label (str): Keypair label.
-        key_size (int): Size of the key.
+        key_size (int = 2048): Size of the key.
         use_existing (bool = True): If keypair with this label exists then use that one instead.
 
         Returns:

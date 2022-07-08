@@ -38,20 +38,33 @@ class TestPKCS11Handle(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label, 4096, False)
+        PKCS11Session.create_keypair(new_key_label, 2048, False)
         pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
         self.assertTrue(isinstance(identifier, bytes))
         self.assertTrue(isinstance(pk_info, PublicKeyInfo))
 
         with self.assertRaises(MultipleObjectsReturned):
-            PKCS11Session.create_keypair(new_key_label, 4096, False)
+            PKCS11Session.create_keypair(new_key_label, 2048, False)
             pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
+
+        PKCS11Session.create_keypair(new_key_label[-1], 2048, False)
+        pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[-1])
+        self.assertTrue(isinstance(identifier2, bytes))
+        self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
+
+        self.assertTrue(identifier != identifier2)
+        self.assertTrue(pk_info.native != pk_info2.native)
+
+        PKCS11Session.create_keypair(new_key_label[-2], 4096, False)
+        pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[-1])
+        self.assertTrue(isinstance(identifier2, bytes))
+        self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
 
     def test_get_public_key_data(self) -> None:
         """
         Get key identifier from public key with key_label in the PKCS11 device.
         """
-        PKCS11Session.create_keypair("test_4", 4096)
+        PKCS11Session.create_keypair("test_4")
         pk_info, identifier = PKCS11Session.public_key_data("test_4")
         self.assertTrue(isinstance(identifier, bytes))
         self.assertTrue(isinstance(pk_info, PublicKeyInfo))
@@ -64,7 +77,7 @@ class TestPKCS11Handle(unittest.TestCase):
         Sign bytes with key_label in the PKCS11 device.
         """
 
-        PKCS11Session.create_keypair("test_4", 4096)
+        PKCS11Session.create_keypair("test_4")
         data_to_be_signed = b"MY TEST DATA TO BE SIGNED HERE"
 
         signature = PKCS11Session.sign("test_4", data_to_be_signed)

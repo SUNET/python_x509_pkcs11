@@ -89,7 +89,7 @@ eHqaFEFZApnEybHb7JgdpW5TsnvPN1O5YC6bgbRTgLmwGe+pJ5cEtTwrSvWJra8G
 grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 -----END CERTIFICATE REQUEST-----"""
 
-        PKCS11Session.create_keypair("test_3", 4096)
+        PKCS11Session.create_keypair("test_3")
         cert_pem = csr.sign_csr("test_3", issuer_name, csr_no_exts)
 
         data = cert_pem.encode("utf-8")
@@ -108,7 +108,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair("test_3", 4096)
+        PKCS11Session.create_keypair("test_3")
         cert_pem = csr.sign_csr("test_3", issuer_name, CSR_PEM)
 
         data = cert_pem.encode("utf-8")
@@ -133,7 +133,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair("test_3", 4096)
+        PKCS11Session.create_keypair("test_3")
         cert_pem = csr.sign_csr(
             "test_3", issuer_name, CSR_PEM, keep_csr_extensions=False
         )
@@ -188,7 +188,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         ext2["extn_value"] = b_c
         exts.append(ext2)
 
-        PKCS11Session.create_keypair("test_3", 4096)
+        PKCS11Session.create_keypair("test_3")
         cert_pem = csr.sign_csr(
             "test_3",
             issuer_name,
@@ -238,7 +238,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         exts.append(ext1)
         exts.append(ext1)
 
-        PKCS11Session.create_keypair("test_3", 4096)
+        PKCS11Session.create_keypair("test_3")
         with self.assertRaises(DuplicateExtensionException):
             _ = csr.sign_csr(
                 "test_3",

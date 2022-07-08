@@ -1,4 +1,11 @@
-export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+#!/bin/bash
+
+if awk -F= '/^NAME/{print $2}' /etc/os-release | grep -i "debian\|ubuntu"
+then
+    export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+else
+    export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so"
+fi
 export PKCS11_TOKEN='my_test_token_1'
 export PKCS11_PIN='1234'
 

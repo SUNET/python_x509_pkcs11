@@ -14,17 +14,33 @@ This package is pretty much a wrapper around python-pkcs11 and asn1crypto
 
 ## Setup
 
-```
-# Install this package
-pip install python_x509_pkcs11
+```bash
+# Install libs and add your user to the softhsm group
 
-# Install deps and add your user to the softhsm group
-sudo apt-get install opensc softhsm2
-sudo usermod -a -G softhsm $USER
-sudo reboot # Yeah seem to not update your groups without a reboot
+if awk -F= '/^NAME/{print $2}' /etc/os-release | grep -i "debian\|ubuntu"
+then
+    # Ubuntu / Debian
+    sudo apt-get install python3-dev python3-pip softhsm2
+    sudo usermod -a -G softhsm $USER
+else
+    # Redhat / Centos / Fedora
+    sudo dnf install python3-devel python3-pip softhsm gcc 
+    sudo usermod -a -G ods $USER
+fi
+
+# Or reboot, just make sure your shell now has the new group	
+echo "logout and login again now"
+
+# Install this package
+pip3 install python_x509_pkcs11
 
 # export env values the code will use
-export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+if awk -F= '/^NAME/{print $2}' /etc/os-release | grep -i "debian\|ubuntu"
+then
+    export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+else
+    export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so"
+fi
 export PKCS11_PIN="1234"
 export PKCS11_TOKEN="my_test_token_1"
 
@@ -43,7 +59,12 @@ Here is the basic, create a root CA and then use its key in the PKCS11 device to
 
 ```bash
 # export env values the code will use
-export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+if awk -F= '/^NAME/{print $2}' /etc/os-release | grep -i "debian\|ubuntu"
+then
+    export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+else
+    export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so"
+fi
 export PKCS11_PIN="1234"
 export PKCS11_TOKEN="my_test_token_1"
 
@@ -87,7 +108,7 @@ name_dict = {"country_name": "SE",
              "common_name": "ca-test.sunet.se",
              "email_address": "soc@sunet.se"}
 
-root_cert_pem = create("my_rsa_key", 4096, name_dict)
+root_cert_pem = create("my_rsa_key", 2048, name_dict)
 print("root CA")
 print(root_cert_pem)
 
