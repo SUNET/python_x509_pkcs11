@@ -66,6 +66,7 @@ the public key info and the public keys x509 'Subject Key identifier' value.
 
 If a keypair with label already exists then use that one instead.
 
+### Example usage:
 ```python
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
@@ -78,6 +79,7 @@ print(identifier)
 
 The `sign()` function signs the data using the private_key in the PKCS11 device with this label.
 
+### Example usage:
 ```python
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
@@ -91,6 +93,7 @@ print(signature)
 
 The `verify()` function verifies a signature and its data using the private_key in the PKCS11 device with this label.
 
+### Example usage:
 ```python
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
@@ -108,6 +111,7 @@ else:
 The `public_key_data()` function returns the data for the x509 'Public Key Info'
 and 'Key Identifier' valid for this keypair from the public key in the PKCS11 device with this label.
 
+### Example usage:
 ```python
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
@@ -142,6 +146,7 @@ import datetime
 datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
 ```
 
+### Example usage:
 ```python
 from python_x509_pkcs11 import csr
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -203,6 +208,7 @@ datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
 This function uses the `sign_csr()` from the `csr` module to sign
 the generated CSR.
 
+### Example usage:
 ```python
 from python_x509_pkcs11.root_ca import create
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -248,6 +254,7 @@ import datetime
 datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
 ```
 
+### Example usage:
 ```python
 from python_x509_pkcs11.crl import create
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session

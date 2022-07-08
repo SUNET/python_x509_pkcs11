@@ -55,7 +55,7 @@ Look at the [documentation](https://github.com/SUNET/python_x509_pkcs11/blob/mai
 
 The [tests](https://github.com/SUNET/python_x509_pkcs11/tree/main/tests) are also a good starting point
 
-Here is the basic, create a root CA and then use its key in the PKCS11 device to sign a csr
+Here is the basic, create a root CA and then use its key in the PKCS11 device to sign a csr:
 
 ```bash
 # export env values the code will use
