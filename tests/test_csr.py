@@ -1,20 +1,10 @@
 """
 Test to sign a csr
-
-# Remeber to set PKCS11 env variables
-export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
-export PKCS11_TOKEN='my_test_token_1'
-export PKCS11_PIN='1234'
-
-# Delete a previous pkcs11 token if exists
-softhsm2-util --delete-token --token my_test_token_1
-
-# Create a new pkcs11 token
-softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
---pin $PKCS11_PIN --so-pin $PKCS11_PIN
-
 """
 import unittest
+import datetime
+import os
+
 from asn1crypto import x509 as asn1_x509
 from asn1crypto import csr as asn1_csr
 from asn1crypto import pem as asn1_pem
@@ -89,8 +79,9 @@ eHqaFEFZApnEybHb7JgdpW5TsnvPN1O5YC6bgbRTgLmwGe+pJ5cEtTwrSvWJra8G
 grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 -----END CERTIFICATE REQUEST-----"""
 
-        PKCS11Session.create_keypair("test_3")
-        cert_pem = csr.sign_csr("test_3", issuer_name, csr_no_exts)
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        PKCS11Session.create_keypair(new_key_label)
+        cert_pem = csr.sign_csr(new_key_label, issuer_name, csr_no_exts)
 
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -103,13 +94,42 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         # CSR exts + authority and subject key identifier = 2
         self.assertTrue(len(exts) == 2)
 
+        # Test not_before
+        not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
+        cert_pem = csr.sign_csr(
+            new_key_label, issuer_name, csr_no_exts, not_before=not_before
+        )
+        data = cert_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_cert = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+        self.assertTrue(
+            test_cert["tbs_certificate"]["validity"]["not_before"].native == not_before
+        )
+
+        # Test not_after
+        not_after = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
+        cert_pem = csr.sign_csr(
+            new_key_label, issuer_name, csr_no_exts, not_after=not_after
+        )
+        data = cert_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_cert = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+        self.assertTrue(
+            test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after
+        )
+
     def test_sign_csr_keep_extensions(self) -> None:
         """
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair("test_3")
-        cert_pem = csr.sign_csr("test_3", issuer_name, CSR_PEM)
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        PKCS11Session.create_keypair(new_key_label)
+        cert_pem = csr.sign_csr(new_key_label, issuer_name, CSR_PEM)
 
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -133,9 +153,10 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair("test_3")
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        PKCS11Session.create_keypair(new_key_label)
         cert_pem = csr.sign_csr(
-            "test_3", issuer_name, CSR_PEM, keep_csr_extensions=False
+            new_key_label, issuer_name, CSR_PEM, keep_csr_extensions=False
         )
 
         data = cert_pem.encode("utf-8")
@@ -170,6 +191,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
         exts = asn1_csr.Extensions()
 
         k_u = asn1_x509.KeyUsage(("100001100",))
@@ -188,9 +210,9 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         ext2["extn_value"] = b_c
         exts.append(ext2)
 
-        PKCS11Session.create_keypair("test_3")
+        PKCS11Session.create_keypair(new_key_label)
         cert_pem = csr.sign_csr(
-            "test_3",
+            new_key_label,
             issuer_name,
             CSR_PEM,
             keep_csr_extensions=False,
@@ -228,6 +250,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
         exts = asn1_csr.Extensions()
 
         k_u = asn1_x509.KeyUsage(("100001100",))
@@ -238,10 +261,10 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         exts.append(ext1)
         exts.append(ext1)
 
-        PKCS11Session.create_keypair("test_3")
+        PKCS11Session.create_keypair(new_key_label)
         with self.assertRaises(DuplicateExtensionException):
             _ = csr.sign_csr(
-                "test_3",
+                new_key_label,
                 issuer_name,
                 CSR_PEM,
                 keep_csr_extensions=False,

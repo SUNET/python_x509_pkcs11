@@ -1,20 +1,8 @@
 """
 Test to create and sign a crl
-
-# Remeber to set PKCS11 env variables
-export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
-export PKCS11_TOKEN='my_test_token_1'
-export PKCS11_PIN='1234'
-
-# Delete a previous pkcs11 token if exists
-softhsm2-util --delete-token --token my_test_token_1
-
-# Create a new pkcs11 token
-softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
---pin $PKCS11_PIN --so-pin $PKCS11_PIN
-
 """
 import unittest
+import os
 from asn1crypto import crl as asn1_crl
 from asn1crypto import pem as asn1_pem
 
@@ -67,9 +55,10 @@ class TestCrl(unittest.TestCase):
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair("test_3")
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        PKCS11Session.create_keypair(new_key_label)
 
-        crl_pem = crl.create("test_3", subject_name)
+        crl_pem = crl.create(new_key_label, subject_name)
 
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -79,7 +68,7 @@ class TestCrl(unittest.TestCase):
 
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
 
-        crl_pem = crl.create("test_3", subject_name, old_crl_pem=OLD_CRL_PEM)
+        crl_pem = crl.create(new_key_label, subject_name, old_crl_pem=OLD_CRL_PEM)
 
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -94,10 +83,11 @@ class TestCrl(unittest.TestCase):
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
-        PKCS11Session.create_keypair("test_3")
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        PKCS11Session.create_keypair(new_key_label)
 
         crl_pem = crl.create(
-            "test_3", subject_name, serial_number=2342342342343456, reason=3
+            new_key_label, subject_name, serial_number=2342342342343456, reason=3
         )
 
         data = crl_pem.encode("utf-8")
@@ -109,7 +99,7 @@ class TestCrl(unittest.TestCase):
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
 
         crl_pem = crl.create(
-            "test_3",
+            new_key_label,
             subject_name,
             old_crl_pem=OLD_CRL_PEM,
             serial_number=2342348342341456,

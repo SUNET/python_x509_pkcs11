@@ -6,6 +6,7 @@ Exposes the functions:
 """
 
 from typing import Union
+import datetime
 
 import asn1crypto
 from asn1crypto import x509 as asn1_x509
@@ -156,6 +157,8 @@ def create(
     key_label: str,
     subject_name: dict[str, str],
     key_size: int = 2048,
+    not_before: Union[datetime.datetime, None] = None,
+    not_after: Union[datetime.datetime, None] = None,
     extra_extensions: Union[asn1_x509.Extensions, None] = None,
 ) -> str:
     """
@@ -166,6 +169,8 @@ def create(
     key_label (str): Keypair label.
     subject_name (dict[str, str]): Dict with the new root CA x509 Names.
     key_size (int = 2048): Key size, 2048 and 4096 works best.
+    not_before (Union[datetime.datetime, None] = None): The root certificate is not valid before this time.
+    not_after (Union[datetime.datetime, None] = None): The root certificate is not valid after this time.
     extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the root certificate, skip if None.
 
     Returns:
@@ -190,4 +195,11 @@ def create(
     # Needed for mypy strict
     assert isinstance(pem_enc, bytes)
 
-    return sign_csr(key_label, subject_name, pem_enc.decode("utf-8"))
+    return sign_csr(
+        key_label,
+        subject_name,
+        pem_enc.decode("utf-8"),
+        not_before=not_before,
+        not_after=not_after,
+        keep_csr_extensions=True,
+    )

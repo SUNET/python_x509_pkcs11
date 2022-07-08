@@ -54,23 +54,33 @@ def _set_tbs_issuer(
     return tbs
 
 
-def _set_tbs_next_update(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
+def _set_tbs_next_update(
+    tbs: asn1_crl.TbsCertList, next_update: Union[datetime.datetime, None]
+) -> asn1_crl.TbsCertList:
 
-    tbs["next_update"] = asn1_crl.Time(
-        name="utc_time",
-        value=datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(days=3 * 365),
-    )
+    if next_update is None:
+        tbs["next_update"] = asn1_crl.Time(
+            name="utc_time",
+            value=datetime.datetime.now(datetime.timezone.utc)
+            + datetime.timedelta(days=1),
+        )
+    else:
+        tbs["next_update"] = asn1_crl.Time(name="utc_time", value=next_update)
     return tbs
 
 
-def _set_tbs_this_update(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
+def _set_tbs_this_update(
+    tbs: asn1_crl.TbsCertList, this_update: Union[datetime.datetime, None]
+) -> asn1_crl.TbsCertList:
 
-    tbs["this_update"] = asn1_crl.Time(
-        name="utc_time",
-        value=datetime.datetime.now(datetime.timezone.utc)
-        - datetime.timedelta(minutes=2),
-    )
+    if this_update is None:
+        tbs["this_update"] = asn1_crl.Time(
+            name="utc_time",
+            value=datetime.datetime.now(datetime.timezone.utc)
+            - datetime.timedelta(minutes=2),
+        )
+    else:
+        tbs["this_update"] = asn1_crl.Time(name="utc_time", value=this_update)
     return tbs
 
 
@@ -172,7 +182,11 @@ def _set_tbs_extensions(tbs: asn1_crl.TbsCertList, aki: bytes) -> asn1_crl.TbsCe
 
 
 def _create_tbs_cert_list(
-    tbs: asn1_crl.TbsCertList, subject_name: dict[str, str], aki: bytes
+    tbs: asn1_crl.TbsCertList,
+    subject_name: dict[str, str],
+    aki: bytes,
+    this_update: Union[datetime.datetime, None],
+    next_update: Union[datetime.datetime, None],
 ) -> asn1_crl.TbsCertList:
 
     # Set extensions
@@ -181,8 +195,8 @@ def _create_tbs_cert_list(
     # Set non extensions
     tbs = _set_tbs_version(tbs)
     tbs = _set_tbs_issuer(tbs, subject_name)
-    tbs = _set_tbs_next_update(tbs)
-    tbs = _set_tbs_this_update(tbs)
+    tbs = _set_tbs_next_update(tbs, next_update)
+    tbs = _set_tbs_this_update(tbs, this_update)
     tbs = _set_tbs_update_crl_number(tbs)
     tbs = _set_tbs_signature(tbs)
     return tbs
@@ -202,6 +216,8 @@ def create(
     old_crl_pem: Union[str, None] = None,
     serial_number: Union[int, None] = None,
     reason: Union[int, None] = None,
+    this_update: Union[datetime.datetime, None] = None,
+    next_update: Union[datetime.datetime, None] = None,
 ) -> str:
     """
     Create a CRL signed by the key with the key_label in the PKCS11 device.
@@ -211,7 +227,9 @@ def create(
     subject_name (dict[str, str]): Dict with x509 Names.
     old_crl_pem (Union[str, None] = None]): A pem encoded CRL to append to, skip if None.
     serial_number (Union[int, None] = None]): Serial to the CRL, skip if None.
-    resaon (Union[int, None] = None]): The reason for revocation, skip if None.
+    reason (Union[int, None] = None]): The reason for revocation, skip if None.
+    this_update (Union[datetime.datetime, None] = None): The CRLs timestamp.
+    next_update (Union[datetime.datetime, None] = None): The next CRLs timestamp.
 
     Returns:
     str
@@ -229,7 +247,7 @@ def create(
     if serial_number is not None and reason is not None:
         tbs = _set_tbs_revoke_serial_numer(tbs, serial_number, reason)
 
-    tbs = _create_tbs_cert_list(tbs, subject_name, aki)
+    tbs = _create_tbs_cert_list(tbs, subject_name, aki, this_update, next_update)
 
     cert_list = asn1_crl.CertificateList()
     cert_list["tbs_cert_list"] = tbs

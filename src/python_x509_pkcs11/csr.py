@@ -96,18 +96,35 @@ def _set_tbs_serial(tbs: asn1_x509.TbsCertificate) -> asn1_x509.TbsCertificate:
 
 def _set_tbs_validity(
     tbs: asn1_x509.TbsCertificate,
+    not_before: Union[datetime.datetime, None],
+    not_after: Union[datetime.datetime, None],
 ) -> asn1_x509.TbsCertificate:
 
     val = asn1_x509.Validity()
-    val["not_before"] = asn1_x509.Time(
-        name="utc_time",
-        value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(2),
-    )
-    val["not_after"] = asn1_x509.Time(
-        name="utc_time",
-        value=datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(365, 0, 0),
-    )
+
+    if not_before is None:
+        val["not_before"] = asn1_x509.Time(
+            name="utc_time",
+            value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(2),
+        )
+    else:
+        val["not_before"] = asn1_x509.Time(
+            name="utc_time",
+            value=not_before,
+        )
+
+    if not_after is None:
+        val["not_after"] = asn1_x509.Time(
+            name="utc_time",
+            value=datetime.datetime.now(datetime.timezone.utc)
+            + datetime.timedelta(365 * 3, 0, 0),
+        )
+    else:
+        val["not_after"] = asn1_x509.Time(
+            name="utc_time",
+            value=not_after,
+        )
+
     tbs["validity"] = val
     return tbs
 
@@ -206,6 +223,8 @@ def _create_tbs_certificate(
     tbs: asn1_x509.TbsCertificate,
     issuer_name: dict[str, str],
     aki: bytes,
+    not_before: Union[datetime.datetime, None],
+    not_after: Union[datetime.datetime, None],
     extra_extensions: asn1_x509.Extensions,
 ) -> asn1_x509.TbsCertificate:
 
@@ -216,7 +235,7 @@ def _create_tbs_certificate(
     tbs = _set_tbs_version(tbs)
     tbs = _set_tbs_issuer(tbs, issuer_name)
     tbs = _set_tbs_serial(tbs)
-    tbs = _set_tbs_validity(tbs)
+    tbs = _set_tbs_validity(tbs, not_before, not_after)
     tbs = _set_tbs_signature(tbs)
     return tbs
 
@@ -225,6 +244,8 @@ def sign_csr(
     key_label: str,
     issuer_name: dict[str, str],
     csr_pem: str,
+    not_before: Union[datetime.datetime, None] = None,
+    not_after: Union[datetime.datetime, None] = None,
     keep_csr_extensions: bool = True,
     extra_extensions: Union[asn1_x509.Extensions, None] = None,
 ) -> str:
@@ -235,6 +256,8 @@ def sign_csr(
     key_label (str): Keypair label.
     issuer_name (dict[str, str]): Dict with the signers x509 Names.
     csr_pem (Union[str, None] = None]): A CSR to sign.
+    not_before (Union[datetime.datetime, None] = None): The certificate is not valid before this time.
+    not_after (Union[datetime.datetime, None] = None): The certificate is not valid after this time.
     keep_csr_extensions (bool = True]): If we should keep or remove the x509 extensions in the CSR.
     extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the certificate, skip if None.
 
@@ -247,7 +270,9 @@ def sign_csr(
 
     tbs = _request_to_tbs_certificate(csr_pem, keep_csr_extensions)
 
-    tbs = _create_tbs_certificate(tbs, issuer_name, aki, extra_extensions)
+    tbs = _create_tbs_certificate(
+        tbs, issuer_name, aki, not_before, not_after, extra_extensions
+    )
 
     signed_cert = asn1_x509.Certificate()
     signed_cert["tbs_certificate"] = tbs

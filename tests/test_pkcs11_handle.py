@@ -1,18 +1,5 @@
 """
 Test our PKCS11 session handler
-
-# Remeber to set PKCS11 env variables
-export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
-export PKCS11_TOKEN='my_test_token_1'
-export PKCS11_PIN='1234'
-
-# Delete a previous pkcs11 token if exists
-softhsm2-util --delete-token --token my_test_token_1
-
-# Create a new pkcs11 token
-softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
---pin $PKCS11_PIN --so-pin $PKCS11_PIN
-
 """
 import unittest
 import os
@@ -47,16 +34,16 @@ class TestPKCS11Handle(unittest.TestCase):
             PKCS11Session.create_keypair(new_key_label, 2048, False)
             pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
 
-        PKCS11Session.create_keypair(new_key_label[-1], 2048, False)
-        pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[-1])
+        PKCS11Session.create_keypair(new_key_label[:-1], 2048, False)
+        pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[:-1])
         self.assertTrue(isinstance(identifier2, bytes))
         self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
 
         self.assertTrue(identifier != identifier2)
         self.assertTrue(pk_info.native != pk_info2.native)
 
-        PKCS11Session.create_keypair(new_key_label[-2], 4096, False)
-        pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[-1])
+        PKCS11Session.create_keypair(new_key_label[:-2], 4096, False)
+        pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[:-2])
         self.assertTrue(isinstance(identifier2, bytes))
         self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
 
@@ -64,41 +51,46 @@ class TestPKCS11Handle(unittest.TestCase):
         """
         Get key identifier from public key with key_label in the PKCS11 device.
         """
-        PKCS11Session.create_keypair("test_4")
-        pk_info, identifier = PKCS11Session.public_key_data("test_4")
+
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        PKCS11Session.create_keypair(new_key_label)
+        pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
         self.assertTrue(isinstance(identifier, bytes))
         self.assertTrue(isinstance(pk_info, PublicKeyInfo))
 
         with self.assertRaises(NoSuchKey):
-            pk_info, identifier = PKCS11Session.public_key_data("test_4"[:-2])
+            pk_info, identifier = PKCS11Session.public_key_data(new_key_label[:-2])
 
     def test_sign_and_verify_data(self) -> None:
         """
         Sign bytes with key_label in the PKCS11 device.
         """
 
-        PKCS11Session.create_keypair("test_4")
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        PKCS11Session.create_keypair(new_key_label)
         data_to_be_signed = b"MY TEST DATA TO BE SIGNED HERE"
 
-        signature = PKCS11Session.sign("test_4", data_to_be_signed)
+        signature = PKCS11Session.sign(new_key_label, data_to_be_signed)
         self.assertTrue(isinstance(signature, bytes))
 
         signature = PKCS11Session.sign(
-            "test_4", data_to_be_signed, Mechanism.SHA512_RSA_PKCS
+            new_key_label, data_to_be_signed, Mechanism.SHA512_RSA_PKCS
         )
         self.assertTrue(isinstance(signature, bytes))
 
-        self.assertTrue(PKCS11Session.verify("test_4", data_to_be_signed, signature))
+        self.assertTrue(
+            PKCS11Session.verify(new_key_label, data_to_be_signed, signature)
+        )
 
         self.assertFalse(
             PKCS11Session.verify(
-                "test_4", data_to_be_signed, b"NOT VALID SIGNATURE HERE"
+                new_key_label, data_to_be_signed, b"NOT VALID SIGNATURE HERE"
             )
         )
 
         self.assertFalse(
             PKCS11Session.verify(
-                "test_4",
+                new_key_label,
                 data_to_be_signed,
                 b"NOT VALID SIGNATURE HERE",
                 Mechanism.SHA512_RSA_PKCS,
@@ -107,6 +99,6 @@ class TestPKCS11Handle(unittest.TestCase):
 
         self.assertFalse(
             PKCS11Session.verify(
-                "test_4", data_to_be_signed, signature, Mechanism.SHA512_RSA_PKCS
+                new_key_label, data_to_be_signed, signature, Mechanism.SHA512_RSA_PKCS
             )
         )

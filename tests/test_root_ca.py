@@ -1,18 +1,5 @@
 """
 Test to create a new root CA
-
-# Remeber to set PKCS11 env variables
-export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
-export PKCS11_TOKEN='my_test_token_1'
-export PKCS11_PIN='1234'
-
-# Delete a previous pkcs11 token if exists
-softhsm2-util --delete-token --token my_test_token_1
-
-# Create a new pkcs11 token
-softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
---pin $PKCS11_PIN --so-pin $PKCS11_PIN
-
 """
 import unittest
 import datetime
@@ -38,8 +25,6 @@ name_dict = {
     "email_address": "soc@sunet.se",
 }
 
-new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-
 
 class TestRootCa(unittest.TestCase):
     """
@@ -51,6 +36,8 @@ class TestRootCa(unittest.TestCase):
         Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
 
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+
         # Test non default key size
         root_cert_pem = create(new_key_label[:-1], name_dict, 4096)
         data = root_cert_pem.encode("utf-8")
@@ -60,26 +47,57 @@ class TestRootCa(unittest.TestCase):
         test_cert = asn1_x509.Certificate.load(data)
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
 
+        # Test default values
         root_cert_pem = create(new_key_label[:-2], name_dict)
-
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
-
         test_cert = asn1_x509.Certificate.load(data)
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
-
         cert_exts = test_cert["tbs_certificate"]["extensions"]
         self.assertTrue(isinstance(cert_exts, asn1_x509.Extensions))
         # CSR exts (key usage and basic constraints
         # + authority and subject key identifier = 4
         self.assertTrue(len(cert_exts) == 4)
 
+        # Test not_before parameter
+        not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
+        root_cert_pem = create(
+            new_key_label[:-3],
+            name_dict,
+            not_before=not_before,
+        )
+        data = root_cert_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_cert = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+        self.assertTrue(
+            test_cert["tbs_certificate"]["validity"]["not_before"].native == not_before
+        )
+
+        # Test not_after parameter
+        not_after = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
+        root_cert_pem = create(
+            new_key_label[:-4],
+            name_dict,
+            not_after=not_after,
+        )
+        data = root_cert_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_cert = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+        self.assertTrue(
+            test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after
+        )
+
     def test_create_root_ca_with_extensions(self) -> None:
         """
         Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
 
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
         exts = asn1_csr.Extensions()
 
         pkup = asn1_x509.PrivateKeyUsagePeriod()
@@ -97,7 +115,7 @@ class TestRootCa(unittest.TestCase):
         ext["extn_value"] = pkup
         exts.append(ext)
 
-        root_cert_pem = create(new_key_label[:-3], name_dict, extra_extensions=exts)
+        root_cert_pem = create(new_key_label, name_dict, extra_extensions=exts)
 
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):

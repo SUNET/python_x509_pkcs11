@@ -124,13 +124,23 @@ The [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_
 
  - `sign_csr(key_label: str,
    	     issuer_name: dict[str, str],
-	     csr_pem: str)`
+      	     csr_pem: str,
+	     not_before: Union[datetime.datetime, None] = None,
+    	     not_after: Union[datetime.datetime, None] = None,
+    	     keep_csr_extensions: bool = True,
+    	     extra_extensions: Union[asn1crypto.x509.Extensions, None] = None)`
  
 ## sign_csr()
 
 The `sign_csr()` function signs the pem_encoded CSR, writes the 'Subject Key Identifier'
 and 'Authority Key Identifier' extensions into the signed certificate based on
 the public key from the CSR and the public key from key_label in the PKCS11 device.
+
+The not_before and not_after parameters must be in UTC timezone, for example:
+```python
+import datetime
+datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
+```
 
 ```python
 from python_x509_pkcs11 import csr
@@ -175,6 +185,8 @@ The [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x
  - `create(key_label: str,
            key_size: int,
 	   subject_name: dict[str, str],
+	   not_before: Union[datetime.datetime, None] = None,
+    	   not_after: Union[datetime.datetime, None] = None,
 	   exta_extensions: Union[asn1crypto.x509.Extensions] = None])`
 
 The `create()` function generate a CSR and then signs it
@@ -182,6 +194,11 @@ with the same key from the key_label in the pkcs11 device.
 
 If extra_extensions is not None then those extensions will be written into the root CA certificate.
 
+The not_before and not_after parameters must be in UTC timezone, for example:
+```python
+import datetime
+datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
+```
 
 This function uses the `sign_csr()` from the `csr` module to sign
 the generated CSR.
@@ -210,7 +227,9 @@ The [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_
            subject_name: dict[str, str],
 	   old_crl_pem: Union[str, None] = None,
 	   serial_number: Union[int, None] = None,
-	   reason: Union[int, None] = None)`
+	   reason: Union[int, None] = None
+	   this_update: Union[datetime.datetime, None] = None
+	   next_update: Union[datetime.datetime, None] = None)`
 
 
 The `create()` function generate a CRL and then signs it with the
@@ -222,6 +241,12 @@ and simply overwrite its version, timestamps and signature related fields.
 
 If serial_number and [reason](https://github.com/wbond/asn1crypto/blob/b5f03e6f9797c691a3b812a5bb1acade3a1f4eeb/asn1crypto/crl.py#L97) is not None then this serial number
 with its reason will be added to the revocation list in the CRL.
+
+The this_update and next_update parameters must be in UTC timezone, for example:
+```python
+import datetime
+datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
+```
 
 ```python
 from python_x509_pkcs11.crl import create

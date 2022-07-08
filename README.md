@@ -108,7 +108,7 @@ name_dict = {"country_name": "SE",
              "common_name": "ca-test.sunet.se",
              "email_address": "soc@sunet.se"}
 
-root_cert_pem = create("my_rsa_key", 2048, name_dict)
+root_cert_pem = create("my_rsa_key", name_dict)
 print("root CA")
 print(root_cert_pem)
 
