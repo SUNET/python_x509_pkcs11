@@ -100,7 +100,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 -----END CERTIFICATE REQUEST-----
 """
 
-name_dict = {"country_name": "SE",
+roo_ca_name_dict = {"country_name": "SE",
              "state_or_province_name": "Stockholm",
              "locality_name": "Stockholm",
              "organization_name": "SUNET",
@@ -108,11 +108,11 @@ name_dict = {"country_name": "SE",
              "common_name": "ca-test.sunet.se",
              "email_address": "soc@sunet.se"}
 
-root_cert_pem = create("my_rsa_key", name_dict)
+root_cert_pem = create("my_rsa_key", root_ca_name_dict)
 print("root CA")
 print(root_cert_pem)
 
-cert_pem = csr.sign_csr("my_rsa_key", name_dict, csr_pem)
+cert_pem = csr.sign_csr("my_rsa_key", root_ca_name_dict, csr_pem)
 print("Cert signed by root CA")
 print(cert_pem)
 ```

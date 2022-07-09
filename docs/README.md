@@ -44,19 +44,19 @@ Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/py
 
 - `create_keypair(key_label: str,
          	  key_size: int = 2048,
-		  use_existing: bool = True)`
+		  use_existing: bool = True) -> typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]:`
 
  - `sign(key_label: str,
          data: bytes,
 	 verify_signature: bool = True,
-	 mechanism: pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS)`
+	 mechanism: pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS) -> bytes:`
 
  - `verify(key_label: str,
           data: bytes,
 	  signature: bytes,
-	  mechanism: pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS)`
+	  mechanism: pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS) -> bool:`
 
-- `public_key_data(key_label: str)`
+- `public_key_data(key_label: str) -> typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]`
 
 ## create_keypair()
 
@@ -124,7 +124,7 @@ print(identifier_loaded)
 ```
 
 # Sign an CSR
-The [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py) module currently exposes one function:
+Our [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py) module currently exposes one function:
 
  - `sign_csr(key_label: str,
    	     issuer_name: dict[str, str],
@@ -185,7 +185,7 @@ print(cert_pem)
 
 # Create a root CA
 
-The [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/root_ca.py) module currently exposes one function:
+Our [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/root_ca.py) module currently exposes one function:
 
  - `create(key_label: str,
            key_size: int,
@@ -227,7 +227,7 @@ print(root_cert_pem)
 
 # Create a CRL
 
-The [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/crl.py) module currently exposes one function:
+Our [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/crl.py) module currently exposes one function:
 
  - `create(key_label: str,
            subject_name: dict[str, str],

@@ -5,7 +5,7 @@ Exposes the functions:
 - create()
 """
 
-from typing import Union
+from typing import Union, Dict
 import datetime
 
 import asn1crypto
@@ -26,7 +26,7 @@ def _set_tbs_version(
 
 
 def _set_tbs_subject(
-    tbs: asn1_csr.CertificationRequestInfo, subject_name: dict[str, str]
+    tbs: asn1_csr.CertificationRequestInfo, subject_name: Dict[str, str]
 ) -> asn1_csr.CertificationRequestInfo:
     tbs["subject"] = asn1_csr.Name().build(subject_name)
     return tbs
@@ -137,7 +137,7 @@ def _set_tbs_extensions(
 
 
 def _create_tbs(
-    subject_name: dict[str, str],
+    subject_name: Dict[str, str],
     pk_info: asn1crypto.keys.PublicKeyInfo,
     extra_extensions: asn1_x509.Extensions,
 ) -> asn1_csr.CertificationRequestInfo:
@@ -155,7 +155,7 @@ def _create_tbs(
 
 def create(
     key_label: str,
-    subject_name: dict[str, str],
+    subject_name: Dict[str, str],
     key_size: int = 2048,
     not_before: Union[datetime.datetime, None] = None,
     not_after: Union[datetime.datetime, None] = None,
@@ -167,7 +167,7 @@ def create(
 
     Parameters:
     key_label (str): Keypair label.
-    subject_name (dict[str, str]): Dict with the new root CA x509 Names.
+    subject_name (typing.Dict[str, str]): Dict with the new root CA x509 Names.
     key_size (int = 2048): Key size, 2048 and 4096 works best.
     not_before (Union[datetime.datetime, None] = None): The root certificate is not valid before this time.
     not_after (Union[datetime.datetime, None] = None): The root certificate is not valid after this time.

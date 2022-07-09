@@ -5,7 +5,7 @@ Exposes the functions:
 - sign_csr()
 """
 
-from typing import Union
+from typing import Union, Dict
 import datetime
 import os
 
@@ -74,7 +74,7 @@ def _check_tbs_duplicate_extensions(tbs: asn1_x509.TbsCertificate) -> None:
 
 
 def _set_tbs_issuer(
-    tbs: asn1_x509.TbsCertificate, issuer_name: dict[str, str]
+    tbs: asn1_x509.TbsCertificate, issuer_name: Dict[str, str]
 ) -> asn1_x509.TbsCertificate:
 
     tbs["issuer"] = asn1_csr.Name().build(issuer_name)
@@ -221,7 +221,7 @@ def _set_tbs_extensions(
 
 def _create_tbs_certificate(
     tbs: asn1_x509.TbsCertificate,
-    issuer_name: dict[str, str],
+    issuer_name: Dict[str, str],
     aki: bytes,
     not_before: Union[datetime.datetime, None],
     not_after: Union[datetime.datetime, None],
@@ -242,7 +242,7 @@ def _create_tbs_certificate(
 
 def sign_csr(
     key_label: str,
-    issuer_name: dict[str, str],
+    issuer_name: Dict[str, str],
     csr_pem: str,
     not_before: Union[datetime.datetime, None] = None,
     not_after: Union[datetime.datetime, None] = None,
@@ -254,7 +254,7 @@ def sign_csr(
 
     Parameters:
     key_label (str): Keypair label.
-    issuer_name (dict[str, str]): Dict with the signers x509 Names.
+    issuer_name (typing.Dict[str, str]): Dict with the signers x509 Names.
     csr_pem (Union[str, None] = None]): A CSR to sign.
     not_before (Union[datetime.datetime, None] = None): The certificate is not valid before this time.
     not_after (Union[datetime.datetime, None] = None): The certificate is not valid after this time.

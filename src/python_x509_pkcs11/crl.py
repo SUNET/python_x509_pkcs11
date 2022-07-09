@@ -6,7 +6,7 @@ Exposes the functions:
 - create()
 """
 
-from typing import Union
+from typing import Union, Dict
 import datetime
 
 from asn1crypto import crl as asn1_crl
@@ -47,7 +47,7 @@ def _set_tbs_version(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
 
 
 def _set_tbs_issuer(
-    tbs: asn1_crl.TbsCertList, subject_name: dict[str, str]
+    tbs: asn1_crl.TbsCertList, subject_name: Dict[str, str]
 ) -> asn1_crl.TbsCertList:
 
     tbs["issuer"] = asn1_crl.Name().build(subject_name)
@@ -183,7 +183,7 @@ def _set_tbs_extensions(tbs: asn1_crl.TbsCertList, aki: bytes) -> asn1_crl.TbsCe
 
 def _create_tbs_cert_list(
     tbs: asn1_crl.TbsCertList,
-    subject_name: dict[str, str],
+    subject_name: Dict[str, str],
     aki: bytes,
     this_update: Union[datetime.datetime, None],
     next_update: Union[datetime.datetime, None],
@@ -212,7 +212,7 @@ def _load_crl(crl_pem: str) -> asn1_crl.CertificateList:
 
 def create(
     key_label: str,
-    subject_name: dict[str, str],
+    subject_name: Dict[str, str],
     old_crl_pem: Union[str, None] = None,
     serial_number: Union[int, None] = None,
     reason: Union[int, None] = None,
@@ -224,7 +224,7 @@ def create(
 
     Parameters:
     key_label (str): Keypair label.
-    subject_name (dict[str, str]): Dict with x509 Names.
+    subject_name (typing.Dict[str, str]): Dict with x509 Names.
     old_crl_pem (Union[str, None] = None]): A pem encoded CRL to append to, skip if None.
     serial_number (Union[int, None] = None]): Serial to the CRL, skip if None.
     reason (Union[int, None] = None]): The reason for revocation, skip if None.

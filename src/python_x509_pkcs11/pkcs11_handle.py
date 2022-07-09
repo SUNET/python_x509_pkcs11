@@ -13,13 +13,15 @@ Exposes the functions:
 """
 
 import typing
+from typing import Tuple
 from types import FrameType
 import hashlib
-import threading
+from threading import Lock, Thread
 import os
-import signal
-from contextlib import contextmanager
-from collections.abc import Generator
+
+
+# from contextlib import contextmanager
+# from collections.abc import Generator
 
 from asn1crypto.keys import (
     PublicKeyInfo,
@@ -27,40 +29,15 @@ from asn1crypto.keys import (
     RSAPublicKey,
     PublicKeyAlgorithmId,
 )
-from pkcs11.exceptions import NoSuchKey, SignatureInvalid
+from pkcs11.exceptions import NoSuchKey, SignatureInvalid, MultipleObjectsReturned
 from pkcs11 import KeyType, ObjectClass, Mechanism, lib, Session, Token
 from pkcs11.util.rsa import encode_rsa_public_key
 
-from .error import PKCS11TimeoutException
+from .error import PKCS11TimeoutException, PKCS11UnknownErrorException
 
-LOCK = threading.Lock()
+LOCK = Lock()
 DEBUG = False
-TIMEOUT = 10  # Seconds
-
-
-@contextmanager
-def _time_limit(seconds: int) -> Generator[None, None, None]:
-    """
-        Context manager to call PKCS11 functions with a time limit.
-
-        Parameters:
-        seconds (int): Time limit in seconds.
-
-        Returns:
-        None
-
-    ,"""
-
-    def signal_handler(signum: int, frame: typing.Optional[FrameType]) -> None:
-        raise PKCS11TimeoutException()
-
-    signal.signal(signal.SIGALRM, signal_handler)
-    signal.alarm(seconds)
-
-    try:
-        yield
-    finally:
-        signal.alarm(0)
+TIMEOUT = 6  # Seconds
 
 
 class PKCS11Session:
@@ -68,40 +45,52 @@ class PKCS11Session:
     Persistent PKCS11 session wrapper.
     """
 
+    _session_status: int = -1
     session: Session = None
     token: Token = None
 
     @classmethod
-    def _healthy_session(cls) -> None:
-        """
-        Check if our persistent PKCS11 session is healthy.
-        If not then open a new session.
-
-        Parameters:
-
-        Returns:
-        None
-
-        """
+    def _open_session(cls, force: bool = False) -> None:
 
         try:
-            with _time_limit(TIMEOUT):
-                if cls.session.token.label != os.environ["PKCS11_TOKEN"]:
-                    cls.session.close()
-                    pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
-                    cls.token = pkcs11_lib.get_token(
-                        token_label=os.environ["PKCS11_TOKEN"]
-                    )
-                    cls.session = cls.token.open(
-                        rw=True, user_pin=os.environ["PKCS11_PIN"]
-                    )
-        except Exception as ex:  # pylint: disable=broad-except
-            pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
-            cls.token = pkcs11_lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
-            cls.session = cls.token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
+            if force or cls._session_status == -1:
+                cls._session_status = 9
+
+                pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
+                cls.token = pkcs11_lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
+                cls.session = cls.token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
+
+            _ = cls.session.get_key(
+                key_type=KeyType.RSA,
+                object_class=ObjectClass.PUBLIC_KEY,
+                label="test_pkcs11_device_do_not_use",
+            )
+            cls._session_status = 0
+        except NoSuchKey:
+            cls._session_status = 0
+
+    @classmethod
+    def _healthy_session(cls) -> None:
+        p = Thread(target=cls._open_session, args=())
+        p.start()
+        p.join(timeout=TIMEOUT)
+
+        if p.is_alive() or cls._session_status != 0:
             if DEBUG:
-                print(ex)
-                print("Opening a new pkcs11 session")
+                print("Current PKCS11 session is unhealthy, opening a new session")
+
+            p2 = Thread(target=cls._open_session, args=({"force": True}))
+            p2.start()
+            p2.join(timeout=TIMEOUT)
+
+            if p2.is_alive():
+                raise PKCS11TimeoutException(
+                    "ERROR: Could not get a healthy PKCS11 connection in time"
+                )
+        if cls._session_status != 0:
+            raise PKCS11UnknownErrorException(
+                "ERROR: Could not get a healthy PKCS11 connection"
+            )
 
     @classmethod
     def create_keypair(
@@ -112,64 +101,47 @@ class PKCS11Session:
         If the label exists then return the data for that keypair.
         Returns the data for the x509 'Subject Public Key Info'
         and x509 extension 'Subject Key Identifier' valid for this keypair.
-
         Parameters:
         key_label (str): Keypair label.
         key_size (int = 2048): Size of the key.
         use_existing (bool = True): If keypair with this label exists then use that one instead.
-
         Returns:
         typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]
-
         """
 
         with LOCK:
+
             # Ensure we get a healthy pkcs11 session
             cls._healthy_session()
 
             try:
-                with _time_limit(TIMEOUT):
-                    if use_existing:
-                        try:
-                            key_pub = cls.session.get_key(
-                                key_type=KeyType.RSA,
-                                object_class=ObjectClass.PUBLIC_KEY,
-                                label=key_label,
-                            )
-
-                        except NoSuchKey as ex:
-                            if DEBUG:
-                                print(ex)
-                                print(
-                                    "Generating a key since "
-                                    + "no key with that label was found"
-                                )
-                            # Generate the rsa keypair
-                            key_pub, _ = cls.session.generate_keypair(
-                                KeyType.RSA, key_size, store=True, label=key_label
-                            )
-
-                    else:
-                        # Generate the rsa keypair
-                        key_pub, _ = cls.session.generate_keypair(
-                            KeyType.RSA, key_size, store=True, label=key_label
-                        )
-
-                    # Create the PublicKeyInfo object
-                    rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
-
-                    pki = PublicKeyInfo()
-                    pka = PublicKeyAlgorithm()
-                    pka["algorithm"] = PublicKeyAlgorithmId("rsa")
-                    pki["algorithm"] = pka
-                    pki["public_key"] = rsa_pub
-
-                    return (
-                        pki,
-                        hashlib.sha1(encode_rsa_public_key(key_pub)).digest(),
+                key_pub = cls.session.get_key(
+                    key_type=KeyType.RSA,
+                    object_class=ObjectClass.PUBLIC_KEY,
+                    label=key_label,
+                )
+                if not use_existing:
+                    raise MultipleObjectsReturned
+            except NoSuchKey as ex:
+                if DEBUG:
+                    print(ex)
+                    print(
+                        "Generating a key since " + "no key with that label was found"
                     )
-            except Exception as ex:
-                raise ex
+            # Generate the rsa keypair
+            key_pub, _ = cls.session.generate_keypair(
+                KeyType.RSA, key_size, store=True, label=key_label
+            )
+
+            # Create the PublicKeyInfo object
+            rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
+
+            pki = PublicKeyInfo()
+            pka = PublicKeyAlgorithm()
+            pka["algorithm"] = PublicKeyAlgorithmId("rsa")
+            pki["algorithm"] = pka
+            pki["public_key"] = rsa_pub
+            return pki, hashlib.sha1(encode_rsa_public_key(key_pub)).digest()
 
     @classmethod
     def sign(
@@ -201,35 +173,30 @@ class PKCS11Session:
             # Ensure we get a healthy pkcs11 session
             cls._healthy_session()
 
-            try:
-                with _time_limit(TIMEOUT):
-                    # Get private key to sign the data with
-                    key_priv = cls.session.get_key(
-                        key_type=KeyType.RSA,
-                        object_class=ObjectClass.PRIVATE_KEY,
-                        label=key_label,
-                    )
+            # Get private key to sign the data with
+            key_priv = cls.session.get_key(
+                key_type=KeyType.RSA,
+                object_class=ObjectClass.PRIVATE_KEY,
+                label=key_label,
+            )
 
-                    if verify_signature:
-                        key_pub = cls.session.get_key(
-                            key_type=KeyType.RSA,
-                            object_class=ObjectClass.PUBLIC_KEY,
-                            label=key_label,
-                        )
+            if verify_signature:
+                key_pub = cls.session.get_key(
+                    key_type=KeyType.RSA,
+                    object_class=ObjectClass.PUBLIC_KEY,
+                    label=key_label,
+                )
 
-                    # Sign the data
-                    signature = key_priv.sign(data, mechanism=mechanism)
+            # Sign the data
+            signature = key_priv.sign(data, mechanism=Mechanism(mechanism))
 
-                    if not isinstance(signature, bytes):
-                        raise SignatureInvalid
+            if not isinstance(signature, bytes):
+                raise SignatureInvalid
 
-                    if verify_signature:
-                        if not key_pub.verify(data, signature, mechanism=mechanism):
-                            raise SignatureInvalid
-
-                    return signature
-            except Exception as ex:
-                raise ex
+            if verify_signature:
+                if not key_pub.verify(data, signature, mechanism=mechanism):
+                    raise SignatureInvalid
+            return signature
 
     @classmethod
     def verify(
@@ -252,7 +219,7 @@ class PKCS11Session:
         mechanism (pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS]): Which signature mechanism to use
 
         Returns:
-        bytes
+        bool
 
         """
 
@@ -260,21 +227,16 @@ class PKCS11Session:
             # Ensure we get a healthy pkcs11 session
             cls._healthy_session()
 
-            try:
-                with _time_limit(TIMEOUT):
-                    # Get public key to sign the data with
-                    key_pub = cls.session.get_key(
-                        key_type=KeyType.RSA,
-                        object_class=ObjectClass.PUBLIC_KEY,
-                        label=key_label,
-                    )
+            # Get public key to sign the data with
+            key_pub = cls.session.get_key(
+                key_type=KeyType.RSA,
+                object_class=ObjectClass.PUBLIC_KEY,
+                label=key_label,
+            )
 
-                    if key_pub.verify(data, signature, mechanism=mechanism):
-                        return True
-                    return False
-
-            except Exception as ex:
-                raise ex
+            if key_pub.verify(data, signature, mechanism=mechanism):
+                return True
+            return False
 
     @classmethod
     def public_key_data(cls, key_label: str) -> typing.Tuple[PublicKeyInfo, bytes]:
@@ -294,27 +256,18 @@ class PKCS11Session:
             # Ensure we get a healthy pkcs11 session
             cls._healthy_session()
 
-            try:
-                with _time_limit(TIMEOUT):
-                    key_pub = cls.session.get_key(
-                        key_type=KeyType.RSA,
-                        object_class=ObjectClass.PUBLIC_KEY,
-                        label=key_label,
-                    )
+            key_pub = cls.session.get_key(
+                key_type=KeyType.RSA,
+                object_class=ObjectClass.PUBLIC_KEY,
+                label=key_label,
+            )
+            # Create the PublicKeyInfo object
+            rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
 
-                    # Create the PublicKeyInfo object
-                    rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
+            pki = PublicKeyInfo()
+            pka = PublicKeyAlgorithm()
+            pka["algorithm"] = PublicKeyAlgorithmId("rsa")
+            pki["algorithm"] = pka
+            pki["public_key"] = rsa_pub
 
-                    pki = PublicKeyInfo()
-                    pka = PublicKeyAlgorithm()
-                    pka["algorithm"] = PublicKeyAlgorithmId("rsa")
-                    pki["algorithm"] = pka
-                    pki["public_key"] = rsa_pub
-
-                    return (
-                        pki,
-                        hashlib.sha1(encode_rsa_public_key(key_pub)).digest(),
-                    )
-
-            except Exception as ex:
-                raise ex
+            return pki, hashlib.sha1(encode_rsa_public_key(key_pub)).digest()
