@@ -128,10 +128,10 @@ class PKCS11Session:
                     print(
                         "Generating a key since " + "no key with that label was found"
                     )
-            # Generate the rsa keypair
-            key_pub, _ = cls.session.generate_keypair(
-                KeyType.RSA, key_size, store=True, label=key_label
-            )
+                # Generate the rsa keypair
+                key_pub, _ = cls.session.generate_keypair(
+                    KeyType.RSA, key_size, store=True, label=key_label
+                )
 
             # Create the PublicKeyInfo object
             rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))

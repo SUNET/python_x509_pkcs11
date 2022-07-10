@@ -47,6 +47,14 @@ class TestPKCS11Handle(unittest.TestCase):
         self.assertTrue(isinstance(identifier2, bytes))
         self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
 
+        # Test key exists so use that one
+        PKCS11Session.create_keypair(new_key_label[:-3], 4096, False)
+        pk_info3, identifier3 = PKCS11Session.public_key_data(new_key_label[:-3])
+        PKCS11Session.create_keypair(new_key_label[:-3], 4096)
+        pk_info3_1, identifier3_1 = PKCS11Session.public_key_data(new_key_label[:-3])
+        self.assertTrue(pk_info3.dump() == pk_info3_1.dump())
+        self.assertTrue(identifier3 == identifier3_1)
+
     def test_get_public_key_data(self) -> None:
         """
         Get key identifier from public key with key_label in the PKCS11 device.
