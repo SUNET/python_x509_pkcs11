@@ -1,8 +1,8 @@
-.github/
-dist/
-docs/
-*.mypy_cache/
-*__pycache__/
+.github
+dist
+docs
+*.mypy_cache
+*__pycache__
 *.csr
 *.crl
 *.crt
