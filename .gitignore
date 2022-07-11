@@ -1,0 +1,10 @@
+.github/
+docs/
+*.mypy_cache/
+*__pycache__/
+*.csr
+*.crl
+*.crt
+*.key
+.#*
+*~
