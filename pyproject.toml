@@ -15,10 +15,6 @@ dependencies = [
     "python-pkcs11"
 ]
 
-[build-system]
-requires = ["flit_core>=3.2"]
-build-backend = "flit_core.buildapi"
-
 [project.urls]
 Homepage = "https://github.com/SUNET/python_x509_pkcs11"
 
