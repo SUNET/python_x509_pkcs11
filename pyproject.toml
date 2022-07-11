@@ -11,8 +11,8 @@ authors = [
 ]
 
 dependencies = [
-    "asn1crypto",
-    "python-pkcs11"
+    "asn1crypto==1.4.0",
+    "python-pkcs11==0.7.0"
 ]
 
 [project.urls]
