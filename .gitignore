@@ -1,4 +1,5 @@
 .github/
+dist/
 docs/
 *.mypy_cache/
 *__pycache__/
