@@ -120,7 +120,22 @@ print(cert_pem)
 ## Contributing / Tests
 ```bash
 
+# install
+if awk -F= '/^NAME/{print $2}' /etc/os-release | grep -i "debian\|ubuntu"
+then
+    # Ubuntu / Debian
+    sudo apt-get install flit python3-mypy black
+else
+    # Redhat / Centos / Fedora
+    sudo dnf install python3-flit python3-mypy python3-black
+fi
+
+
 # Make your code changes
 # Then in the root folder, where this README is
 bash dev-run.sh
+
+# Build the package with flit
+flit build
+
 ```
