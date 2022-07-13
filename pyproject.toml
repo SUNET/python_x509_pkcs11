@@ -1,5 +1,5 @@
 description = "Python library for signing x509 using keys in an pkcs11 device such as a HSM"
-version = "0.2.23"
+version = "0.2.24"
 
 [build-system]
 requires = [
@@ -22,6 +22,3 @@ requires = [
     "asn1crypto>=1.4.0",
     "python-pkcs11>=0.7.0"
 ]
-
-
-

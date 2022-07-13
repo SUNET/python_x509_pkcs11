@@ -52,10 +52,15 @@ class TestPKCS11Handle(unittest.TestCase):
         self.assertTrue(isinstance(identifier2, bytes))
         self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
 
-        # Test key exists so use that one
+        # Test key_labels
         PKCS11Session.create_keypair(new_key_label[:-3], 4096)
         pk_info3, identifier3 = PKCS11Session.public_key_data(new_key_label[:-3])
-        self.assertTrue(new_key_label[:-3] in PKCS11Session.key_labels())
+        key_labels = PKCS11Session.key_labels()
+        self.assertTrue(isinstance(key_labels, list))
+        for label in key_labels:
+            self.assertTrue(isinstance(label, str))
+        self.assertTrue(new_key_label[:-3] in key_labels)
+        self.assertFalse("should_not_exists_1232353523" in key_labels)
         pk_info3_1, identifier3_1 = PKCS11Session.public_key_data(new_key_label[:-3])
         self.assertTrue(pk_info3.dump() == pk_info3_1.dump())
         self.assertTrue(identifier3 == identifier3_1)

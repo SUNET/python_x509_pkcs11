@@ -40,11 +40,12 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 
 # PKCS11 device usage
 This is basically a wrapper around the [python-pkcs11](https://python-pkcs11.readthedocs.io/en/stable/) package.
-Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/pkcs11_handle.py) module currently exposes 4 functions:
+Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/pkcs11_handle.py) module currently exposes 5 functions:
 
 - `create_keypair(key_label: str,
-         	  key_size: int = 2048,
-		  use_existing: bool = True) -> typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]:`
+         	  key_size: int = 2048) -> typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]:`
+
+ - `key_labels() -> typing.List[str]:`
 
  - `sign(key_label: str,
          data: bytes,
@@ -73,6 +74,19 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
 print(pk_info)
 print(identifier)
+```
+
+## key_labels()
+
+The `key_labels()` function return a list of key labels in the PKCS11 device.
+
+### Example usage:
+```python
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
+labels = PKCS11Session.key_labels()
+print(labels)
 ```
 
 ## sign()

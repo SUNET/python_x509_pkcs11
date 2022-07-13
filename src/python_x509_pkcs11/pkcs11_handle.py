@@ -6,7 +6,7 @@
 
 Exposes the functions:
 - create_keypair()
-- get_keypair()
+- key_labels()
 - sign()
 - verify()
 - public_key_data()
@@ -133,21 +133,26 @@ class PKCS11Session:
 
     @classmethod
     def key_labels(cls) -> List[str]:
-        """Return the key labels in the PKCS11 device.
+        """Return a list of key labels in the PKCS11 device.
 
         Returns:
         typing.List[str]
         """
 
-        key_labels: List[str] = []
-        for obj in cls.session.get_objects(
-            {
-                Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                Attribute.KEY_TYPE: KeyType.RSA,
-            }
-        ):
-            key_labels.append(obj.label)
-        return key_labels
+        with LOCK:
+
+            # Ensure we get a healthy pkcs11 session
+            cls._healthy_session()
+
+            key_labels: List[str] = []
+            for obj in cls.session.get_objects(
+                {
+                    Attribute.CLASS: ObjectClass.PUBLIC_KEY,
+                    Attribute.KEY_TYPE: KeyType.RSA,
+                }
+            ):
+                key_labels.append(obj.label)
+            return key_labels
 
     @classmethod
     def sign(
