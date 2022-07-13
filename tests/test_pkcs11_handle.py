@@ -19,22 +19,27 @@ class TestPKCS11Handle(unittest.TestCase):
     Test our PKCS11 session handler.
     """
 
+    def test_key_labels(self) -> None:
+        """Create keypair with key_label in the PKCS11 device."""
+
+        PKCS11Session.key_labels()
+
     def test_create_keypair(self) -> None:
         """
         Create keypair with key_label in the PKCS11 device.
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label, 2048, False)
+        PKCS11Session.create_keypair(new_key_label, 2048)
         pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
         self.assertTrue(isinstance(identifier, bytes))
         self.assertTrue(isinstance(pk_info, PublicKeyInfo))
 
         with self.assertRaises(MultipleObjectsReturned):
-            PKCS11Session.create_keypair(new_key_label, 2048, False)
+            PKCS11Session.create_keypair(new_key_label, 2048)
             pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
 
-        PKCS11Session.create_keypair(new_key_label[:-1], 2048, False)
+        PKCS11Session.create_keypair(new_key_label[:-1], 2048)
         pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[:-1])
         self.assertTrue(isinstance(identifier2, bytes))
         self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
@@ -42,15 +47,15 @@ class TestPKCS11Handle(unittest.TestCase):
         self.assertTrue(identifier != identifier2)
         self.assertTrue(pk_info.native != pk_info2.native)
 
-        PKCS11Session.create_keypair(new_key_label[:-2], 4096, False)
+        PKCS11Session.create_keypair(new_key_label[:-2], 4096)
         pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[:-2])
         self.assertTrue(isinstance(identifier2, bytes))
         self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
 
         # Test key exists so use that one
-        PKCS11Session.create_keypair(new_key_label[:-3], 4096, False)
-        pk_info3, identifier3 = PKCS11Session.public_key_data(new_key_label[:-3])
         PKCS11Session.create_keypair(new_key_label[:-3], 4096)
+        pk_info3, identifier3 = PKCS11Session.public_key_data(new_key_label[:-3])
+        self.assertTrue(new_key_label[:-3] in PKCS11Session.key_labels())
         pk_info3_1, identifier3_1 = PKCS11Session.public_key_data(new_key_label[:-3])
         self.assertTrue(pk_info3.dump() == pk_info3_1.dump())
         self.assertTrue(identifier3 == identifier3_1)
@@ -81,19 +86,13 @@ class TestPKCS11Handle(unittest.TestCase):
         signature = PKCS11Session.sign(new_key_label, data_to_be_signed)
         self.assertTrue(isinstance(signature, bytes))
 
-        signature = PKCS11Session.sign(
-            new_key_label, data_to_be_signed, Mechanism.SHA512_RSA_PKCS
-        )
+        signature = PKCS11Session.sign(new_key_label, data_to_be_signed, Mechanism.SHA512_RSA_PKCS)
         self.assertTrue(isinstance(signature, bytes))
 
-        self.assertTrue(
-            PKCS11Session.verify(new_key_label, data_to_be_signed, signature)
-        )
+        self.assertTrue(PKCS11Session.verify(new_key_label, data_to_be_signed, signature))
 
         self.assertFalse(
-            PKCS11Session.verify(
-                new_key_label, data_to_be_signed, b"NOT VALID SIGNATURE HERE"
-            )
+            PKCS11Session.verify(new_key_label, data_to_be_signed, b"NOT VALID SIGNATURE HERE")
         )
 
         self.assertFalse(

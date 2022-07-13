@@ -1,5 +1,4 @@
-"""
-Module which create a root CA
+"""Module which create a root CA
 
 Exposes the functions:
 - create()
@@ -124,9 +123,7 @@ def _set_tbs_extra_extensions(
 def _set_tbs_extensions(
     tbs: asn1_csr.CertificationRequestInfo, extra_extensions: asn1_x509.Extensions
 ) -> asn1_csr.CertificationRequestInfo:
-    """
-    Set all x509 extensions
-    """
+    """Set all x509 extensions"""
 
     if extra_extensions is not None:
         tbs = _set_tbs_extra_extensions(tbs, extra_extensions)
@@ -161,8 +158,7 @@ def create(
     not_after: Union[datetime.datetime, None] = None,
     extra_extensions: Union[asn1_x509.Extensions, None] = None,
 ) -> str:
-    """
-    Create and selfsign a CSR with
+    """Create and selfsign a CSR with
     the key_label in the PKCS11 device.
 
     Parameters:
@@ -175,9 +171,8 @@ def create(
 
     Returns:
     str
-
     """
-    pk_info, _ = PKCS11Session().create_keypair(key_label, key_size, False)
+    pk_info, _ = PKCS11Session().create_keypair(key_label, key_size)
 
     tbs = _create_tbs(subject_name, pk_info, extra_extensions)
 

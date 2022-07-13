@@ -1,16 +1,24 @@
-[project]
-name = "python_x509_pkcs11"
 description = "Python library for signing x509 using keys in an pkcs11 device such as a HSM"
-readme = "README.md"
-requires-python = ">=3.7"
-version = "0.2.21"
-keywords = ["x509", "pkcs11", "HSM"]
-license = {file = "LICENSE"}
-authors = [
-    { name = "Victor Näslund", email = "victor@sunet.se" }
+version = "0.2.22"
+
+[build-system]
+requires = [
+    "flit_core >=2.0",
 ]
 
-dependencies = [
+[tool.flit.metadata]
+module = "python_x509_pkcs11"
+
+description-file = "README.md"
+requires-python = ">=3.7"
+
+keywords = "x509,pkcs11,HSM"
+license = "MIT"
+author = "Victor Näslund"
+author-email = "victor@sunet.se"
+
+
+requires = [
     "asn1crypto>=1.4.0",
     "python-pkcs11>=0.7.0"
 ]

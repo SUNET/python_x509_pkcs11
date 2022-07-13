@@ -86,9 +86,7 @@ class TestCrl(unittest.TestCase):
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
         PKCS11Session.create_keypair(new_key_label)
 
-        crl_pem = crl.create(
-            new_key_label, subject_name, serial_number=2342342342343456, reason=3
-        )
+        crl_pem = crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=3)
 
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):

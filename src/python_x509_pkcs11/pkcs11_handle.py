@@ -1,5 +1,4 @@
-"""
-Module which handles a PKCS11 session and its exposed methods
+"""Module which handles a PKCS11 session and its exposed methods
 
 # Better to keep a pkcs11 session reference all the time
 # and then when it fails to open a new session for performance
@@ -7,21 +6,18 @@ Module which handles a PKCS11 session and its exposed methods
 
 Exposes the functions:
 - create_keypair()
+- get_keypair()
 - sign()
 - verify()
 - public_key_data()
 """
 
 import typing
-from typing import Tuple
+from typing import Tuple, List
 from types import FrameType
 import hashlib
 from threading import Lock, Thread
 import os
-
-
-# from contextlib import contextmanager
-# from collections.abc import Generator
 
 from asn1crypto.keys import (
     PublicKeyInfo,
@@ -30,7 +26,7 @@ from asn1crypto.keys import (
     PublicKeyAlgorithmId,
 )
 from pkcs11.exceptions import NoSuchKey, SignatureInvalid, MultipleObjectsReturned
-from pkcs11 import KeyType, ObjectClass, Mechanism, lib, Session, Token
+from pkcs11 import KeyType, ObjectClass, Mechanism, lib, Session, Token, Attribute
 from pkcs11.util.rsa import encode_rsa_public_key
 
 from .error import PKCS11TimeoutException, PKCS11UnknownErrorException
@@ -41,21 +37,18 @@ TIMEOUT = 6  # Seconds
 
 
 class PKCS11Session:
-    """
-    Persistent PKCS11 session wrapper.
-    """
+    """Persistent PKCS11 session wrapper."""
 
-    _session_status: int = -1
+    _session_status: int = 9
     session: Session = None
     token: Token = None
 
     @classmethod
     def _open_session(cls, force: bool = False) -> None:
 
+        cls._session_status = 9
         try:
-            if force or cls._session_status == -1:
-                cls._session_status = 9
-
+            if force or cls.session is None:
                 pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
                 cls.token = pkcs11_lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
                 cls.session = cls.token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
@@ -88,23 +81,21 @@ class PKCS11Session:
                     "ERROR: Could not get a healthy PKCS11 connection in time"
                 )
         if cls._session_status != 0:
-            raise PKCS11UnknownErrorException(
-                "ERROR: Could not get a healthy PKCS11 connection"
-            )
+            raise PKCS11UnknownErrorException("ERROR: Could not get a healthy PKCS11 connection")
 
     @classmethod
     def create_keypair(
-        cls, key_label: str, key_size: int = 2048, use_existing: bool = True
+        cls, key_label: str, key_size: int = 2048
     ) -> typing.Tuple[PublicKeyInfo, bytes]:
-        """
-        Create a RSA keypair in the PKCS11 device with this label.
+        """Create a RSA keypair in the PKCS11 device with this label.
         If the label exists then return the data for that keypair.
         Returns the data for the x509 'Subject Public Key Info'
         and x509 extension 'Subject Key Identifier' valid for this keypair.
+
         Parameters:
         key_label (str): Keypair label.
         key_size (int = 2048): Size of the key.
-        use_existing (bool = True): If keypair with this label exists then use that one instead.
+
         Returns:
         typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]
         """
@@ -120,14 +111,11 @@ class PKCS11Session:
                     object_class=ObjectClass.PUBLIC_KEY,
                     label=key_label,
                 )
-                if not use_existing:
-                    raise MultipleObjectsReturned
+                raise MultipleObjectsReturned
             except NoSuchKey as ex:
                 if DEBUG:
                     print(ex)
-                    print(
-                        "Generating a key since " + "no key with that label was found"
-                    )
+                    print("Generating a key since " + "no key with that label was found")
                 # Generate the rsa keypair
                 key_pub, _ = cls.session.generate_keypair(
                     KeyType.RSA, key_size, store=True, label=key_label
@@ -144,6 +132,24 @@ class PKCS11Session:
             return pki, hashlib.sha1(encode_rsa_public_key(key_pub)).digest()
 
     @classmethod
+    def key_labels(cls) -> List[str]:
+        """Return the key labels in the PKCS11 device.
+
+        Returns:
+        typing.List[str]
+        """
+
+        key_labels: List[str] = []
+        for obj in cls.session.get_objects(
+            {
+                Attribute.CLASS: ObjectClass.PUBLIC_KEY,
+                Attribute.KEY_TYPE: KeyType.RSA,
+            }
+        ):
+            key_labels.append(obj.label)
+        return key_labels
+
+    @classmethod
     def sign(
         cls,
         key_label: str,
@@ -151,8 +157,7 @@ class PKCS11Session:
         verify_signature: bool = True,
         mechanism: Mechanism = Mechanism.SHA256_RSA_PKCS,
     ) -> bytes:
-        """
-        Sign the data: bytes using the private key
+        """Sign the data: bytes using the private key
         with the label in the PKCS11 device.
 
         Returns the signed data: bytes for the x509 extension and
@@ -166,7 +171,6 @@ class PKCS11Session:
 
         Returns:
         bytes
-
         """
 
         with LOCK:
@@ -206,8 +210,7 @@ class PKCS11Session:
         signature: bytes,
         mechanism: Mechanism = Mechanism.SHA256_RSA_PKCS,
     ) -> bool:
-        """
-        Verify a signature with its data using the private key
+        """Verify a signature with its data using the private key
         with the label in the PKCS11 device.
 
         Returns True if the signature is valid.
@@ -216,11 +219,10 @@ class PKCS11Session:
         key_label (str): Keypair label.
         data (bytes): Bytes to be signed.
         signature (bytes): The signature.
-        mechanism (pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS]): Which signature mechanism to use
+        mechanism (pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS): Which signature mechanism to use
 
         Returns:
         bool
-
         """
 
         with LOCK:
@@ -239,9 +241,8 @@ class PKCS11Session:
             return False
 
     @classmethod
-    def public_key_data(cls, key_label: str) -> typing.Tuple[PublicKeyInfo, bytes]:
-        """
-        Returns the data for the x509 'Public Key Info'
+    def public_key_data(cls, key_label: str) -> Tuple[PublicKeyInfo, bytes]:
+        """Returns the data for the x509 'Public Key Info'
         and 'Key Identifier' valid for this keypair.
 
         Parameters:
@@ -249,7 +250,6 @@ class PKCS11Session:
 
         Returns:
         typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]
-
         """
 
         with LOCK:

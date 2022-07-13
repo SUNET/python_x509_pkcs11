@@ -1,5 +1,4 @@
-"""
-Module which sign CRS
+"""Module which sign CRS
 
 Exposes the functions:
 - sign_csr()
@@ -31,9 +30,7 @@ def _request_to_tbs_certificate(
 
     tbs = asn1_x509.TbsCertificate()
     tbs["subject"] = req["certification_request_info"]["subject"]
-    tbs["subject_public_key_info"] = req["certification_request_info"][
-        "subject_pk_info"
-    ]
+    tbs["subject_public_key_info"] = req["certification_request_info"]["subject_pk_info"]
 
     if not keep_csr_extensions:
         return tbs
@@ -51,8 +48,7 @@ def _request_to_tbs_certificate(
 
 
 def _check_tbs_duplicate_extensions(tbs: asn1_x509.TbsCertificate) -> None:
-    """
-    A certificate MUST NOT include more
+    """A certificate MUST NOT include more
     than one instance of a particular extension. For example, a
     certificate may contain only one authority key identifier extension
     https://www.rfc-editor.org/rfc/rfc5280#section-4.2
@@ -67,9 +63,7 @@ def _check_tbs_duplicate_extensions(tbs: asn1_x509.TbsCertificate) -> None:
     exts = []
     for _, ext in enumerate(tbs["extensions"]):
         if ext["extn_id"].dotted in exts:
-            raise DuplicateExtensionException(
-                "Found duplicate extension " + ext["extn_id"].dotted
-            )
+            raise DuplicateExtensionException("Found duplicate extension " + ext["extn_id"].dotted)
         exts.append(ext["extn_id"].dotted)
 
 
@@ -116,8 +110,7 @@ def _set_tbs_validity(
     if not_after is None:
         val["not_after"] = asn1_x509.Time(
             name="utc_time",
-            value=datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(365 * 3, 0, 0),
+            value=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(365 * 3, 0, 0),
         )
     else:
         val["not_after"] = asn1_x509.Time(
@@ -152,9 +145,7 @@ def _set_tbs_ski(tbs: asn1_x509.TbsCertificate) -> asn1_x509.TbsCertificate:
     return tbs
 
 
-def _set_tbs_aki(
-    tbs: asn1_x509.TbsCertificate, identifier: bytes
-) -> asn1_x509.TbsCertificate:
+def _set_tbs_aki(tbs: asn1_x509.TbsCertificate, identifier: bytes) -> asn1_x509.TbsCertificate:
 
     aki = asn1_x509.AuthorityKeyIdentifier()
     aki["key_identifier"] = identifier
@@ -206,9 +197,7 @@ def _set_tbs_extra_extensions(
 def _set_tbs_extensions(
     tbs: asn1_x509.TbsCertificate, aki: bytes, extra_extensions: asn1_x509.Extensions
 ) -> asn1_x509.TbsCertificate:
-    """
-    Set all x509 extensions
-    """
+    """Set all x509 extensions"""
 
     if extra_extensions is not None:
         tbs = _set_tbs_extra_extensions(tbs, extra_extensions)
@@ -249,8 +238,7 @@ def sign_csr(
     keep_csr_extensions: bool = True,
     extra_extensions: Union[asn1_x509.Extensions, None] = None,
 ) -> str:
-    """
-    Sign a CSR by the key with the key_label in the PKCS11 device.
+    """Sign a CSR by the key with the key_label in the PKCS11 device.
 
     Parameters:
     key_label (str): Keypair label.
@@ -263,16 +251,13 @@ def sign_csr(
 
     Returns:
     str
-
     """
 
     _, aki = PKCS11Session().public_key_data(key_label)
 
     tbs = _request_to_tbs_certificate(csr_pem, keep_csr_extensions)
 
-    tbs = _create_tbs_certificate(
-        tbs, issuer_name, aki, not_before, not_after, extra_extensions
-    )
+    tbs = _create_tbs_certificate(tbs, issuer_name, aki, not_before, not_after, extra_extensions)
 
     signed_cert = asn1_x509.Certificate()
     signed_cert["tbs_certificate"] = tbs

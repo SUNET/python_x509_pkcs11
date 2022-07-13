@@ -1,5 +1,4 @@
-"""
-Module which creates CRLs
+"""Module which creates CRLs
 Can also append to an existing CRL
 
 Exposes the functions:
@@ -18,8 +17,7 @@ from .error import DuplicateExtensionException
 
 
 def _check_tbs_duplicate_extensions(tbs: asn1_crl.TbsCertList) -> None:
-    """
-    A certificate MUST NOT include more
+    """A certificate MUST NOT include more
     than one instance of a particular extension. For example, a
     certificate may contain only one authority key identifier extension
     https://www.rfc-editor.org/rfc/rfc5280#section-4.2
@@ -34,9 +32,7 @@ def _check_tbs_duplicate_extensions(tbs: asn1_crl.TbsCertList) -> None:
     extensions = []
     for _, ext in enumerate(tbs["crl_extensions"]):
         if ext["extn_id"].dotted in extensions:
-            raise DuplicateExtensionException(
-                "Found duplicate extension " + ext["extn_id"].dotted
-            )
+            raise DuplicateExtensionException("Found duplicate extension " + ext["extn_id"].dotted)
         extensions.append(ext["extn_id"].dotted)
 
 
@@ -61,8 +57,7 @@ def _set_tbs_next_update(
     if next_update is None:
         tbs["next_update"] = asn1_crl.Time(
             name="utc_time",
-            value=datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(days=1),
+            value=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1),
         )
     else:
         tbs["next_update"] = asn1_crl.Time(name="utc_time", value=next_update)
@@ -76,8 +71,7 @@ def _set_tbs_this_update(
     if this_update is None:
         tbs["this_update"] = asn1_crl.Time(
             name="utc_time",
-            value=datetime.datetime.now(datetime.timezone.utc)
-            - datetime.timedelta(minutes=2),
+            value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2),
         )
     else:
         tbs["this_update"] = asn1_crl.Time(name="utc_time", value=this_update)
@@ -172,9 +166,7 @@ def _set_tbs_revoke_serial_numer(
 
 
 def _set_tbs_extensions(tbs: asn1_crl.TbsCertList, aki: bytes) -> asn1_crl.TbsCertList:
-    """
-    Set all x509 extensions
-    """
+    """Set all x509 extensions"""
 
     tbs = _set_tbs_aki(tbs, aki)
     _check_tbs_duplicate_extensions(tbs)
@@ -219,8 +211,7 @@ def create(
     this_update: Union[datetime.datetime, None] = None,
     next_update: Union[datetime.datetime, None] = None,
 ) -> str:
-    """
-    Create a CRL signed by the key with the key_label in the PKCS11 device.
+    """Create a CRL signed by the key with the key_label in the PKCS11 device.
 
     Parameters:
     key_label (str): Keypair label.
@@ -233,7 +224,6 @@ def create(
 
     Returns:
     str
-
     """
     _, aki = PKCS11Session().public_key_data(key_label)
 

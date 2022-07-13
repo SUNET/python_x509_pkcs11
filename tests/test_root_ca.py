@@ -88,9 +88,7 @@ class TestRootCa(unittest.TestCase):
             _, _, data = asn1_pem.unarmor(data)
         test_cert = asn1_x509.Certificate.load(data)
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
-        self.assertTrue(
-            test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after
-        )
+        self.assertTrue(test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after)
 
     def test_create_root_ca_with_extensions(self) -> None:
         """
@@ -105,8 +103,7 @@ class TestRootCa(unittest.TestCase):
             datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(2)
         )
         pkup["not_after"] = GeneralizedTime(
-            datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(365 * 10, 0, 0)
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(365 * 10, 0, 0)
         )
 
         ext = asn1_x509.Extension()

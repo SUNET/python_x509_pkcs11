@@ -96,9 +96,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         # Test not_before
         not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
-        cert_pem = csr.sign_csr(
-            new_key_label, issuer_name, csr_no_exts, not_before=not_before
-        )
+        cert_pem = csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_before=not_before)
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
@@ -110,17 +108,13 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         # Test not_after
         not_after = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
-        cert_pem = csr.sign_csr(
-            new_key_label, issuer_name, csr_no_exts, not_after=not_after
-        )
+        cert_pem = csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_after=not_after)
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
         test_cert = asn1_x509.Certificate.load(data)
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
-        self.assertTrue(
-            test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after
-        )
+        self.assertTrue(test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after)
 
     def test_sign_csr_keep_extensions(self) -> None:
         """
@@ -155,9 +149,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
         PKCS11Session.create_keypair(new_key_label)
-        cert_pem = csr.sign_csr(
-            new_key_label, issuer_name, CSR_PEM, keep_csr_extensions=False
-        )
+        cert_pem = csr.sign_csr(new_key_label, issuer_name, CSR_PEM, keep_csr_extensions=False)
 
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -180,9 +172,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         self.assertTrue(exts[0]["extn_id"].native == "key_identifier")
 
         # Test authority key identifier
-        self.assertTrue(
-            isinstance(exts[1]["extn_value"].native["key_identifier"], bytes)
-        )
+        self.assertTrue(isinstance(exts[1]["extn_value"].native["key_identifier"], bytes))
         self.assertTrue(isinstance(exts[1]["extn_id"].native, str))
         self.assertTrue(exts[1]["extn_id"].native == "authority_key_identifier")
 
@@ -234,8 +224,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         # Test key Usage
         self.assertTrue(isinstance(exts[0].native["extn_id"], str))
         self.assertTrue(
-            exts[0]["extn_value"].native
-            == {"crl_sign", "key_cert_sign", "digital_signature"}
+            exts[0]["extn_value"].native == {"crl_sign", "key_cert_sign", "digital_signature"}
         )
 
         # Test Basic constraints
