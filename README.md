@@ -100,7 +100,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 -----END CERTIFICATE REQUEST-----
 """
 
-roo_ca_name_dict = {"country_name": "SE",
+root_ca_name_dict = {"country_name": "SE",
              "state_or_province_name": "Stockholm",
              "locality_name": "Stockholm",
              "organization_name": "SUNET",
