@@ -127,9 +127,9 @@ def _set_tbs_ski(tbs: asn1_x509.TbsCertificate) -> asn1_x509.TbsCertificate:
     ski = OctetString()
     ski.set(tbs["subject_public_key_info"].sha1)
 
-    for extension in range(len(tbs["extensions"])):
-        if tbs["extensions"][extension]["extn_id"].dotted == "2.5.29.14":
-            tbs["extensions"][extension]["extn_value"] = ski
+    for _, extension in enumerate(tbs["extensions"]):
+        if extension["extn_id"].dotted == "2.5.29.14":
+            extension["extn_value"] = ski
             return tbs
 
     ext = asn1_x509.Extension()
