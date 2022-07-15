@@ -39,7 +39,7 @@ class TestRootCa(unittest.TestCase):
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
         # Test non default key size
-        root_cert_pem = create(new_key_label[:-1], name_dict, 4096)
+        _, root_cert_pem = create(new_key_label[:-1], name_dict, 4096)
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
@@ -48,11 +48,25 @@ class TestRootCa(unittest.TestCase):
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
 
         # Test default values
-        root_cert_pem = create(new_key_label[:-2], name_dict)
+        csr_pem, root_cert_pem = create(new_key_label[:-2], name_dict)
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
         test_cert = asn1_x509.Certificate.load(data)
+
+        data = csr_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_csr = asn1_csr.CertificationRequest.load(data)
+
+        self.assertTrue(isinstance(test_csr, asn1_csr.CertificationRequest))
+        tbs = asn1_x509.TbsCertificate()
+        tbs["subject_public_key_info"] = test_csr["certification_request_info"]["subject_pk_info"]
+        self.assertTrue(
+            tbs["subject_public_key_info"].dump()
+            == test_cert["tbs_certificate"]["subject_public_key_info"].dump()
+        )
+
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
         cert_exts = test_cert["tbs_certificate"]["extensions"]
         self.assertTrue(isinstance(cert_exts, asn1_x509.Extensions))
@@ -62,7 +76,7 @@ class TestRootCa(unittest.TestCase):
 
         # Test not_before parameter
         not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
-        root_cert_pem = create(
+        _, root_cert_pem = create(
             new_key_label[:-3],
             name_dict,
             not_before=not_before,
@@ -78,7 +92,7 @@ class TestRootCa(unittest.TestCase):
 
         # Test not_after parameter
         not_after = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
-        root_cert_pem = create(
+        _, root_cert_pem = create(
             new_key_label[:-4],
             name_dict,
             not_after=not_after,
@@ -112,7 +126,7 @@ class TestRootCa(unittest.TestCase):
         ext["extn_value"] = pkup
         exts.append(ext)
 
-        root_cert_pem = create(new_key_label, name_dict, extra_extensions=exts)
+        _, root_cert_pem = create(new_key_label, name_dict, extra_extensions=exts)
 
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):

@@ -4,7 +4,7 @@ Exposes the functions:
 - create()
 """
 
-from typing import Union, Dict
+from typing import Union, Dict, Tuple
 import datetime
 
 import asn1crypto
@@ -157,9 +157,11 @@ def create(
     not_before: Union[datetime.datetime, None] = None,
     not_after: Union[datetime.datetime, None] = None,
     extra_extensions: Union[asn1_x509.Extensions, None] = None,
-) -> str:
+) -> Tuple[str, str]:
     """Create and selfsign a CSR with
     the key_label in the PKCS11 device.
+
+    Returns the csr and the self signed cert
 
     Parameters:
     key_label (str): Keypair label.
@@ -170,7 +172,7 @@ def create(
     extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the root certificate, skip if None.
 
     Returns:
-    str
+    typing.Tuple[str, str]
     """
     pk_info, _ = PKCS11Session().create_keypair(key_label, key_size)
 
@@ -190,7 +192,7 @@ def create(
     # Needed for mypy strict
     assert isinstance(pem_enc, bytes)
 
-    return sign_csr(
+    return pem_enc.decode("utf-8"), sign_csr(
         key_label,
         subject_name,
         pem_enc.decode("utf-8"),

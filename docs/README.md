@@ -180,7 +180,7 @@ Our [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_
 	     not_before: Union[datetime.datetime, None] = None,
     	     not_after: Union[datetime.datetime, None] = None,
     	     keep_csr_extensions: bool = True,
-    	     extra_extensions: Union[asn1crypto.x509.Extensions, None] = None)`
+    	     extra_extensions: Union[asn1crypto.x509.Extensions, None] = None) -> str`
  
 ## sign_csr()
 
@@ -240,7 +240,7 @@ Our [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x
 	   subject_name: dict[str, str],
 	   not_before: Union[datetime.datetime, None] = None,
     	   not_after: Union[datetime.datetime, None] = None,
-	   exta_extensions: Union[asn1crypto.x509.Extensions] = None])`
+	   exta_extensions: Union[asn1crypto.x509.Extensions] = None]) -> typing.Tuple[str, str]`
 
 The `create()` function generate a CSR and then signs it
 with the same key from the key_label in the pkcs11 device.
@@ -269,7 +269,8 @@ name_dict = {"country_name": "SE",
              "common_name": "ca-test.sunet.se",
              "email_address": "soc@sunet.se"}
 
-root_cert_pem = create("my_rsa_key", name_dict)
+csr_pem, root_cert_pem = create("my_rsa_key", name_dict)
+print(csr_pem)
 print(root_cert_pem)
 ```
 
@@ -283,7 +284,7 @@ Our [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_
 	   serial_number: Union[int, None] = None,
 	   reason: Union[int, None] = None
 	   this_update: Union[datetime.datetime, None] = None
-	   next_update: Union[datetime.datetime, None] = None)`
+	   next_update: Union[datetime.datetime, None] = None) -> str`
 
 
 The `create()` function generate a CRL and then signs it with the

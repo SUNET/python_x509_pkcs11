@@ -77,7 +77,6 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 ```
 
 ```python
-from python_x509_pkcs11 import csr
 from python_x509_pkcs11.root_ca import create
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
@@ -108,13 +107,13 @@ root_ca_name_dict = {"country_name": "SE",
              "common_name": "ca-test.sunet.se",
              "email_address": "soc@sunet.se"}
 
-root_cert_pem = create("my_rsa_key", root_ca_name_dict)
+csr_pem, root_cert_pem = create("my_rsa_key", root_ca_name_dict)
+print("CSR which was selfsigned into root CA")
+print(csr_pem)
+
 print("root CA")
 print(root_cert_pem)
 
-cert_pem = csr.sign_csr("my_rsa_key", root_ca_name_dict, csr_pem)
-print("Cert signed by root CA")
-print(cert_pem)
 ```
 
 ## Contributing / Tests
