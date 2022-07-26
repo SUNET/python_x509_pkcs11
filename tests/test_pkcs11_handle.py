@@ -3,6 +3,7 @@ Test our PKCS11 session handler
 """
 import unittest
 import os
+import asyncio
 
 from pkcs11 import Mechanism
 from pkcs11.exceptions import NoSuchKey, MultipleObjectsReturned
@@ -36,23 +37,31 @@ class TestPKCS11Handle(unittest.TestCase):
 
         signature_val = b"\xd4\x94'N(\x1c\x16\xc11\xf0#\xe0\xb0\x0b\xc4L[D\xed6<-\xb53\xa0\x9fm\xdd\xfd_\xd7\xb5\xbe]KAu\xb5\x99\x11z@-6/-\xc9_\xde\x05\xba\xb6\x81\xad|\x95\xd8*\xc4\xa4<\xcfE\xaaE\x922e\xa1\x81\xa6\xe9\x94:M\x17_\x0ba\xdd\x94|1\x15|;%z\xc2\x9c\xe4b\xf9\x06es@U\xcd\x83x\xb4\x08&\xb7\xc1\xe9\xc8\x04c\x7f\x9b\x0e\xff\xe3\xb68\xbd\xb6\x05\r\xe86\x17L\x1e\xeb\xd7R\xaf\xa2\x7fU\x8e]\x9e\x93\x8f\x17\xed\xa4\x15\xcb\xc5\x84)\xe0\xec\xbe\x90\xba\x1d0jgEY^r\xe8\x18{Q\n\xab\xfe\xf9\xb3#R*8\xc8\x06\xdb\x81\xaf\xd1q\n\xef~S\x9d\xb0\x1f\n\x81@}\xba\xdcL?\xf9\"\xddN|\xb9\x828\x96\x89P\x92&$O\x16P\xbe\xd7\x06\xcc\xd5*P\xcd\x92\x82\xc2\xcf\x94\xf0\x1e\xe3\xc1\xd6\xf9\x1b\xccE!tE\x87\x05o'|\xab\x9b!5ua\xed\xe0\x7f\x15\xc8t;.\xf5"
 
-        pk_info, identifier = PKCS11Session.import_keypair(imported_key_label, pub, priv)
+        pk_info, identifier = asyncio.run(
+            PKCS11Session.import_keypair(imported_key_label, pub, priv)
+        )
         self.assertTrue(isinstance(identifier, bytes))
         self.assertTrue(identifier == b'\xf0c\xd5\xe2X\xdc\x19@\xa2\xbc#\x13\x0c_\xaae\x16\xde"f')
         self.assertTrue(isinstance(pk_info, PublicKeyInfo))
 
-        self.assertTrue(imported_key_label in PKCS11Session.key_labels())
+        self.assertTrue(imported_key_label in asyncio.run(PKCS11Session.key_labels()))
         with self.assertRaises(MultipleObjectsReturned):
-            pk_info, identifier = PKCS11Session.import_keypair(imported_key_label, pub, priv)
+            pk_info, identifier = asyncio.run(
+                PKCS11Session.import_keypair(imported_key_label, pub, priv)
+            )
 
         data_to_be_signed = b"MY TEST DATA TO BE SIGNED HERE"
-        signature = PKCS11Session.sign(imported_key_label, data_to_be_signed)
+        signature = asyncio.run(PKCS11Session.sign(imported_key_label, data_to_be_signed))
         self.assertTrue(isinstance(signature, bytes))
         self.assertTrue(signature == signature_val)
-        self.assertTrue(PKCS11Session.verify(imported_key_label, data_to_be_signed, signature))
+        self.assertTrue(
+            asyncio.run(PKCS11Session.verify(imported_key_label, data_to_be_signed, signature))
+        )
         self.assertFalse(
-            PKCS11Session.verify(
-                imported_key_label, data_to_be_signed, b"NOT VALID SIGNATURE HERE"
+            asyncio.run(
+                PKCS11Session.verify(
+                    imported_key_label, data_to_be_signed, b"NOT VALID SIGNATURE HERE"
+                )
             )
         )
 
@@ -60,31 +69,31 @@ class TestPKCS11Handle(unittest.TestCase):
         """Create keypair with key_label in the PKCS11 device."""
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label, 2048)
-        pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label, 2048))
+        pk_info, identifier = asyncio.run(PKCS11Session.public_key_data(new_key_label))
         self.assertTrue(isinstance(identifier, bytes))
         self.assertTrue(isinstance(pk_info, PublicKeyInfo))
 
         with self.assertRaises(MultipleObjectsReturned):
-            PKCS11Session.create_keypair(new_key_label, 2048)
-            pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
+            asyncio.run(PKCS11Session.create_keypair(new_key_label, 2048))
+            pk_info, identifier = asyncio.run(PKCS11Session.public_key_data(new_key_label))
 
-        PKCS11Session.create_keypair(new_key_label[:-1], 2048)
-        pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[:-1])
+        asyncio.run(PKCS11Session.create_keypair(new_key_label[:-1], 2048))
+        pk_info2, identifier2 = asyncio.run(PKCS11Session.public_key_data(new_key_label[:-1]))
         self.assertTrue(isinstance(identifier2, bytes))
         self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
 
         self.assertTrue(identifier != identifier2)
         self.assertTrue(pk_info.native != pk_info2.native)
 
-        PKCS11Session.create_keypair(new_key_label[:-2], 4096)
-        pk_info2, identifier2 = PKCS11Session.public_key_data(new_key_label[:-2])
+        asyncio.run(PKCS11Session.create_keypair(new_key_label[:-2], 4096))
+        pk_info2, identifier2 = asyncio.run(PKCS11Session.public_key_data(new_key_label[:-2]))
         self.assertTrue(isinstance(identifier2, bytes))
         self.assertTrue(isinstance(pk_info2, PublicKeyInfo))
 
         # Test key_labels
-        pk_info3, identifier3 = PKCS11Session.create_keypair(new_key_label[:-3], 4096)
-        key_labels = PKCS11Session.key_labels()
+        pk_info3, identifier3 = asyncio.run(PKCS11Session.create_keypair(new_key_label[:-3], 4096))
+        key_labels = asyncio.run(PKCS11Session.key_labels())
         self.assertTrue(isinstance(key_labels, list))
         self.assertTrue(len(key_labels) > 0)
         for label in key_labels:
@@ -92,7 +101,7 @@ class TestPKCS11Handle(unittest.TestCase):
         self.assertTrue(new_key_label[:-3] in key_labels)
         self.assertFalse("should_not_exists_1232353523" in key_labels)
 
-        pk_info3_1, identifier3_1 = PKCS11Session.public_key_data(new_key_label[:-3])
+        pk_info3_1, identifier3_1 = asyncio.run(PKCS11Session.public_key_data(new_key_label[:-3]))
         self.assertTrue(pk_info3.dump() == pk_info3_1.dump())
         self.assertTrue(identifier3 == identifier3_1)
 
@@ -102,13 +111,13 @@ class TestPKCS11Handle(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label)
-        pk_info, identifier = PKCS11Session.public_key_data(new_key_label)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        pk_info, identifier = asyncio.run(PKCS11Session.public_key_data(new_key_label))
         self.assertTrue(isinstance(identifier, bytes))
         self.assertTrue(isinstance(pk_info, PublicKeyInfo))
 
         with self.assertRaises(NoSuchKey):
-            pk_info, identifier = PKCS11Session.public_key_data(new_key_label[:-2])
+            pk_info, identifier = asyncio.run(PKCS11Session.public_key_data(new_key_label[:-2]))
 
     def test_sign_and_verify_data(self) -> None:
         """
@@ -116,32 +125,42 @@ class TestPKCS11Handle(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
         data_to_be_signed = b"MY TEST DATA TO BE SIGNED HERE"
 
-        signature = PKCS11Session.sign(new_key_label, data_to_be_signed)
+        signature = asyncio.run(PKCS11Session.sign(new_key_label, data_to_be_signed))
         self.assertTrue(isinstance(signature, bytes))
 
-        signature = PKCS11Session.sign(new_key_label, data_to_be_signed, Mechanism.SHA512_RSA_PKCS)
+        signature = asyncio.run(
+            PKCS11Session.sign(new_key_label, data_to_be_signed, Mechanism.SHA512_RSA_PKCS)
+        )
         self.assertTrue(isinstance(signature, bytes))
 
-        self.assertTrue(PKCS11Session.verify(new_key_label, data_to_be_signed, signature))
-
-        self.assertFalse(
-            PKCS11Session.verify(new_key_label, data_to_be_signed, b"NOT VALID SIGNATURE HERE")
+        self.assertTrue(
+            asyncio.run(PKCS11Session.verify(new_key_label, data_to_be_signed, signature))
         )
 
         self.assertFalse(
-            PKCS11Session.verify(
-                new_key_label,
-                data_to_be_signed,
-                b"NOT VALID SIGNATURE HERE",
-                Mechanism.SHA512_RSA_PKCS,
+            asyncio.run(
+                PKCS11Session.verify(new_key_label, data_to_be_signed, b"NOT VALID SIGNATURE HERE")
             )
         )
 
         self.assertFalse(
-            PKCS11Session.verify(
-                new_key_label, data_to_be_signed, signature, Mechanism.SHA512_RSA_PKCS
+            asyncio.run(
+                PKCS11Session.verify(
+                    new_key_label,
+                    data_to_be_signed,
+                    b"NOT VALID SIGNATURE HERE",
+                    Mechanism.SHA512_RSA_PKCS,
+                )
+            )
+        )
+
+        self.assertFalse(
+            asyncio.run(
+                PKCS11Session.verify(
+                    new_key_label, data_to_be_signed, signature, Mechanism.SHA512_RSA_PKCS
+                )
             )
         )

@@ -81,15 +81,21 @@ then pkcs11.MultipleObjectsReturned will be raised.
 
 ### Example usage:
 ```python
+import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 pub = b"0\x82\x01\n\x02\x82\x01\x01\x00\xd9\xb6C,O\xc0\x83\xca\xa5\xcc\xa7<_\xbf$\xdd-YJ0m\xbf\xa8\xf9[\xe7\xcb\x14W6G\n\x13__\xea\xb4Z\xab2\x01\x0f\xa4\xd3\x1c\xbb\xa6\x98\x9d\xcdf\xaa\x07\xcb\xff\xd8\x80\xa9\\\xa1\xf44\x01\xdbY\xa6\xcf\x83\xd2\x83Z\x8a<\xc1\x18\xe5\x8d\xff\xbfzU\x03\x01\x11\xa1\xa1\x98\xcf\xcaVu\xf9\xf3\xa7+ \xe7N9\x07\xfd\xc6\xd0\x7f\xa0\xba&\xef\xb2a\xc6\xa5d\x1c\x93\xe6\xc3\x80\xd1*;\xc8@7\x0fm)\xf93\xe4\x1f\x91\xf4=\xa6\xf8\xed\x9cN\x84\x9b\xf2\xc5\x9f\x9f\x82E\xa5Tm\xb9\xb3:T\xc7_\xb1^[\xf4\x0b\xd8\x0b\xd2\xfb\xe1\x13\x1e,L\xd9\xdc\xed]_#\xca\xa0r\xc2\xc5F \xec\xae\x8d\x08v\x059\x062\xe1\xf7%\x9e\xfd\xfb9\x11(\xa4\x86v\x90\x01\x1c\xbeP\x04\xa3%\x91\x08\xc5\xd5\xc1U\xf6\xd3\x7f\x1f\x9f7`\xce\xc9\xa1\xd9\x8f\\Z\xa8\x1cmz\x19x\xa4'F\xdf\xb2\xb2\x87\xba\xf7\n>]\x9f\xc0K@\xd9\xdb\x02\x03\x01\x00\x01"
 
 priv = b"0\x82\x04\xa4\x02\x01\x00\x02\x82\x01\x01\x00\xd9\xb6C,O\xc0\x83\xca\xa5\xcc\xa7<_\xbf$\xdd-YJ0m\xbf\xa8\xf9[\xe7\xcb\x14W6G\n\x13__\xea\xb4Z\xab2\x01\x0f\xa4\xd3\x1c\xbb\xa6\x98\x9d\xcdf\xaa\x07\xcb\xff\xd8\x80\xa9\\\xa1\xf44\x01\xdbY\xa6\xcf\x83\xd2\x83Z\x8a<\xc1\x18\xe5\x8d\xff\xbfzU\x03\x01\x11\xa1\xa1\x98\xcf\xcaVu\xf9\xf3\xa7+ \xe7N9\x07\xfd\xc6\xd0\x7f\xa0\xba&\xef\xb2a\xc6\xa5d\x1c\x93\xe6\xc3\x80\xd1*;\xc8@7\x0fm)\xf93\xe4\x1f\x91\xf4=\xa6\xf8\xed\x9cN\x84\x9b\xf2\xc5\x9f\x9f\x82E\xa5Tm\xb9\xb3:T\xc7_\xb1^[\xf4\x0b\xd8\x0b\xd2\xfb\xe1\x13\x1e,L\xd9\xdc\xed]_#\xca\xa0r\xc2\xc5F \xec\xae\x8d\x08v\x059\x062\xe1\xf7%\x9e\xfd\xfb9\x11(\xa4\x86v\x90\x01\x1c\xbeP\x04\xa3%\x91\x08\xc5\xd5\xc1U\xf6\xd3\x7f\x1f\x9f7`\xce\xc9\xa1\xd9\x8f\\Z\xa8\x1cmz\x19x\xa4'F\xdf\xb2\xb2\x87\xba\xf7\n>]\x9f\xc0K@\xd9\xdb\x02\x03\x01\x00\x01\x02\x82\x01\x00a5\x1e=\x14\xc6\xf2\x91s\x023\xd1\xa36\xa7q\x12$\x82\x19\xa9\x87 \x1df\xc9\xd2E\x1c\xc3\xa1h\x80I\xdf{\xdeWu\x84\xf80Q\xf9\xe9$h8P\x8d;\xbf\xc3\x87t\x8e\xe8\xb3\xb6&\xa1\xf0\xee\xbbP\x06I5\xa4\xb2\xfd\xa4'\x88Xcv\xc9\xb0g \xba\x1c\xaa\x10\xaf$\x99\xf2\xd04\x11\x0c\x97\xa1\x8c){%\xbf\xc9\xb2\x11\xbaJ\xbb\x93S\x07$\xdd\x1bO\xdd\xea\xb3\xe8\xab\x05\xb9\x83\xc3\xdf\xd85\xcd\x1a%\xd5\xd9\xc4\x933\x83\t\xd3\xea\xcdb\xcb\xec\x9eGqk\x1c\x8c\x06\x8a\\\xae\xbe\xd3+\x0b\xd0R\xbd:\x8a\xf5\xf4\x0f\x0b\xd4\xfa@P=\xe5\xb2\xa1\xb2\x01\x00\x08\xc7\x11?M\x84-\x1e\xbc\xa9\xbf|\x87\x98\xd7\x0e\xf6\xa9\xa6\xcd\x8c8\xa5F8\xacM\x82\xade[\xa9_\xa7Biv\x9c\x06\xa6\x001\xc3I\x1f\xc4\x9by\xd7\xe0\x9e\xb9\n\xbb\x19\\o\xc5i\xd90r\xd4\x1e(\x05\xdd\xedF\xe9\xaa\xbd\x91\xe5\x08\x8f4-\xb6\xd1Q\x02\x81\x81\x00\xf7\x076\xd8i\x87\x12\xf1\xd0$\x07\x1f\xab\xb7^\x0e\xa5\xfb\x83\x98\x00\x0b\\\x1d\xe8s\x15r\x96/\x0e\x0ezB\xc8\xf6\xf3Zmj?\xa0\xc1\x11r\xaf3\x11a\xcd\xa3\xfc\xa0\x03\x04E\x05\x99\x9a\xd9\xff\x8e+\xdcfM\xa8\xe8&\x84\x85\xc5\x11O\x9d4\x1f\xc3\x1f\xef\xed\x13BW\xaa\x93\xc3\x08(v]\xbc\x93V\xb6s\xce\xb1\xa8\xe2\x94\xa5'\xf3\x7f\x90,G[\xfeI\x16\xbe\xb0\xf8J\xca9n\xb5\xfc\x8a\xe2[\xc5\x0c\x95\xd5\x02\x81\x81\x00\xe1\x9ey\xc8\xe2\xd3\x93\xa2nj\xe1.\xaa\xe3\xa7\xf5P\xd1\xd8yM\x01\xdc\x01\x0c\xdbQG\x1b=\xbe\xe4.\x9cM\xc2\xda\xd2\xa4\xb3\x80\xb2\xbd\xbaO\x1bD&]0\x0b\xe6\xf5\x08\xdb*I\xfe+@Aa\x16;\x9a%\x8cof:\x156 \xb0\xe6\xfe\x95\x9bO\x85]\x96\x94S\x05\xc8\x8a\xb6\x92\xb3\x95\xc5\xfbX\xa9S<@\x12\x94K\x8b\xa3\x0f\xebO\xb5\x9f\x0c\x08\xf2\xccS\xfd8\x06\xeb\xaa\x96_\xadm&L~!\x18\xef\x02\x81\x80@.\x04\xa6\xd7K\xfb\xb5\r\xb1\xbe\x94\x10\xe6\x14.\xd4\x1a\xf3\x86\x93D`Kx\xf0%{^\xdf\x9c\xd4P\x19w\xe3\t8\xceB\x93\x83m\x85\xdd\xf8\xfc\xd8\xa0Cp>\x9bH\r\\\xedf\x8a\x1f\xe7P\x85\xbe\xbei\xa0\xdf\xa7\xda8s\t\xdbXi\x89s\x05\xa2-C\x1a\xb2r#\xef\xc0\xf7\xda@\xe2T\x99k\xcf\xcc\xbc\xc5\xb7\x10\x8d\x94B\xa4:\xcd\xf6@Ea\xb1\xe2\x1bRw\x03\xf1E\xfdL>\xbd.\xc0\x94S}\x02\x81\x81\x00\xa2\xce\x13}EH}a\x19\xa2`I\xa7\xa0\xcdc4\xe5\xa7\xfa\xa7\xf9\xee\x82\x87\x7f\x7f\x1f\xfbeK\xe9&E=\xcb\x9c\xd1\xa1m\xb21\xc8\xbc\xb76\xaa\xaf\xb0P\xeaU\xc7}\x93\x80\xe9\x91\xd2-\xf4\xbf\x95&\x7f.\x17/\x8f\xa9\xdc\x02\x8a\x06}9:E\xafUBZU?\xaf\x8d\xad\xa2\xdf+]\xa9V\x9c\xfc\xda\x86@\x89\xe7\x9e\xb7\xed{\xa0F\x8d}nV\xca\xb5l\xe9\xedR\xf9\x1d\xc8\x92\xd3\xf7NJ\xa6=E\xdb\x02\x81\x81\x00\xf5\xa8\xec\x00k\x18\x10KK\xd0D\xa9\xeb\x87==X\xa2\xaa)\xeb\x92\xfa\xf8f\xa6W\xaa\x94\x92\xa1F\t\xc1\x01\xd8%-\x1f\xb71\xefg\x95q\xb3\xa5J[k\xe3\x17\xac\xfd\xbfU\x02\x95\xa4\xf9\xcd\x80!E\x9d\x7f\x9c\xcd\x89uV\x1df\xee\xab\xd3\x1f7$&\x014\xd2\xdd\xc2\xe4?\x1bh*\xb6\x00\x1a\x1fz^\xbc\x97\xde\x9cK\xc8\xf5\xcf0\"\x8c\x8bm\xecUv\xefu\xd9YD\x05\xe8?9J\x8c\x18\x90\x0e\xc4\x88"
 
-pk_info, identifier = PKCS11Session.import_keypair("my_rsa_key", pub, priv)
-print(pk_info)
-print(identifier)
+
+async def my_func() -> None:
+    pk_info, identifier = await PKCS11Session.import_keypair("my_rsa_key", pub, priv)
+    print(pk_info)
+    print(identifier)
+
+
+asyncio.run(my_func())
 ```
 
 ## create_keypair()
@@ -103,11 +109,17 @@ then pkcs11.MultipleObjectsReturned will be raised.
 
 ### Example usage:
 ```python
+import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
-print(pk_info)
-print(identifier)
+
+async def my_func() -> None:
+    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    print(pk_info)
+    print(identifier)
+
+
+asyncio.run(my_func())
 ```
 
 ## key_labels()
@@ -116,11 +128,17 @@ The `key_labels()` function return a list of key labels in the PKCS11 device.
 
 ### Example usage:
 ```python
+import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
-labels = PKCS11Session.key_labels()
-print(labels)
+
+async def my_func() -> None:
+    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    labels = await PKCS11Session.key_labels()
+    print(labels)
+
+
+asyncio.run(my_func())
 ```
 
 ## sign()
@@ -129,12 +147,18 @@ The `sign()` function signs the data using the private_key in the PKCS11 device 
 
 ### Example usage:
 ```python
+import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
-data = b"DATA TO BE SIGNED"
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
-signature = PKCS11Session.sign("my_rsa_key", data)
-print(signature)
+
+async def my_func() -> None:
+    data = b"DATA TO BE SIGNED"
+    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    signature = await PKCS11Session.sign("my_rsa_key", data)
+    print(signature)
+
+
+asyncio.run(my_func())
 ```
 
 ## verify()
@@ -143,15 +167,21 @@ The `verify()` function verifies a signature and its data using the private_key 
 
 ### Example usage:
 ```python
+import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
-data = b"DATA TO BE SIGNED"
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
-signature = PKCS11Session.sign("my_rsa_key", data)
-if PKCS11Session.verify("my_rsa_key", data, signature):
-    print("OK sig")
-else:
-    print("BAD sig")
+
+async def my_func() -> None:
+    data = b"DATA TO BE SIGNED"
+    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    signature = await PKCS11Session.sign("my_rsa_key", data)
+    if await PKCS11Session.verify("my_rsa_key", data, signature):
+        print("OK sig")
+    else:
+        print("BAD sig")
+
+
+asyncio.run(my_func())
 ```
 
 ## public_key_data()
@@ -161,14 +191,22 @@ and 'Key Identifier' valid for this keypair from the public key in the PKCS11 de
 
 ### Example usage:
 ```python
+import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
-pk_info_created, identifier_created = PKCS11Session.create_keypair("my_rsa_key")
-pk_info_loaded, identifier_loaded = PKCS11Session.public_key_data("my_rsa_key")
-assert (pk_info_created.native == pk_info_loaded.native)
-assert (identifier_created == identifier_loaded)
-print(pk_info_loaded.native)
-print(identifier_loaded)
+
+async def my_func() -> None:
+    pk_info_created, identifier_created = await PKCS11Session.create_keypair(
+        "my_rsa_key"
+    )
+    pk_info_loaded, identifier_loaded = await PKCS11Session.public_key_data(
+        "my_rsa_key"
+    )
+    print(pk_info_loaded.native)
+    print(identifier_loaded)
+
+
+asyncio.run(my_func())
 ```
 
 # Sign an CSR
@@ -196,6 +234,7 @@ datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
 
 ### Example usage:
 ```python
+import asyncio
 from python_x509_pkcs11 import csr
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
@@ -218,17 +257,25 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 -----END CERTIFICATE REQUEST-----
 """
 
-issuer_name = {"country_name": "SE",
-               "state_or_province_name": "Stockholm",
-               "locality_name": "Stockholm",
-               "organization_name": "SUNET",
-               "organizational_unit_name": "SUNET Infrastructure",
-               "common_name": "ca-test.sunet.se",
-               "email_address": "soc@sunet.se"}
 
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
-cert_pem = csr.sign_csr("my_rsa_key", issuer_name, csr_pem)
-print(cert_pem)
+async def my_func() -> None:
+
+    issuer_name = {
+        "country_name": "SE",
+        "state_or_province_name": "Stockholm",
+        "locality_name": "Stockholm",
+        "organization_name": "SUNET",
+        "organizational_unit_name": "SUNET Infrastructure",
+        "common_name": "ca-test.sunet.se",
+        "email_address": "soc@sunet.se",
+    }
+
+    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    cert_pem = await csr.sign_csr("my_rsa_key", issuer_name, csr_pem)
+    print(cert_pem)
+
+
+asyncio.run(my_func())
 ```
 
 # Create a root CA
@@ -258,20 +305,30 @@ the generated CSR.
 
 ### Example usage:
 ```python
+import asyncio
 from python_x509_pkcs11.root_ca import create
-from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
-name_dict = {"country_name": "SE",
-             "state_or_province_name": "Stockholm",
-             "locality_name": "Stockholm",
-             "organization_name": "SUNET",
-             "organizational_unit_name": "SUNET Infrastructure",
-             "common_name": "ca-test.sunet.se",
-             "email_address": "soc@sunet.se"}
 
-csr_pem, root_cert_pem = create("my_rsa_key", name_dict)
-print(csr_pem)
-print(root_cert_pem)
+async def my_func() -> None:
+    root_ca_name_dict = {
+        "country_name": "SE",
+        "state_or_province_name": "Stockholm",
+        "locality_name": "Stockholm",
+        "organization_name": "SUNET",
+        "organizational_unit_name": "SUNET Infrastructure",
+        "common_name": "ca-test.sunet.se",
+        "email_address": "soc@sunet.se",
+    }
+    csr_pem, root_cert_pem = await create("my_rsa_key", root_ca_name_dict)
+
+    print("CSR which was selfsigned into root CA")
+    print(csr_pem)
+
+    print("root CA")
+    print(root_cert_pem)
+
+
+asyncio.run(my_func())
 ```
 
 # Create a CRL
@@ -305,18 +362,26 @@ datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
 
 ### Example usage:
 ```python
+import asyncio
 from python_x509_pkcs11.crl import create
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
-name_dict = {"country_name": "SE",
-             "state_or_province_name": "Stockholm",
-             "locality_name": "Stockholm",
-             "organization_name": "SUNET",
-             "organizational_unit_name": "SUNET Infrastructure",
-             "common_name": "ca-test.sunet.se",
-             "email_address": "soc@sunet.se"}
 
-pk_info, identifier = PKCS11Session.create_keypair("my_rsa_key")
-crl_pem = create("my_rsa_key", name_dict)
-print(crl_pem)
+async def my_func() -> None:
+    name_dict = {
+        "country_name": "SE",
+        "state_or_province_name": "Stockholm",
+        "locality_name": "Stockholm",
+        "organization_name": "SUNET",
+        "organizational_unit_name": "SUNET Infrastructure",
+        "common_name": "ca-test.sunet.se",
+        "email_address": "soc@sunet.se",
+    }
+
+    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    crl_pem = await create("my_rsa_key", name_dict)
+    print(crl_pem)
+
+
+asyncio.run(my_func())
 ```

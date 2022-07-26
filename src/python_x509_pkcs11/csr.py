@@ -229,7 +229,7 @@ def _create_tbs_certificate(
     return tbs
 
 
-def sign_csr(
+async def sign_csr(
     key_label: str,
     issuer_name: Dict[str, str],
     csr_pem: str,
@@ -253,7 +253,7 @@ def sign_csr(
     str
     """
 
-    _, aki = PKCS11Session().public_key_data(key_label)
+    _, aki = await PKCS11Session().public_key_data(key_label)
 
     tbs = _request_to_tbs_certificate(csr_pem, keep_csr_extensions)
 
@@ -262,7 +262,7 @@ def sign_csr(
     signed_cert = asn1_x509.Certificate()
     signed_cert["tbs_certificate"] = tbs
     signed_cert["signature_algorithm"] = tbs["signature"]
-    signed_cert["signature_value"] = PKCS11Session().sign(key_label, tbs.dump())
+    signed_cert["signature_value"] = await PKCS11Session().sign(key_label, tbs.dump())
 
     pem_enc = asn1_pem.armor("CERTIFICATE", signed_cert.dump())
 

@@ -4,6 +4,7 @@ Test to create a new root CA
 import unittest
 import datetime
 import os
+import asyncio
 
 from asn1crypto.core import GeneralizedTime
 from asn1crypto import x509 as asn1_x509
@@ -39,7 +40,7 @@ class TestRootCa(unittest.TestCase):
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
         # Test non default key size
-        _, root_cert_pem = create(new_key_label[:-1], name_dict, 4096)
+        _, root_cert_pem = asyncio.run(create(new_key_label[:-1], name_dict, 4096))
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
@@ -48,7 +49,7 @@ class TestRootCa(unittest.TestCase):
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
 
         # Test default values
-        csr_pem, root_cert_pem = create(new_key_label[:-2], name_dict)
+        csr_pem, root_cert_pem = asyncio.run(create(new_key_label[:-2], name_dict))
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
@@ -76,10 +77,12 @@ class TestRootCa(unittest.TestCase):
 
         # Test not_before parameter
         not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
-        _, root_cert_pem = create(
-            new_key_label[:-3],
-            name_dict,
-            not_before=not_before,
+        _, root_cert_pem = asyncio.run(
+            create(
+                new_key_label[:-3],
+                name_dict,
+                not_before=not_before,
+            )
         )
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -92,10 +95,12 @@ class TestRootCa(unittest.TestCase):
 
         # Test not_after parameter
         not_after = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
-        _, root_cert_pem = create(
-            new_key_label[:-4],
-            name_dict,
-            not_after=not_after,
+        _, root_cert_pem = asyncio.run(
+            create(
+                new_key_label[:-4],
+                name_dict,
+                not_after=not_after,
+            )
         )
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -126,7 +131,7 @@ class TestRootCa(unittest.TestCase):
         ext["extn_value"] = pkup
         exts.append(ext)
 
-        _, root_cert_pem = create(new_key_label, name_dict, extra_extensions=exts)
+        _, root_cert_pem = asyncio.run(create(new_key_label, name_dict, extra_extensions=exts))
 
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):

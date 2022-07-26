@@ -4,6 +4,7 @@ Test to sign a csr
 import unittest
 import datetime
 import os
+import asyncio
 
 from asn1crypto import x509 as asn1_x509
 from asn1crypto import csr as asn1_csr
@@ -80,8 +81,9 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 -----END CERTIFICATE REQUEST-----"""
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label)
-        cert_pem = csr.sign_csr(new_key_label, issuer_name, csr_no_exts)
+
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, csr_no_exts))
 
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -96,7 +98,9 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         # Test not_before
         not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
-        cert_pem = csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_before=not_before)
+        cert_pem = asyncio.run(
+            csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_before=not_before)
+        )
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
@@ -108,7 +112,9 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         # Test not_after
         not_after = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
-        cert_pem = csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_after=not_after)
+        cert_pem = asyncio.run(
+            csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_after=not_after)
+        )
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
@@ -122,8 +128,8 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label)
-        cert_pem = csr.sign_csr(new_key_label, issuer_name, CSR_PEM)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, CSR_PEM))
 
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -148,8 +154,10 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label)
-        cert_pem = csr.sign_csr(new_key_label, issuer_name, CSR_PEM, keep_csr_extensions=False)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        cert_pem = asyncio.run(
+            csr.sign_csr(new_key_label, issuer_name, CSR_PEM, keep_csr_extensions=False)
+        )
 
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -200,13 +208,15 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         ext2["extn_value"] = b_c
         exts.append(ext2)
 
-        PKCS11Session.create_keypair(new_key_label)
-        cert_pem = csr.sign_csr(
-            new_key_label,
-            issuer_name,
-            CSR_PEM,
-            keep_csr_extensions=False,
-            extra_extensions=exts,
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        cert_pem = asyncio.run(
+            csr.sign_csr(
+                new_key_label,
+                issuer_name,
+                CSR_PEM,
+                keep_csr_extensions=False,
+                extra_extensions=exts,
+            )
         )
 
         data = cert_pem.encode("utf-8")
@@ -250,12 +260,14 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         exts.append(ext1)
         exts.append(ext1)
 
-        PKCS11Session.create_keypair(new_key_label)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
         with self.assertRaises(DuplicateExtensionException):
-            _ = csr.sign_csr(
-                new_key_label,
-                issuer_name,
-                CSR_PEM,
-                keep_csr_extensions=False,
-                extra_extensions=exts,
+            _ = asyncio.run(
+                csr.sign_csr(
+                    new_key_label,
+                    issuer_name,
+                    CSR_PEM,
+                    keep_csr_extensions=False,
+                    extra_extensions=exts,
+                )
             )

@@ -5,6 +5,7 @@ import unittest
 import os
 from asn1crypto import crl as asn1_crl
 from asn1crypto import pem as asn1_pem
+import asyncio
 
 from src.python_x509_pkcs11 import crl
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -56,9 +57,9 @@ class TestCrl(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
 
-        crl_pem = crl.create(new_key_label, subject_name)
+        crl_pem = asyncio.run(crl.create(new_key_label, subject_name))
 
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -68,7 +69,7 @@ class TestCrl(unittest.TestCase):
 
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
 
-        crl_pem = crl.create(new_key_label, subject_name, old_crl_pem=OLD_CRL_PEM)
+        crl_pem = asyncio.run(crl.create(new_key_label, subject_name, old_crl_pem=OLD_CRL_PEM))
 
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -84,9 +85,11 @@ class TestCrl(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        PKCS11Session.create_keypair(new_key_label)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
 
-        crl_pem = crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=3)
+        crl_pem = asyncio.run(
+            crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=3)
+        )
 
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -96,12 +99,14 @@ class TestCrl(unittest.TestCase):
 
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
 
-        crl_pem = crl.create(
-            new_key_label,
-            subject_name,
-            old_crl_pem=OLD_CRL_PEM,
-            serial_number=2342348342341456,
-            reason=2,
+        crl_pem = asyncio.run(
+            crl.create(
+                new_key_label,
+                subject_name,
+                old_crl_pem=OLD_CRL_PEM,
+                serial_number=2342348342341456,
+                reason=2,
+            )
         )
 
         data = crl_pem.encode("utf-8")

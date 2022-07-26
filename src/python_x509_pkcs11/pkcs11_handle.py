@@ -14,11 +14,14 @@ Exposes the functions:
 """
 
 import typing
-from typing import Tuple, List
+from typing import Tuple, List, AsyncIterator
 from types import FrameType
 import hashlib
 from threading import Lock, Thread
 import os
+from concurrent.futures import ThreadPoolExecutor
+from asyncio import get_event_loop, sleep
+from contextlib import asynccontextmanager
 
 from asn1crypto.keys import (
     PublicKeyInfo,
@@ -32,9 +35,19 @@ from pkcs11.util.rsa import encode_rsa_public_key, decode_rsa_public_key, decode
 
 from .error import PKCS11TimeoutException, PKCS11UnknownErrorException
 
-LOCK = Lock()
 DEBUG = False
-TIMEOUT = 6  # Seconds
+TIMEOUT = 3  # Seconds
+pool = ThreadPoolExecutor()
+
+
+@asynccontextmanager
+async def async_lock(lock: Lock) -> AsyncIterator[None]:
+    loop = get_event_loop()
+    await loop.run_in_executor(pool, lock.acquire)
+    try:
+        yield  # the lock is held
+    finally:
+        lock.release()
 
 
 class PKCS11Session:
@@ -43,6 +56,8 @@ class PKCS11Session:
     _session_status: int = 9
     session: Session = None
     token: Token = None
+
+    _lock = Lock()
 
     @classmethod
     def _open_session(cls, force: bool = False) -> None:
@@ -64,7 +79,7 @@ class PKCS11Session:
             cls._session_status = 0
 
     @classmethod
-    def _healthy_session(cls) -> None:
+    async def _healthy_session(cls) -> None:
         p = Thread(target=cls._open_session, args=())
         p.start()
         p.join(timeout=TIMEOUT)
@@ -75,6 +90,10 @@ class PKCS11Session:
 
             p2 = Thread(target=cls._open_session, args=({"force": True}))
             p2.start()
+
+            # yield to other coroutines while we wait for p2 to join
+            await sleep(0)
+
             p2.join(timeout=TIMEOUT)
 
             if p2.is_alive():
@@ -85,7 +104,7 @@ class PKCS11Session:
             raise PKCS11UnknownErrorException("ERROR: Could not get a healthy PKCS11 connection")
 
     @classmethod
-    def import_keypair(
+    async def import_keypair(
         cls, key_label: str, public_key: bytes, private_key: bytes
     ) -> typing.Tuple[PublicKeyInfo, bytes]:
         """Import a RSA keypair into the PKCS11 device with this label.
@@ -108,10 +127,9 @@ class PKCS11Session:
         typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]
         """
 
-        with LOCK:
-
+        async with async_lock(cls._lock):
             # Ensure we get a healthy pkcs11 session
-            cls._healthy_session()
+            await cls._healthy_session()
 
             try:
                 key_pub = cls.session.get_key(
@@ -144,7 +162,7 @@ class PKCS11Session:
             return pki, hashlib.sha1(encode_rsa_public_key(key_pub)).digest()
 
     @classmethod
-    def create_keypair(
+    async def create_keypair(
         cls, key_label: str, key_size: int = 2048
     ) -> typing.Tuple[PublicKeyInfo, bytes]:
         """Create a RSA keypair in the PKCS11 device with this label.
@@ -160,10 +178,9 @@ class PKCS11Session:
         typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]
         """
 
-        with LOCK:
-
+        async with async_lock(cls._lock):
             # Ensure we get a healthy pkcs11 session
-            cls._healthy_session()
+            await cls._healthy_session()
 
             try:
                 key_pub = cls.session.get_key(
@@ -191,17 +208,16 @@ class PKCS11Session:
             return pki, hashlib.sha1(encode_rsa_public_key(key_pub)).digest()
 
     @classmethod
-    def key_labels(cls) -> List[str]:
+    async def key_labels(cls) -> List[str]:
         """Return a list of key labels in the PKCS11 device.
 
         Returns:
         typing.List[str]
         """
 
-        with LOCK:
-
+        async with async_lock(cls._lock):
             # Ensure we get a healthy pkcs11 session
-            cls._healthy_session()
+            await cls._healthy_session()
 
             key_labels: List[str] = []
             for obj in cls.session.get_objects(
@@ -214,7 +230,7 @@ class PKCS11Session:
             return key_labels
 
     @classmethod
-    def sign(
+    async def sign(
         cls,
         key_label: str,
         data: bytes,
@@ -237,9 +253,9 @@ class PKCS11Session:
         bytes
         """
 
-        with LOCK:
+        async with async_lock(cls._lock):
             # Ensure we get a healthy pkcs11 session
-            cls._healthy_session()
+            await cls._healthy_session()
 
             # Get private key to sign the data with
             key_priv = cls.session.get_key(
@@ -267,7 +283,7 @@ class PKCS11Session:
             return signature
 
     @classmethod
-    def verify(
+    async def verify(
         cls,
         key_label: str,
         data: bytes,
@@ -289,9 +305,9 @@ class PKCS11Session:
         bool
         """
 
-        with LOCK:
+        async with async_lock(cls._lock):
             # Ensure we get a healthy pkcs11 session
-            cls._healthy_session()
+            await cls._healthy_session()
 
             # Get public key to sign the data with
             key_pub = cls.session.get_key(
@@ -305,7 +321,7 @@ class PKCS11Session:
             return False
 
     @classmethod
-    def public_key_data(cls, key_label: str) -> Tuple[PublicKeyInfo, bytes]:
+    async def public_key_data(cls, key_label: str) -> Tuple[PublicKeyInfo, bytes]:
         """Returns the data for the x509 'Public Key Info'
         and 'Key Identifier' valid for this keypair.
 
@@ -316,9 +332,9 @@ class PKCS11Session:
         typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]
         """
 
-        with LOCK:
+        async with async_lock(cls._lock):
             # Ensure we get a healthy pkcs11 session
-            cls._healthy_session()
+            await cls._healthy_session()
 
             key_pub = cls.session.get_key(
                 key_type=KeyType.RSA,

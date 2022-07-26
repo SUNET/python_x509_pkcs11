@@ -202,7 +202,7 @@ def _load_crl(crl_pem: str) -> asn1_crl.CertificateList:
     return cert_list
 
 
-def create(
+async def create(
     key_label: str,
     subject_name: Dict[str, str],
     old_crl_pem: Union[str, None] = None,
@@ -225,7 +225,7 @@ def create(
     Returns:
     str
     """
-    _, aki = PKCS11Session().public_key_data(key_label)
+    _, aki = await PKCS11Session().public_key_data(key_label)
 
     # If appending to existing crl or creating a new empty crl
     if old_crl_pem is not None:
@@ -242,7 +242,7 @@ def create(
     cert_list = asn1_crl.CertificateList()
     cert_list["tbs_cert_list"] = tbs
     cert_list["signature_algorithm"] = tbs["signature"]
-    cert_list["signature"] = PKCS11Session.sign(key_label, tbs.dump())
+    cert_list["signature"] = await PKCS11Session.sign(key_label, tbs.dump())
     pem_enc = asn1_pem.armor("X509 CRL", cert_list.dump())
 
     # Needed for mypy strict

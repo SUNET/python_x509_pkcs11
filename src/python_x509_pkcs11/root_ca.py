@@ -150,7 +150,7 @@ def _create_tbs(
     return tbs
 
 
-def create(
+async def create(
     key_label: str,
     subject_name: Dict[str, str],
     key_size: int = 2048,
@@ -174,7 +174,7 @@ def create(
     Returns:
     typing.Tuple[str, str]
     """
-    pk_info, _ = PKCS11Session().create_keypair(key_label, key_size)
+    pk_info, _ = await PKCS11Session().create_keypair(key_label, key_size)
 
     tbs = _create_tbs(subject_name, pk_info, extra_extensions)
 
@@ -185,14 +185,14 @@ def create(
     sda["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
 
     signed_csr["signature_algorithm"] = sda
-    signed_csr["signature"] = PKCS11Session().sign(key_label, tbs.dump())
+    signed_csr["signature"] = await PKCS11Session().sign(key_label, tbs.dump())
 
     pem_enc = asn1_pem.armor("CERTIFICATE REQUEST", signed_csr.dump())
 
     # Needed for mypy strict
     assert isinstance(pem_enc, bytes)
 
-    return pem_enc.decode("utf-8"), sign_csr(
+    return pem_enc.decode("utf-8"), await sign_csr(
         key_label,
         subject_name,
         pem_enc.decode("utf-8"),

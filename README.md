@@ -1,6 +1,6 @@
 ## python_x509_pkcs11
 
-Seamless signing x509 using PKCS11 device for key storage
+Seamless async signing x509 using PKCS11 device for key storage
 
 Currently supports
 * Creating a root CA and generating its RSA key in the PKCS11 device
@@ -8,8 +8,8 @@ Currently supports
 * Creating CRLs with the PKCS11 device key
 * Store multiple keys in the PKCS11 device enabling a full PKI infrastructure
 * 'Advanced' handling of fragile persistent PKCS11 sessions, including recreating the session if PKCS11 operation timeout
-
-This package is pretty much a wrapper around python-pkcs11 and asn1crypto
+* This package is heavily uses python-pkcs11 and asn1crypto.
+* Package is async but python-pkcs11 is unfortunately still sync, probably due to the fragile nature of PKCS11
 
 
 ## Setup
@@ -77,23 +77,30 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 ```
 
 ```python
+import asyncio
 from python_x509_pkcs11.root_ca import create
 
-root_ca_name_dict = {"country_name": "SE",
-             "state_or_province_name": "Stockholm",
-             "locality_name": "Stockholm",
-             "organization_name": "SUNET",
-             "organizational_unit_name": "SUNET Infrastructure",
-             "common_name": "ca-test.sunet.se",
-             "email_address": "soc@sunet.se"}
 
-csr_pem, root_cert_pem = create("my_rsa_key", root_ca_name_dict)
-print("CSR which was selfsigned into root CA")
-print(csr_pem)
+async def my_func() -> None:
+    root_ca_name_dict = {
+        "country_name": "SE",
+        "state_or_province_name": "Stockholm",
+        "locality_name": "Stockholm",
+        "organization_name": "SUNET",
+        "organizational_unit_name": "SUNET Infrastructure",
+        "common_name": "ca-test.sunet.se",
+        "email_address": "soc@sunet.se",
+    }
+    csr_pem, root_cert_pem = await create("my_rsa_key", root_ca_name_dict)
 
-print("root CA")
-print(root_cert_pem)
+    print("CSR which was selfsigned into root CA")
+    print(csr_pem)
 
+    print("root CA")
+    print(root_cert_pem)
+
+
+asyncio.run(my_func())
 ```
 
 ## Contributing / Tests
