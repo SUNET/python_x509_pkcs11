@@ -78,7 +78,7 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 
 ```python
 import asyncio
-from python_x509_pkcs11.root_ca import create
+from python_x509_pkcs11.ca import create
 
 
 async def my_func() -> None:

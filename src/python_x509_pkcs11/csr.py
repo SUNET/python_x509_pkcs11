@@ -264,9 +264,5 @@ async def sign_csr(
     signed_cert["signature_algorithm"] = tbs["signature"]
     signed_cert["signature_value"] = await PKCS11Session().sign(key_label, tbs.dump())
 
-    pem_enc = asn1_pem.armor("CERTIFICATE", signed_cert.dump())
-
-    # Needed for mypy strict
-    assert isinstance(pem_enc, bytes)
-
+    pem_enc: bytes = asn1_pem.armor("CERTIFICATE", signed_cert.dump())
     return pem_enc.decode("utf-8")

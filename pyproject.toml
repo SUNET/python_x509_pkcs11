@@ -1,5 +1,5 @@
 description = "Python async library for signing x509 using keys in an pkcs11 device such as a HSM"
-version = "0.2.28"
+version = "0.2.29"
 
 [build-system]
 requires = [

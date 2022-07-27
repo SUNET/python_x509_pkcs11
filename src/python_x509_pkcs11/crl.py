@@ -243,9 +243,6 @@ async def create(
     cert_list["tbs_cert_list"] = tbs
     cert_list["signature_algorithm"] = tbs["signature"]
     cert_list["signature"] = await PKCS11Session.sign(key_label, tbs.dump())
-    pem_enc = asn1_pem.armor("X509 CRL", cert_list.dump())
-
-    # Needed for mypy strict
-    assert isinstance(pem_enc, bytes)
+    pem_enc: bytes = asn1_pem.armor("X509 CRL", cert_list.dump())
 
     return pem_enc.decode("utf-8")

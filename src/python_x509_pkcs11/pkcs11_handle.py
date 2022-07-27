@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from asyncio import get_event_loop, sleep
 from contextlib import asynccontextmanager
 
+from asn1crypto import pem as asn1_pem
 from asn1crypto.keys import (
     PublicKeyInfo,
     PublicKeyAlgorithm,
@@ -104,9 +105,7 @@ class PKCS11Session:
             raise PKCS11UnknownErrorException("ERROR: Could not get a healthy PKCS11 connection")
 
     @classmethod
-    async def import_keypair(
-        cls, key_label: str, public_key: bytes, private_key: bytes
-    ) -> typing.Tuple[PublicKeyInfo, bytes]:
+    async def import_keypair(cls, key_label: str, public_key: bytes, private_key: bytes) -> None:
         """Import a RSA keypair into the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
 
@@ -115,16 +114,13 @@ class PKCS11Session:
         openssl rsa -inform pem -in rsaprivkey.pem -outform der -out PrivateKey.der
         openssl rsa -in rsaprivkey.pem -RSAPublicKey_out -outform DER -out PublicKey.der
 
-        Returns the data for the x509 'Subject Public Key Info'
-        and x509 extension 'Subject Key Identifier' valid for this keypair.
-
         Parameters:
         key_label (str): Keypair label.
         public_key (bytes): Public RSA key in DER form
         private_key (bytes): Private RSA key in DER form
 
         Returns:
-        typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]
+        None
         """
 
         async with async_lock(cls._lock):
@@ -152,15 +148,6 @@ class PKCS11Session:
             cls.session.create_object(key_pub)
             cls.session.create_object(key_priv)
 
-            # Create the PublicKeyInfo object
-            rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
-            pki = PublicKeyInfo()
-            pka = PublicKeyAlgorithm()
-            pka["algorithm"] = PublicKeyAlgorithmId("rsa")
-            pki["algorithm"] = pka
-            pki["public_key"] = rsa_pub
-            return pki, hashlib.sha1(encode_rsa_public_key(key_pub)).digest()
-
     @classmethod
     async def create_keypair(
         cls, key_label: str, key_size: int = 2048
@@ -175,7 +162,7 @@ class PKCS11Session:
         key_size (int = 2048): Size of the key.
 
         Returns:
-        typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]
+        typing.Tuple[str, bytes]
         """
 
         async with async_lock(cls._lock):
@@ -205,7 +192,9 @@ class PKCS11Session:
             pka["algorithm"] = PublicKeyAlgorithmId("rsa")
             pki["algorithm"] = pka
             pki["public_key"] = rsa_pub
-            return pki, hashlib.sha1(encode_rsa_public_key(key_pub)).digest()
+
+            key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
+            return key_pub_pem.decode("utf-8"), pki.sha1
 
     @classmethod
     async def key_labels(cls) -> List[str]:
@@ -322,14 +311,14 @@ class PKCS11Session:
 
     @classmethod
     async def public_key_data(cls, key_label: str) -> Tuple[PublicKeyInfo, bytes]:
-        """Returns the data for the x509 'Public Key Info'
+        """Returns the public key in PEM form
         and 'Key Identifier' valid for this keypair.
 
         Parameters:
         key_label (str): Keypair label.
 
         Returns:
-        typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]
+        typing.Tuple[str, bytes]
         """
 
         async with async_lock(cls._lock):
@@ -350,4 +339,5 @@ class PKCS11Session:
             pki["algorithm"] = pka
             pki["public_key"] = rsa_pub
 
-            return pki, hashlib.sha1(encode_rsa_public_key(key_pub)).digest()
+            key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
+            return key_pub_pem.decode("utf-8"), pki.sha1

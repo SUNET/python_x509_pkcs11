@@ -1,4 +1,4 @@
-"""Module which create a root CA
+"""Module which create a CA
 
 Exposes the functions:
 - create()
@@ -8,6 +8,7 @@ from typing import Union, Dict, Tuple
 import datetime
 
 import asn1crypto
+from asn1crypto.keys import PublicKeyInfo
 from asn1crypto import x509 as asn1_x509
 from asn1crypto import csr as asn1_csr
 from asn1crypto import pem as asn1_pem
@@ -154,29 +155,34 @@ async def create(
     key_label: str,
     subject_name: Dict[str, str],
     key_size: int = 2048,
+    signer_key_label: Union[str, None] = None,
     not_before: Union[datetime.datetime, None] = None,
     not_after: Union[datetime.datetime, None] = None,
     extra_extensions: Union[asn1_x509.Extensions, None] = None,
 ) -> Tuple[str, str]:
-    """Create and selfsign a CSR with
-    the key_label in the PKCS11 device.
+    """Create and sign a CSR with in the PKCS11 device.
 
-    Returns the csr and the self signed cert
+    Returns the csr and the signed ca
 
     Parameters:
-    key_label (str): Keypair label.
-    subject_name (typing.Dict[str, str]): Dict with the new root CA x509 Names.
+    key_label (str): Keypair label to create for the new ca
+    subject_name (typing.Dict[str, str]): Dict with x509 subject names
     key_size (int = 2048): Key size, 2048 and 4096 works best.
-    not_before (Union[datetime.datetime, None] = None): The root certificate is not valid before this time.
-    not_after (Union[datetime.datetime, None] = None): The root certificate is not valid after this time.
-    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the root certificate, skip if None.
+    signer_key_label (str): Keylabel to sign this ca with, if None then this will be root (selfsigned) ca.
+    not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
+    not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
+    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca, skip if None.
 
     Returns:
     typing.Tuple[str, str]
     """
     pk_info, _ = await PKCS11Session().create_keypair(key_label, key_size)
+    data = pk_info.encode("utf-8")
+    if asn1_pem.detect(data):
+        _, _, data = asn1_pem.unarmor(data)
+    decoded_pk_info = PublicKeyInfo.load(data)
 
-    tbs = _create_tbs(subject_name, pk_info, extra_extensions)
+    tbs = _create_tbs(subject_name, decoded_pk_info, extra_extensions)
 
     signed_csr = asn1_csr.CertificationRequest()
     signed_csr["certification_request_info"] = tbs
@@ -187,13 +193,14 @@ async def create(
     signed_csr["signature_algorithm"] = sda
     signed_csr["signature"] = await PKCS11Session().sign(key_label, tbs.dump())
 
-    pem_enc = asn1_pem.armor("CERTIFICATE REQUEST", signed_csr.dump())
+    pem_enc: bytes = asn1_pem.armor("CERTIFICATE REQUEST", signed_csr.dump())
 
-    # Needed for mypy strict
-    assert isinstance(pem_enc, bytes)
+    # If this will be a root CA or not
+    if signer_key_label is None:
+        signer_key_label = key_label
 
     return pem_enc.decode("utf-8"), await sign_csr(
-        key_label,
+        signer_key_label,
         subject_name,
         pem_enc.decode("utf-8"),
         not_before=not_before,

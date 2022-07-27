@@ -44,10 +44,10 @@ Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/py
 
 - `import_keypair(key_label: str,
   	          public_key: bytes,
-         	  private_key: bytes) -> typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]:`
+         	  private_key: bytes) -> None:`
 
 - `create_keypair(key_label: str,
-         	  key_size: int = 2048) -> typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]:`
+         	  key_size: int = 2048) -> typing.Tuple[str, bytes]:`
 
  - `key_labels() -> typing.List[str]:`
 
@@ -61,13 +61,11 @@ Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/py
 	  signature: bytes,
 	  mechanism: pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS) -> bool:`
 
-- `public_key_data(key_label: str) -> typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes]`
+- `public_key_data(key_label: str) -> typing.Tuple[str, bytes]`
 
 ## import_keypair()
 
 The `import_keypair()` function imports a RSA keypair in the PKCS11 device with this label
-Returns typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes] which is a tuple of
-the public key info and the public keys x509 'Subject Key identifier' value.
 
 Generating public_key and private_key can be done with:
 ```bash
@@ -90,11 +88,14 @@ priv = b"0\x82\x04\xa4\x02\x01\x00\x02\x82\x01\x01\x00\xd9\xb6C,O\xc0\x83\xca\xa
 
 
 async def my_func() -> None:
-    pk_info, identifier = await PKCS11Session.import_keypair("my_rsa_key", pub, priv)
-    print(pk_info)
+    await PKCS11Session.import_keypair("my_rsa_key", pub, priv)
+    public_key, identifier = await PKCS11Session.public_key_data(
+        "my_rsa_key"
+    )
+    print(public_key)
     print(identifier)
 
-
+    
 asyncio.run(my_func())
 ```
 
@@ -114,8 +115,8 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
-    print(pk_info)
+    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    print(public_key)
     print(identifier)
 
 
@@ -133,7 +134,7 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
     labels = await PKCS11Session.key_labels()
     print(labels)
 
@@ -153,7 +154,7 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 async def my_func() -> None:
     data = b"DATA TO BE SIGNED"
-    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
     signature = await PKCS11Session.sign("my_rsa_key", data)
     print(signature)
 
@@ -173,7 +174,7 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 async def my_func() -> None:
     data = b"DATA TO BE SIGNED"
-    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
     signature = await PKCS11Session.sign("my_rsa_key", data)
     if await PKCS11Session.verify("my_rsa_key", data, signature):
         print("OK sig")
@@ -196,13 +197,15 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    pk_info_created, identifier_created = await PKCS11Session.create_keypair(
+    public_key_created, identifier_created = await PKCS11Session.create_keypair(
         "my_rsa_key"
     )
-    pk_info_loaded, identifier_loaded = await PKCS11Session.public_key_data(
+    public_key_loaded, identifier_loaded = await PKCS11Session.public_key_data(
         "my_rsa_key"
     )
-    print(pk_info_loaded.native)
+    print(public_key_created)
+    print(public_key_loaded)
+    print(identifier_created)
     print(identifier_loaded)
 
 
@@ -270,7 +273,7 @@ async def my_func() -> None:
         "email_address": "soc@sunet.se",
     }
 
-    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
     cert_pem = await csr.sign_csr("my_rsa_key", issuer_name, csr_pem)
     print(cert_pem)
 
@@ -278,13 +281,14 @@ async def my_func() -> None:
 asyncio.run(my_func())
 ```
 
-# Create a root CA
+# Create a CA
 
-Our [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/root_ca.py) module currently exposes one function:
+Our [ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/ca.py) module currently exposes one function:
 
  - `create(key_label: str,
            key_size: int,
 	   subject_name: dict[str, str],
+	   signer_key_label: str,
 	   not_before: Union[datetime.datetime, None] = None,
     	   not_after: Union[datetime.datetime, None] = None,
 	   exta_extensions: Union[asn1crypto.x509.Extensions] = None]) -> typing.Tuple[str, str]`
@@ -292,7 +296,9 @@ Our [root_ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x
 The `create()` function generate a CSR and then signs it
 with the same key from the key_label in the pkcs11 device.
 
-If extra_extensions is not None then those extensions will be written into the root CA certificate.
+signer_key_label is the key label for the key in the PKCS11 device should sign this ca. If signer_key_label is None then this will be a root (selfsigned) CA.
+
+If extra_extensions is not None then those extensions will be written into the CA certificate.
 
 The not_before and not_after parameters must be in UTC timezone, for example:
 ```python
@@ -306,7 +312,7 @@ the generated CSR.
 ### Example usage:
 ```python
 import asyncio
-from python_x509_pkcs11.root_ca import create
+from python_x509_pkcs11.ca import create
 
 
 async def my_func() -> None:
@@ -378,7 +384,7 @@ async def my_func() -> None:
         "email_address": "soc@sunet.se",
     }
 
-    pk_info, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
     crl_pem = await create("my_rsa_key", name_dict)
     print(crl_pem)
 

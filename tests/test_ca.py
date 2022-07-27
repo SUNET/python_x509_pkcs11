@@ -11,10 +11,10 @@ from asn1crypto import x509 as asn1_x509
 from asn1crypto import csr as asn1_csr
 from asn1crypto import pem as asn1_pem
 
-from src.python_x509_pkcs11.root_ca import create
+from src.python_x509_pkcs11.ca import create
 
 # Replace the above with this should you use this code
-# from python_x509_pkcs11.root_ca import create
+# from python_x509_pkcs11.ca import create
 
 name_dict = {
     "country_name": "SE",
@@ -27,12 +27,12 @@ name_dict = {
 }
 
 
-class TestRootCa(unittest.TestCase):
+class TestCa(unittest.TestCase):
     """
     Test our root ca module.
     """
 
-    def test_create_root_ca(self) -> None:
+    def test_create_ca(self) -> None:
         """
         Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
@@ -109,7 +109,7 @@ class TestRootCa(unittest.TestCase):
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
         self.assertTrue(test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after)
 
-    def test_create_root_ca_with_extensions(self) -> None:
+    def test_create_ca_with_extensions(self) -> None:
         """
         Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
