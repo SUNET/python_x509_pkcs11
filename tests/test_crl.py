@@ -3,9 +3,10 @@ Test to create and sign a crl
 """
 import unittest
 import os
+import asyncio
+
 from asn1crypto import crl as asn1_crl
 from asn1crypto import pem as asn1_pem
-import asyncio
 
 from src.python_x509_pkcs11 import crl
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -87,9 +88,7 @@ class TestCrl(unittest.TestCase):
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session.create_keypair(new_key_label))
 
-        crl_pem = asyncio.run(
-            crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=3)
-        )
+        crl_pem = asyncio.run(crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=3))
 
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):

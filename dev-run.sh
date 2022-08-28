@@ -23,5 +23,8 @@ mypy --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/nul
 echo "Running tests"
 python3 -m unittest
 
-black --line-length 99 src/python_x509_pkcs11/*.py || exit 1
-black --line-length 99 tests/*.py || exit 1
+black --line-length 120 src/python_x509_pkcs11/*.py || exit 1
+black --line-length 120 tests/*.py || exit 1
+
+pylint --max-line-length 120 src/python_x509_pkcs11/*.py || exit 1
+pylint --max-line-length 120 tests/*.py || exit 1

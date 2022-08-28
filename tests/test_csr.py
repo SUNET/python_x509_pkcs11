@@ -98,23 +98,17 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         # Test not_before
         not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
-        cert_pem = asyncio.run(
-            csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_before=not_before)
-        )
+        cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_before=not_before))
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
         test_cert = asn1_x509.Certificate.load(data)
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
-        self.assertTrue(
-            test_cert["tbs_certificate"]["validity"]["not_before"].native == not_before
-        )
+        self.assertTrue(test_cert["tbs_certificate"]["validity"]["not_before"].native == not_before)
 
         # Test not_after
         not_after = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
-        cert_pem = asyncio.run(
-            csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_after=not_after)
-        )
+        cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, csr_no_exts, not_after=not_after))
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
@@ -155,9 +149,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session.create_keypair(new_key_label))
-        cert_pem = asyncio.run(
-            csr.sign_csr(new_key_label, issuer_name, CSR_PEM, keep_csr_extensions=False)
-        )
+        cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, CSR_PEM, keep_csr_extensions=False))
 
         data = cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -172,10 +164,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         # Test Subject key identifier
         self.assertTrue(isinstance(exts[0]["extn_value"].native, bytes))
-        self.assertTrue(
-            exts[0]["extn_value"].native
-            == b"7\xa4Tp\xd5\xe3\xbf\xae\xc5<u\xf1e9\xb2\xf6\x1a\x81>\x84"
-        )
+        self.assertTrue(exts[0]["extn_value"].native == b"7\xa4Tp\xd5\xe3\xbf\xae\xc5<u\xf1e9\xb2\xf6\x1a\x81>\x84")
         self.assertTrue(isinstance(exts[0]["extn_id"].native, str))
         self.assertTrue(exts[0]["extn_id"].native == "key_identifier")
 
@@ -233,9 +222,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         # Test key Usage
         self.assertTrue(isinstance(exts[0].native["extn_id"], str))
-        self.assertTrue(
-            exts[0]["extn_value"].native == {"crl_sign", "key_cert_sign", "digital_signature"}
-        )
+        self.assertTrue(exts[0]["extn_value"].native == {"crl_sign", "key_cert_sign", "digital_signature"})
 
         # Test Basic constraints
         self.assertTrue(isinstance(exts[1]["extn_id"].native, str))

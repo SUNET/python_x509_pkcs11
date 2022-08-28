@@ -64,8 +64,7 @@ class TestCa(unittest.TestCase):
         tbs = asn1_x509.TbsCertificate()
         tbs["subject_public_key_info"] = test_csr["certification_request_info"]["subject_pk_info"]
         self.assertTrue(
-            tbs["subject_public_key_info"].dump()
-            == test_cert["tbs_certificate"]["subject_public_key_info"].dump()
+            tbs["subject_public_key_info"].dump() == test_cert["tbs_certificate"]["subject_public_key_info"].dump()
         )
 
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
@@ -87,11 +86,9 @@ class TestCa(unittest.TestCase):
         data = root_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
-        test_cert = asn1_x509.Certificate.load(data)
-        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
-        self.assertTrue(
-            test_cert["tbs_certificate"]["validity"]["not_before"].native == not_before
-        )
+        test_c = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_c, asn1_x509.Certificate))
+        self.assertTrue(test_c["tbs_certificate"]["validity"]["not_before"].native == not_before)
 
         # Test not_after parameter
         not_after = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
@@ -102,12 +99,12 @@ class TestCa(unittest.TestCase):
                 not_after=not_after,
             )
         )
-        data = root_cert_pem.encode("utf-8")
+        data = root_cert_pem.encode("utf-8")  # pylint: disable=duplicate-code
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
-        test_cert = asn1_x509.Certificate.load(data)
-        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
-        self.assertTrue(test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after)
+        test_c = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_c, asn1_x509.Certificate))
+        self.assertTrue(test_c["tbs_certificate"]["validity"]["not_after"].native == not_after)
 
     def test_create_ca_with_extensions(self) -> None:
         """
@@ -118,9 +115,7 @@ class TestCa(unittest.TestCase):
         exts = asn1_csr.Extensions()
 
         pkup = asn1_x509.PrivateKeyUsagePeriod()
-        pkup["not_before"] = GeneralizedTime(
-            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(2)
-        )
+        pkup["not_before"] = GeneralizedTime(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(2))
         pkup["not_after"] = GeneralizedTime(
             datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(365 * 10, 0, 0)
         )

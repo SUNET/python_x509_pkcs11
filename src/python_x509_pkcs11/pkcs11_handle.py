@@ -15,8 +15,6 @@ Exposes the functions:
 
 import typing
 from typing import Tuple, List, AsyncIterator
-from types import FrameType
-import hashlib
 from threading import Lock, Thread
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -43,6 +41,7 @@ pool = ThreadPoolExecutor()
 
 @asynccontextmanager
 async def async_lock(lock: Lock) -> AsyncIterator[None]:
+    """Used as a simple async lock"""
     loop = get_event_loop()
     await loop.run_in_executor(pool, lock.acquire)
     try:
@@ -81,26 +80,24 @@ class PKCS11Session:
 
     @classmethod
     async def _healthy_session(cls) -> None:
-        p = Thread(target=cls._open_session, args=())
-        p.start()
-        p.join(timeout=TIMEOUT)
+        thread = Thread(target=cls._open_session, args=())
+        thread.start()
+        thread.join(timeout=TIMEOUT)
 
-        if p.is_alive() or cls._session_status != 0:
+        if thread.is_alive() or cls._session_status != 0:
             if DEBUG:
                 print("Current PKCS11 session is unhealthy, opening a new session")
 
-            p2 = Thread(target=cls._open_session, args=({"force": True}))
-            p2.start()
+            thread2 = Thread(target=cls._open_session, args=({"force": True}))
+            thread2.start()
 
-            # yield to other coroutines while we wait for p2 to join
+            # yield to other coroutines while we wait for thread2 to join
             await sleep(0)
 
-            p2.join(timeout=TIMEOUT)
+            thread2.join(timeout=TIMEOUT)
 
-            if p2.is_alive():
-                raise PKCS11TimeoutException(
-                    "ERROR: Could not get a healthy PKCS11 connection in time"
-                )
+            if thread2.is_alive():
+                raise PKCS11TimeoutException("ERROR: Could not get a healthy PKCS11 connection in time")
         if cls._session_status != 0:
             raise PKCS11UnknownErrorException("ERROR: Could not get a healthy PKCS11 connection")
 
@@ -134,7 +131,7 @@ class PKCS11Session:
                     label=key_label,
                 )
                 raise MultipleObjectsReturned
-            except NoSuchKey as ex:
+            except NoSuchKey:
                 pass
 
             key_pub = decode_rsa_public_key(public_key)
@@ -149,9 +146,7 @@ class PKCS11Session:
             cls.session.create_object(key_priv)
 
     @classmethod
-    async def create_keypair(
-        cls, key_label: str, key_size: int = 2048
-    ) -> typing.Tuple[PublicKeyInfo, bytes]:
+    async def create_keypair(cls, key_label: str, key_size: int = 2048) -> typing.Tuple[PublicKeyInfo, bytes]:
         """Create a RSA keypair in the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
         Returns the data for the x509 'Subject Public Key Info'
@@ -181,9 +176,7 @@ class PKCS11Session:
                     print(ex)
                     print("Generating a key since " + "no key with that label was found")
                 # Generate the rsa keypair
-                key_pub, _ = cls.session.generate_keypair(
-                    KeyType.RSA, key_size, store=True, label=key_label
-                )
+                key_pub, _ = cls.session.generate_keypair(KeyType.RSA, key_size, store=True, label=key_label)
 
             # Create the PublicKeyInfo object
             rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))

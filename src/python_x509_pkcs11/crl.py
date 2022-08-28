@@ -42,9 +42,7 @@ def _set_tbs_version(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
     return tbs
 
 
-def _set_tbs_issuer(
-    tbs: asn1_crl.TbsCertList, subject_name: Dict[str, str]
-) -> asn1_crl.TbsCertList:
+def _set_tbs_issuer(tbs: asn1_crl.TbsCertList, subject_name: Dict[str, str]) -> asn1_crl.TbsCertList:
 
     tbs["issuer"] = asn1_crl.Name().build(subject_name)
     return tbs
@@ -131,9 +129,7 @@ def _set_tbs_signature(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
     return tbs
 
 
-def _set_tbs_revoke_serial_numer(
-    tbs: asn1_crl.TbsCertList, serial_number: int, reason: int
-) -> asn1_crl.TbsCertList:
+def _set_tbs_revoke_serial_numer(tbs: asn1_crl.TbsCertList, serial_number: int, reason: int) -> asn1_crl.TbsCertList:
 
     r_cert = asn1_crl.RevokedCertificate()
     r_cert["user_certificate"] = serial_number
@@ -202,7 +198,7 @@ def _load_crl(crl_pem: str) -> asn1_crl.CertificateList:
     return cert_list
 
 
-async def create(
+async def create(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     subject_name: Dict[str, str],
     old_crl_pem: Union[str, None] = None,

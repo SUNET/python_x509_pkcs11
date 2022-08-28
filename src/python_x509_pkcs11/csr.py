@@ -18,9 +18,7 @@ from .pkcs11_handle import PKCS11Session
 from .error import DuplicateExtensionException
 
 
-def _request_to_tbs_certificate(
-    csr_pem: str, keep_csr_extensions: bool
-) -> asn1_x509.TbsCertificate:
+def _request_to_tbs_certificate(csr_pem: str, keep_csr_extensions: bool) -> asn1_x509.TbsCertificate:
 
     data = csr_pem.encode("utf-8")
     if asn1_pem.detect(data):
@@ -67,9 +65,7 @@ def _check_tbs_duplicate_extensions(tbs: asn1_x509.TbsCertificate) -> None:
         exts.append(ext["extn_id"].dotted)
 
 
-def _set_tbs_issuer(
-    tbs: asn1_x509.TbsCertificate, issuer_name: Dict[str, str]
-) -> asn1_x509.TbsCertificate:
+def _set_tbs_issuer(tbs: asn1_x509.TbsCertificate, issuer_name: Dict[str, str]) -> asn1_x509.TbsCertificate:
 
     tbs["issuer"] = asn1_csr.Name().build(issuer_name)
     return tbs
@@ -208,7 +204,7 @@ def _set_tbs_extensions(
     return tbs
 
 
-def _create_tbs_certificate(
+def _create_tbs_certificate(  # pylint: disable-msg=too-many-arguments
     tbs: asn1_x509.TbsCertificate,
     issuer_name: Dict[str, str],
     aki: bytes,
@@ -229,7 +225,7 @@ def _create_tbs_certificate(
     return tbs
 
 
-async def sign_csr(
+async def sign_csr(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     issuer_name: Dict[str, str],
     csr_pem: str,
@@ -247,7 +243,7 @@ async def sign_csr(
     not_before (Union[datetime.datetime, None] = None): The certificate is not valid before this time.
     not_after (Union[datetime.datetime, None] = None): The certificate is not valid after this time.
     keep_csr_extensions (bool = True]): If we should keep or remove the x509 extensions in the CSR.
-    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the certificate, skip if None.
+    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the certificate.
 
     Returns:
     str

@@ -151,7 +151,7 @@ def _create_tbs(
     return tbs
 
 
-async def create(
+async def create(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     subject_name: Dict[str, str],
     key_size: int = 2048,
@@ -171,7 +171,7 @@ async def create(
     signer_key_label (str): Keylabel to sign this ca with, if None then this will be root (selfsigned) ca.
     not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
     not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
-    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca, skip if None.
+    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca.
 
     Returns:
     typing.Tuple[str, str]
