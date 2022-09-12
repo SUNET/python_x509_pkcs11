@@ -291,7 +291,7 @@ Our [ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_p
 	   signer_key_label: str,
 	   not_before: Union[datetime.datetime, None] = None,
     	   not_after: Union[datetime.datetime, None] = None,
-	   exta_extensions: Union[asn1crypto.x509.Extensions] = None]) -> typing.Tuple[str, str]`
+	   exta_extensions: Union[asn1crypto.x509.Extensions, None] = None]) -> typing.Tuple[str, str]`
 
 The `create()` function generate a CSR and then signs it
 with the same key from the key_label in the pkcs11 device.
