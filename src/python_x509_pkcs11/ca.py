@@ -155,6 +155,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     subject_name: Dict[str, str],
     key_size: int = 2048,
+    signer_subject_name: Union[Dict[str, str], None] = None,
     signer_key_label: Union[str, None] = None,
     not_before: Union[datetime.datetime, None] = None,
     not_after: Union[datetime.datetime, None] = None,
@@ -162,20 +163,24 @@ async def create(  # pylint: disable-msg=too-many-arguments
 ) -> Tuple[str, str]:
     """Create and sign a CSR with in the PKCS11 device.
 
-    Returns the csr and the signed ca
+        Returns the csr and the signed ca
 
-    Parameters:
-    key_label (str): Keypair label to create for the new ca
-    subject_name (typing.Dict[str, str]): Dict with x509 subject names
-    key_size (int = 2048): Key size, 2048 and 4096 works best.
-    signer_key_label (str): Keylabel to sign this ca with, if None then this will be root (selfsigned) ca.
-    not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
-    not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
-    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca.
+        Parameters:
+        key_label (str): Keypair label to create for the new ca
+        subject_name (typing.Dict[str, str]): Dict with x509 subject names
+        key_size (int = 2048): Key size, 2048 and 4096 works best.
+        signer_subject_name (Union[typing.Dict[str, str], None] = None):
+    Dict with x509 subject names, if None then this will be root a (selfsigned) ca.
+        signer_key_label (Union[str, None] = None):
+    Keylabel to sign this ca with, if None then this will be root a (selfsigned) ca.
+        not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
+        not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
+        extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca.
 
-    Returns:
-    typing.Tuple[str, str]
+        Returns:
+        typing.Tuple[str, str]
     """
+
     pk_info, _ = await PKCS11Session().create_keypair(key_label, key_size)
     data = pk_info.encode("utf-8")
     if asn1_pem.detect(data):
@@ -196,11 +201,12 @@ async def create(  # pylint: disable-msg=too-many-arguments
     pem_enc: bytes = asn1_pem.armor("CERTIFICATE REQUEST", signed_csr.dump())
 
     # If this will be a root CA or not
-    if signer_key_label is None:
-        signer_key_label = key_label
+    if signer_key_label is not None and signer_subject_name is not None:
+        key_label = signer_key_label
+        subject_name = signer_subject_name
 
     return pem_enc.decode("utf-8"), await sign_csr(
-        signer_key_label,
+        key_label,
         subject_name,
         pem_enc.decode("utf-8"),
         not_before=not_before,

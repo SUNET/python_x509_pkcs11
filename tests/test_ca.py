@@ -26,6 +26,26 @@ name_dict = {
     "email_address": "soc@sunet.se",
 }
 
+signer_name_dict = {
+    "country_name": "SE",
+    "state_or_province_name": "StockholmTEST",
+    "locality_name": "StockholmTEST",
+    "organization_name": "SUNET",
+    "organizational_unit_name": "SUNET Infrastructure",
+    "common_name": "ca-test-15.sunet.se",
+    "email_address": "soc@sunet.se",
+}
+
+signed_name_dict = {
+    "country_name": "SE",
+    "state_or_province_name": "StockholmTEST",
+    "locality_name": "StockholmTEST",
+    "organization_name": "SUNET",
+    "organizational_unit_name": "SUNET Infrastructure",
+    "common_name": "ca-test-16.sunet.se",
+    "email_address": "soc@sunet.se",
+}
+
 
 class TestCa(unittest.TestCase):
     """
@@ -133,13 +153,32 @@ class TestCa(unittest.TestCase):
             _, _, data = asn1_pem.unarmor(data)
 
         test_cert = asn1_x509.Certificate.load(data)
-
-        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
-
-        test_cert = asn1_x509.Certificate.load(data)
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
 
         cert_exts = test_cert["tbs_certificate"]["extensions"]
         # test pkup ext + CSR exts (key usage and basic constraints
         # + authority and subject key identifier = 5
         self.assertTrue(len(cert_exts) == 5)
+
+    def test_create_intermediate_ca(self) -> None:
+        """
+        Create an intermediate CA in the pkcs11 device.
+        """
+
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        _, root_cert_pem = asyncio.run(create(new_key_label, signer_name_dict))
+
+        new_key_label2 = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+
+        _, root_cert_pem = asyncio.run(
+            create(
+                new_key_label2, signed_name_dict, signer_subject_name=signer_name_dict, signer_key_label=new_key_label
+            )
+        )
+
+        data = root_cert_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+
+        test_cert = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))

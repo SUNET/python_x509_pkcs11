@@ -288,7 +288,8 @@ Our [ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_p
  - `create(key_label: str,
            key_size: int,
 	   subject_name: dict[str, str],
-	   signer_key_label: str,
+	   signer_subject_name Union[typing.Dict[str, str], None],
+	   signer_key_label Union[str, None] = None,
 	   not_before: Union[datetime.datetime, None] = None,
     	   not_after: Union[datetime.datetime, None] = None,
 	   exta_extensions: Union[asn1crypto.x509.Extensions, None] = None]) -> typing.Tuple[str, str]`
@@ -297,6 +298,7 @@ The `create()` function generate a CSR and then signs it
 with the same key from the key_label in the pkcs11 device.
 
 signer_key_label is the key label for the key in the PKCS11 device should sign this ca. If signer_key_label is None then this will be a root (selfsigned) CA.
+signer_subject_name will be the issuing name for CA If signer_key_label is None then this will be a root (selfsigned) CA.
 
 If extra_extensions is not None then those extensions will be written into the CA certificate.
 
