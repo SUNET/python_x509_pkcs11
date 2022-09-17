@@ -4,6 +4,7 @@ Test to create and sign a crl
 import unittest
 import os
 import asyncio
+import datetime
 
 from asn1crypto import crl as asn1_crl
 from asn1crypto import pem as asn1_pem
@@ -65,53 +66,141 @@ class TestCrl(unittest.TestCase):
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
-
         test_crl = asn1_crl.CertificateList.load(data)
-
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
+        tbs = test_crl["tbs_cert_list"]
+        for _, extension in enumerate(tbs["crl_extensions"]):
+            if extension["extn_id"].dotted == "2.5.29.20":
+                self.assertTrue(extension["extn_value"].native == 1)
+        self.assertTrue(len(tbs["revoked_certificates"]) == 0)
+        self.assertTrue(tbs["issuer"].native == subject_name)
+        self.assertTrue(tbs["version"].native == "v2")
 
         crl_pem = asyncio.run(crl.create(new_key_label, subject_name, old_crl_pem=OLD_CRL_PEM))
-
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
-
         test_crl = asn1_crl.CertificateList.load(data)
-
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
+        tbs = test_crl["tbs_cert_list"]
+        for _, extension in enumerate(tbs["crl_extensions"]):
+            if extension["extn_id"].dotted == "2.5.29.20":
+                self.assertTrue(extension["extn_value"].native == 2)
+        self.assertTrue(len(tbs["revoked_certificates"]) == 1)
 
     def test_add_serial_crl(self) -> None:
         """
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
+        # Revoke first
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session.create_keypair(new_key_label))
-
-        crl_pem = asyncio.run(crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=3))
-
-        data = crl_pem.encode("utf-8")
+        crl_pem1 = asyncio.run(crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=3))
+        data = crl_pem1.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
-
         test_crl = asn1_crl.CertificateList.load(data)
-
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
+        self.assertTrue(len(test_crl["tbs_cert_list"]["revoked_certificates"]) == 1)
 
-        crl_pem = asyncio.run(
+        # Revoke second
+        crl_pem2 = asyncio.run(
             crl.create(
                 new_key_label,
                 subject_name,
-                old_crl_pem=OLD_CRL_PEM,
+                old_crl_pem=crl_pem1,
                 serial_number=2342348342341456,
                 reason=2,
             )
         )
+        data = crl_pem2.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_crl = asn1_crl.CertificateList.load(data)
+        self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
+        self.assertTrue(len(test_crl["tbs_cert_list"]["revoked_certificates"]) == 2)
 
+        # Revoke third
+        crl_pem3 = asyncio.run(
+            crl.create(
+                new_key_label,
+                subject_name,
+                old_crl_pem=crl_pem2,
+                serial_number=2342342342341457,
+                reason=2,
+            )
+        )
+        data = crl_pem3.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_crl = asn1_crl.CertificateList.load(data)
+        self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
+        self.assertTrue(len(test_crl["tbs_cert_list"]["revoked_certificates"]) == 3)
+
+    def test_aki(self) -> None:
+        """
+        Create and sign a CRL with AKI.
+        """
+
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        _, identifier = asyncio.run(PKCS11Session.public_key_data(new_key_label))
+        crl_pem1 = asyncio.run(crl.create(new_key_label, subject_name))
+        data = crl_pem1.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_crl = asn1_crl.CertificateList.load(data)
+        self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
+
+        tbs = test_crl["tbs_cert_list"]
+
+        # AKI
+        found = False
+        for _, extension in enumerate(tbs["crl_extensions"]):
+            if extension["extn_id"].dotted == "2.5.29.35":
+                self.assertTrue(extension["extn_value"].native["key_identifier"] == identifier)
+                found = True
+        self.assertTrue(found)
+
+    def test_next_update_this_update(self) -> None:
+        """
+        Create and sign a CRL with next_update and/or this_update.
+        """
+
+        # Both
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        next_update = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
+        this_update = datetime.datetime(2022, 1, 3, tzinfo=datetime.timezone.utc)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        crl_pem = asyncio.run(crl.create(new_key_label, subject_name, next_update=next_update, this_update=this_update))
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
-
         test_crl = asn1_crl.CertificateList.load(data)
+        tbs = test_crl["tbs_cert_list"]
+        self.assertTrue(tbs["next_update"].native == next_update)
+        self.assertTrue(tbs["this_update"].native == this_update)
+        self.assertTrue(tbs["next_update"].native != tbs["this_update"].native)
 
-        self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
+        # Only next_update
+        crl_pem = asyncio.run(crl.create(new_key_label, subject_name, next_update=next_update))
+        data = crl_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_crl = asn1_crl.CertificateList.load(data)
+        tbs = test_crl["tbs_cert_list"]
+        self.assertTrue(tbs["next_update"].native == next_update)
+        self.assertTrue(tbs["this_update"].native != this_update)
+        self.assertTrue(tbs["next_update"].native != tbs["this_update"].native)
+
+        # Only this_update
+        crl_pem = asyncio.run(crl.create(new_key_label, subject_name, this_update=this_update))
+        data = crl_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+        test_crl = asn1_crl.CertificateList.load(data)
+        tbs = test_crl["tbs_cert_list"]
+        self.assertTrue(tbs["next_update"].native != next_update)
+        self.assertTrue(tbs["this_update"].native == this_update)
+        self.assertTrue(tbs["next_update"].native != tbs["this_update"].native)

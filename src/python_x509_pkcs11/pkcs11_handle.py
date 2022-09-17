@@ -54,14 +54,13 @@ class PKCS11Session:
     """Persistent PKCS11 session wrapper."""
 
     _session_status: int = 9
+    _lock = Lock()
+
     session: Session = None
     token: Token = None
 
-    _lock = Lock()
-
     @classmethod
     def _open_session(cls, force: bool = False) -> None:
-
         cls._session_status = 9
         try:
             if force or cls.session is None:

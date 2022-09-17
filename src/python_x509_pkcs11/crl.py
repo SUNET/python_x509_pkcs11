@@ -37,13 +37,11 @@ def _check_tbs_duplicate_extensions(tbs: asn1_crl.TbsCertList) -> None:
 
 
 def _set_tbs_version(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
-
-    tbs["version"] = 2
+    tbs["version"] = 1
     return tbs
 
 
 def _set_tbs_issuer(tbs: asn1_crl.TbsCertList, subject_name: Dict[str, str]) -> asn1_crl.TbsCertList:
-
     tbs["issuer"] = asn1_crl.Name().build(subject_name)
     return tbs
 
@@ -51,7 +49,6 @@ def _set_tbs_issuer(tbs: asn1_crl.TbsCertList, subject_name: Dict[str, str]) -> 
 def _set_tbs_next_update(
     tbs: asn1_crl.TbsCertList, next_update: Union[datetime.datetime, None]
 ) -> asn1_crl.TbsCertList:
-
     if next_update is None:
         tbs["next_update"] = asn1_crl.Time(
             name="utc_time",
@@ -65,7 +62,6 @@ def _set_tbs_next_update(
 def _set_tbs_this_update(
     tbs: asn1_crl.TbsCertList, this_update: Union[datetime.datetime, None]
 ) -> asn1_crl.TbsCertList:
-
     if this_update is None:
         tbs["this_update"] = asn1_crl.Time(
             name="utc_time",
@@ -77,7 +73,6 @@ def _set_tbs_this_update(
 
 
 def _set_tbs_aki(tbs: asn1_crl.TbsCertList, identifier: bytes) -> asn1_crl.TbsCertList:
-
     aki = asn1_crl.AuthorityKeyIdentifier()
     aki["key_identifier"] = identifier
 
@@ -102,7 +97,6 @@ def _set_tbs_aki(tbs: asn1_crl.TbsCertList, identifier: bytes) -> asn1_crl.TbsCe
 def _set_tbs_update_crl_number(
     tbs: asn1_crl.TbsCertList,
 ) -> asn1_crl.TbsCertList:
-
     for _, extension in enumerate(tbs["crl_extensions"]):
         if extension["extn_id"].dotted == "2.5.29.20":
             extension["extn_value"] = extension["extn_value"].native + 1
@@ -122,7 +116,6 @@ def _set_tbs_update_crl_number(
 
 
 def _set_tbs_signature(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
-
     algo = SignedDigestAlgorithm()
     algo["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
     tbs["signature"] = algo
@@ -130,7 +123,6 @@ def _set_tbs_signature(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
 
 
 def _set_tbs_revoke_serial_numer(tbs: asn1_crl.TbsCertList, serial_number: int, reason: int) -> asn1_crl.TbsCertList:
-
     r_cert = asn1_crl.RevokedCertificate()
     r_cert["user_certificate"] = serial_number
     r_cert["revocation_date"] = asn1_crl.Time(
@@ -162,8 +154,6 @@ def _set_tbs_revoke_serial_numer(tbs: asn1_crl.TbsCertList, serial_number: int, 
 
 
 def _set_tbs_extensions(tbs: asn1_crl.TbsCertList, aki: bytes) -> asn1_crl.TbsCertList:
-    """Set all x509 extensions"""
-
     tbs = _set_tbs_aki(tbs, aki)
     _check_tbs_duplicate_extensions(tbs)
     return tbs
@@ -176,7 +166,6 @@ def _create_tbs_cert_list(
     this_update: Union[datetime.datetime, None],
     next_update: Union[datetime.datetime, None],
 ) -> asn1_crl.TbsCertList:
-
     # Set extensions
     tbs = _set_tbs_extensions(tbs, aki)
 

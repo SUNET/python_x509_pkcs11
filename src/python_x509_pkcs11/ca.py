@@ -163,7 +163,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
 ) -> Tuple[str, str]:
     """Create and sign a CSR with in the PKCS11 device.
 
-        Returns the csr and the signed ca
+        Returns the csr and the signed ca.
 
         Parameters:
         key_label (str): Keypair label to create for the new ca

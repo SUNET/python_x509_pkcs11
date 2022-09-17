@@ -1,4 +1,4 @@
-"""Module which sign CRS
+"""Module which sign CSR
 
 Exposes the functions:
 - sign_csr()
@@ -19,7 +19,6 @@ from .error import DuplicateExtensionException
 
 
 def _request_to_tbs_certificate(csr_pem: str, keep_csr_extensions: bool) -> asn1_x509.TbsCertificate:
-
     data = csr_pem.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
@@ -66,19 +65,16 @@ def _check_tbs_duplicate_extensions(tbs: asn1_x509.TbsCertificate) -> None:
 
 
 def _set_tbs_issuer(tbs: asn1_x509.TbsCertificate, issuer_name: Dict[str, str]) -> asn1_x509.TbsCertificate:
-
     tbs["issuer"] = asn1_csr.Name().build(issuer_name)
     return tbs
 
 
 def _set_tbs_version(tbs: asn1_x509.TbsCertificate) -> asn1_x509.TbsCertificate:
-
     tbs["version"] = 2
     return tbs
 
 
 def _set_tbs_serial(tbs: asn1_x509.TbsCertificate) -> asn1_x509.TbsCertificate:
-
     # Same code as python cryptography lib
     tbs["serial_number"] = int.from_bytes(os.urandom(20), "big") >> 1
     return tbs
@@ -89,7 +85,6 @@ def _set_tbs_validity(
     not_before: Union[datetime.datetime, None],
     not_after: Union[datetime.datetime, None],
 ) -> asn1_x509.TbsCertificate:
-
     val = asn1_x509.Validity()
 
     if not_before is None:
@@ -119,7 +114,6 @@ def _set_tbs_validity(
 
 
 def _set_tbs_ski(tbs: asn1_x509.TbsCertificate) -> asn1_x509.TbsCertificate:
-
     ski = OctetString()
     ski.set(tbs["subject_public_key_info"].sha1)
 
@@ -142,7 +136,6 @@ def _set_tbs_ski(tbs: asn1_x509.TbsCertificate) -> asn1_x509.TbsCertificate:
 
 
 def _set_tbs_aki(tbs: asn1_x509.TbsCertificate, identifier: bytes) -> asn1_x509.TbsCertificate:
-
     aki = asn1_x509.AuthorityKeyIdentifier()
     aki["key_identifier"] = identifier
 
@@ -167,7 +160,6 @@ def _set_tbs_aki(tbs: asn1_x509.TbsCertificate, identifier: bytes) -> asn1_x509.
 def _set_tbs_signature(
     tbs: asn1_x509.TbsCertificate,
 ) -> asn1_x509.TbsCertificate:
-
     sda = SignedDigestAlgorithm()
     sda["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
     tbs["signature"] = sda
@@ -177,7 +169,6 @@ def _set_tbs_signature(
 def _set_tbs_extra_extensions(
     tbs: asn1_x509.TbsCertificate, extra_extensions: asn1_x509.Extensions
 ) -> asn1_x509.TbsCertificate:
-
     if len(tbs["extensions"]) == 0:
         exts = asn1_x509.Extensions()
     else:
@@ -193,8 +184,6 @@ def _set_tbs_extra_extensions(
 def _set_tbs_extensions(
     tbs: asn1_x509.TbsCertificate, aki: bytes, extra_extensions: asn1_x509.Extensions
 ) -> asn1_x509.TbsCertificate:
-    """Set all x509 extensions"""
-
     if extra_extensions is not None:
         tbs = _set_tbs_extra_extensions(tbs, extra_extensions)
 
