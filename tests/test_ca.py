@@ -1,6 +1,7 @@
 """
 Test to create a new root CA
 """
+from typing import Dict
 import unittest
 import datetime
 import os
@@ -68,6 +69,21 @@ class TestCa(unittest.TestCase):
         test_cert = asn1_x509.Certificate.load(data)
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
 
+        # Ensure subject name and issuer name is the same signce this is root ca
+        cert_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["subject"].native
+        cert_issuer_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["issuer"].native
+        self.assertTrue(cert_name_dict["common_name"] == cert_issuer_name_dict["common_name"])
+
+        # Ensure AKI and SKI is the same as this is a root CA
+        tbs = test_cert["tbs_certificate"]
+        for _, extension in enumerate(tbs["extensions"]):
+            if extension["extn_id"].dotted == "2.5.29.14":
+                ski = extension["extn_value"].native
+        for _, extension in enumerate(tbs["extensions"]):
+            if extension["extn_id"].dotted == "2.5.29.35":
+                aki = extension["extn_value"].native["key_identifier"]
+        self.assertTrue(aki == ski)
+
         # Test default values
         csr_pem, root_cert_pem = asyncio.run(create(new_key_label[:-2], name_dict))
         data = root_cert_pem.encode("utf-8")
@@ -93,6 +109,14 @@ class TestCa(unittest.TestCase):
         # CSR exts (key usage and basic constraints
         # + authority and subject key identifier = 4
         self.assertTrue(len(cert_exts) == 4)
+
+    def test_create_ca_not_before_not_after(self) -> None:
+        """
+        Create and selfsign a CSR with the key_label in the pkcs11 device
+        with non default not_before and not_after.
+        """
+
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
         # Test not_before parameter
         not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
@@ -166,19 +190,33 @@ class TestCa(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        _, root_cert_pem = asyncio.run(create(new_key_label, signer_name_dict))
+        _, _ = asyncio.run(create(new_key_label, signer_name_dict))
 
         new_key_label2 = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-
-        _, root_cert_pem = asyncio.run(
+        _, im_cert_pem = asyncio.run(
             create(
                 new_key_label2, signed_name_dict, signer_subject_name=signer_name_dict, signer_key_label=new_key_label
             )
         )
 
-        data = root_cert_pem.encode("utf-8")
+        data = im_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
 
         test_cert = asn1_x509.Certificate.load(data)
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+
+        # Check subject name and issuer name, should not be equal since this is an intermediate CA
+        cert_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["subject"].native
+        cert_issuer_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["issuer"].native
+        self.assertTrue(cert_name_dict["common_name"] != cert_issuer_name_dict["common_name"])
+
+        # Check AKI and SKI, should not be equal since this is an intermediate CA
+        tbs = test_cert["tbs_certificate"]
+        for _, extension in enumerate(tbs["extensions"]):
+            if extension["extn_id"].dotted == "2.5.29.14":
+                ski = extension["extn_value"].native
+        for _, extension in enumerate(tbs["extensions"]):
+            if extension["extn_id"].dotted == "2.5.29.35":
+                aki = extension["extn_value"].native["key_identifier"]
+        self.assertTrue(ski != aki)
