@@ -482,9 +482,13 @@ The `request()` function generate a OCSP request.
 https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
 
 If key_label is not None and requestor_name is not None then sign the request with the key_label in the pkcs11 device.
+
 responder_id is the Dict with the responders x509 Names.
+
 single_responses is the single responses for all certs in the OCSP request for this OCSP response.
+
 response_status is the status code (only 0,1,2,3,5,6) for the OCSP response.
+
 extra_extensions if not None will be written into the request, for example a nonce:
 ```python
 from asn1crypto.ocsp import ResponseDataExtensions, ResponseDataExtension, ResponseDataExtensionId
