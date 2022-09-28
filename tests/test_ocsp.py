@@ -440,6 +440,7 @@ class TestOCSP(unittest.TestCase):
         ]
         ocsp_request_bytes = asyncio.run(request(request_certs_data, extra_extensions=extra_extensions))
         nonce = request_nonce(ocsp_request_bytes)
+        self.assertTrue(isinstance(nonce, bytes))
         self.assertTrue(nonce_val == nonce)
 
         ocsp_request_bytes = asyncio.run(request(request_certs_data))

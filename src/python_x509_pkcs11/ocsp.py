@@ -49,7 +49,7 @@ def _set_response_data(
 
     # Set the produced at
     # -2 minutes to protect from the OCSP response readers time skew
-    response_data["produced_at"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+    response_data["produced_at"] = asn1_ocsp.GeneralizedTime(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2))
 
     # Set the single responses
     response_data["responses"] = single_responses
