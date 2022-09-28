@@ -13,8 +13,8 @@ from asn1crypto import ocsp as asn1_ocsp
 
 
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
-from src.python_x509_pkcs11.ocsp import certificate_ocsp_data, request, response
-from src.python_x509_pkcs11.error import DuplicateExtensionException
+from src.python_x509_pkcs11.ocsp import certificate_ocsp_data, request, response, request_nonce
+from src.python_x509_pkcs11.error import DuplicateExtensionException, OCSPMissingExtensionException
 
 # Replace the above with this should you use this code
 # from python_x509_pkcs11.ca import create
@@ -424,11 +424,11 @@ class TestOCSP(unittest.TestCase):
         Test request nonce function.
         """
 
-        nonce_ext = TBSRequestExtension()
-        nonce_ext["extn_id"] = TBSRequestExtensionId("1.3.6.1.5.5.7.48.1.2")
+        nonce_ext = asn1_ocsp.TBSRequestExtension()
+        nonce_ext["extn_id"] = asn1_ocsp.TBSRequestExtensionId("1.3.6.1.5.5.7.48.1.2")
         nonce_val = token_bytes(32)
         nonce_ext["extn_value"] = nonce_val
-        extra_extensions = TBSRequestExtensions()
+        extra_extensions = asn1_ocsp.TBSRequestExtensions()
         extra_extensions.append(nonce_ext)
 
         request_certs_data = [
@@ -445,7 +445,7 @@ class TestOCSP(unittest.TestCase):
         ocsp_request_bytes = asyncio.run(request(request_certs_data))
         nonce = request_nonce(ocsp_request_bytes)
         self.assertTrue(nonce is None)
-        
+
     def test_certificate_ocsp_data(self) -> None:
         """
         Test request certificate_ocsp_data function.
@@ -483,21 +483,40 @@ cvFnVe0ady+2DhPNGwbUXz1ExrpNcA==
 -----END CERTIFICATE-----
 """
 
-        with self.assertRaises(DuplicateExtensionException):
+        non_aki_cert = """-----BEGIN CERTIFICATE-----
+MIIFLTCCBBWgAwIBAgIUbaNUJW4TG3H+AqUS7pUgxUmO8AQwDQYJKoZIhvcNAQEL
+BQAwgZwxCzAJBgNVBAYTAlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xEjAQBgNVBAcM
+CVN0b2NraG9sbTEOMAwGA1UECgwFU1VORVQxHTAbBgNVBAsMFFNVTkVUIEluZnJh
+c3RydWN0dXJlMRkwFwYDVQQDDBBjYS10ZXN0LnN1bmV0LnNlMRswGQYJKoZIhvcN
+AQkBFgxzb2NAc3VuZXQuc2UwHhcNMjIwOTI4MTEyODIwWhcNMjUwOTI3MTEzMDIw
+WjCBqzELMAkGA1UEBhMCU0UxEjAQBgNVBAgMCVN0b2NraG9sbTEXMBUGA1UEBwwO
+U3RvY2tob2xtX3Rlc3QxDjAMBgNVBAoMBVNVTkVUMR0wGwYDVQQLDBRTVU5FVCBJ
+bmZyYXN0cnVjdHVyZTEjMCEGA1UEAwwaY2EtdGVzdC1jcmVhdGUtMjAuc3VuZXQu
+c2UxGzAZBgkqhkiG9w0BCQEWDHNvY0BzdW5ldC5zZTCCASIwDQYJKoZIhvcNAQEB
+BQADggEPADCCAQoCggEBAL9TpOoJz8ycTteEiTQUmalQvWxuMnWCHn7szRjakUl6
+ujvRKz+20OzV6H/DDNpL4lEZovF2alJGVrLfMs7ZkF+UUG9ycSzSvMS8s3ywPIt0
+HxRTR6gFU6Wdl6F9Bme7w+LHxu1MFL47Q0auTz0/X097zh1uDsUFPgJfgsjwzyWb
+RG5sNQucm6jGv3Z/VyRKGCJXD9n15WMH2KFHylPRzMpUZSSs57aH0Qxg9+D83lkA
+igr1+POAHpi1cl2n3JNxLtwGLl9EZE2Dhqrtl7aY8nBm/7YT5dtfUWG+DHy4HPwc
+bXmjq7wwFjrBe2LPEucNpZ7F/KJ21/eAASbe4DmWfxUCAwEAAaOCAVQwggFQMA4G
+A1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MIGgBggrBgEFBQcBAQSBkzCB
+kDBlBggrBgEFBQcwAoZZaHR0cDovL2xvY2FsaG9zdDo4MDAwL2NhL2UxZjBiZmE5
+M2Q1NThhNzEyYWI1ODhlZmQ4NjNkNjY2YjU3ZWVlNGY0ZTkwYjA1Zjk2MzhlNzg4
+MDU5ZjNmNzEwJwYIKwYBBQUHMAGGG2h0dHA6Ly9sb2NhbGhvc3Q6ODAwMC9vY3Nw
+LzBrBgNVHR8EZDBiMGCgXqBchlpodHRwOi8vbG9jYWxob3N0OjgwMDAvY3JsL2Ux
+ZjBiZmE5M2Q1NThhNzEyYWI1ODhlZmQ4NjNkNjY2YjU3ZWVlNGY0ZTkwYjA1Zjk2
+MzhlNzg4MDU5ZjNmNzEwHQYDVR0OBBYEFCKpVTSPtd1YC6y9AvjeGOGBiYKMMA0G
+CSqGSIb3DQEBCwUAA4IBAQBoYAT/9pR9ZlCKy6kIc8QQYMX+2towZ1np5hPVgPDk
+iiReMrSH3D+5FNVjcnSRhqD60fbYo2F145udyahrGRbfvrtAY65awpf9F0OTV6Wa
+VGd3J2pSVOPt17ORgvA+ll91F9zJWKu/wFK2ZgtdAovIp12KBekAbkYcbbGxiHaV
+xyfmfj1WbL6QDY8MYTQcKmuqWSu7G5aSPHk0XzS5yykhy5f6yBg558X1SFDfhv9s
+5uF/z6UzswbYGC/xEQ5k3Lso7llb2NoEfEsPyeXJjdI4AEdT/0NAMOqssl81kHGU
+EaD/MrXPmz2BUG2NHMOLXE09ryqQzfVPfBliBaf7Zwfg
+-----END CERTIFICATE-----
+"""
+
+        with self.assertRaises(OCSPMissingExtensionException):
             i_n_h, i_k_h, serial, ocsp_url = certificate_ocsp_data(non_ocsp_cert)
 
-        with self.assertRaises(DuplicateExtensionException):
+        with self.assertRaises(OCSPMissingExtensionException):
             i_n_h, i_k_h, serial, ocsp_url = certificate_ocsp_data(non_aki_cert)
-        
-        
-# def certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]:
-#     """Get OCSP request data from a certificate.                                                                                                                                                                   
-#     Returns a tuple of:                                                                                                                                                                                            
-#     sha1 hash of issuer name                                                                                                                                                                                       
-#     sha1 hash of issuer public key                                                                                                                                                                                 
-#     serial number                                                                                                                                                                                                  
-#     ocsp url                                                                                                                                                                                                       
-                                                                                                                                                                                                                   
-#     The certificate MUST have the AKI extension (2.5.29.35)                                                                                                                                                        
-#     and the AIA extension with ocsp method (1.3.6.1.5.5.7.1.1).                                                                                                                                                    
-      

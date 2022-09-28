@@ -137,8 +137,6 @@ def _set_tbs_ski(tbs: asn1_x509.TbsCertificate) -> asn1_x509.TbsCertificate:
 
 
 def _set_tbs_aki(tbs: asn1_x509.TbsCertificate, identifier: bytes) -> asn1_x509.TbsCertificate:
-    return tbs
-
     aki = asn1_x509.AuthorityKeyIdentifier()
     aki["key_identifier"] = identifier
 
