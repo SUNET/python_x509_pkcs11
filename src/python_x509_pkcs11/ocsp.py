@@ -37,6 +37,7 @@ def _create_ocsp_request(issuer_name_hash: bytes, issuer_key_hash: bytes, serial
 def _set_response_data(
     single_responses: asn1_ocsp.Responses,
     responder_id: Dict[str, str],
+    produced_at: Union[datetime.datetime, None],
     extra_extensions: Union[asn1_ocsp.ResponseDataExtensions, None],
 ) -> asn1_ocsp.ResponseData:
     response_data = asn1_ocsp.ResponseData()
@@ -48,8 +49,20 @@ def _set_response_data(
     response_data["responder_id"] = asn1_ocsp.ResponderId({"by_name": asn1_ocsp.Name().build(responder_id)})
 
     # Set the produced at
-    # -2 minutes to protect from the OCSP response readers time skew
-    response_data["produced_at"] = asn1_ocsp.GeneralizedTime(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2))
+    if produced_at is None:
+        # -2 minutes to protect from the OCSP response readers time skew
+        response_data["produced_at"] = (
+            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+        ).replace(microsecond=0)
+    else:
+        response_data["produced_at"] = produced_at.replace(microsecond=0)
+
+    # Remove fractional seconds from this update and next update
+    for _, resps in enumerate(single_responses):
+        if resps["this_update"].native.microsecond != 0:
+            resps["this_update"] = resps["this_update"].native.replace(microsecond=0)
+        if resps["next_update"].native is not None and resps["next_update"].native.microsecond != 0:
+            resps["next_update"] = resps["next_update"].native.replace(microsecond=0)
 
     # Set the single responses
     response_data["responses"] = single_responses
@@ -254,12 +267,13 @@ async def request(
     return ret
 
 
-async def response(
+async def response(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     responder_id: Dict[str, str],
     single_responses: asn1_ocsp.Responses,
     response_status: int,
     extra_extensions: Union[asn1_ocsp.ResponseDataExtensions, None] = None,
+    produced_at: Union[datetime.datetime, None] = None,
 ) -> bytes:
     """Create an OCSP response with the key_label key in the PKCS11 device.
     See https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
@@ -269,6 +283,8 @@ async def response(
     responder_id (Dict[str, str]): Dict with the responders x509 Names.
     single_responses (asn1_ocsp.Responses): Responses for all certs in request.
     response_status (int): Status code for the OCSP response.
+    produced_at (Union[datetime.datetime, None] = None): What time to write into produced_at.
+    It must be in UTC timezone. If None then it will be 2 minutes after UTC now.
     extra_extensions (Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None):
     Extra extensions to be written into the response, for example the nonce extension.
 
@@ -296,7 +312,9 @@ async def response(
     basic_ocsp_response = asn1_ocsp.BasicOCSPResponse()
 
     # include 'certs' field
-    basic_ocsp_response["tbs_response_data"] = _set_response_data(single_responses, responder_id, extra_extensions)
+    basic_ocsp_response["tbs_response_data"] = _set_response_data(
+        single_responses, responder_id, produced_at, extra_extensions
+    )
 
     # Sign the response
     basic_ocsp_response = await _set_response_signature(key_label, basic_ocsp_response)

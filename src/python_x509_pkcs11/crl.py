@@ -52,10 +52,10 @@ def _set_tbs_next_update(
     if next_update is None:
         tbs["next_update"] = asn1_crl.Time(
             name="utc_time",
-            value=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1),
+            value=(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)).replace(microsecond=0),
         )
     else:
-        tbs["next_update"] = asn1_crl.Time(name="utc_time", value=next_update)
+        tbs["next_update"] = asn1_crl.Time(name="utc_time", value=next_update.replace(microsecond=0))
     return tbs
 
 
@@ -66,10 +66,10 @@ def _set_tbs_this_update(
         # -2 minutes to protect from the certificate readers time skew
         tbs["this_update"] = asn1_crl.Time(
             name="utc_time",
-            value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2),
+            value=(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)).replace(microsecond=0),
         )
     else:
-        tbs["this_update"] = asn1_crl.Time(name="utc_time", value=this_update)
+        tbs["this_update"] = asn1_crl.Time(name="utc_time", value=this_update.replace(microsecond=0))
     return tbs
 
 
@@ -128,7 +128,7 @@ def _set_tbs_revoke_serial_numer(tbs: asn1_crl.TbsCertList, serial_number: int, 
     r_cert["user_certificate"] = serial_number
     r_cert["revocation_date"] = asn1_crl.Time(
         name="utc_time",
-        value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2),
+        value=(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)).replace(microsecond=0),
     )
 
     ext = asn1_crl.CRLEntryExtension()

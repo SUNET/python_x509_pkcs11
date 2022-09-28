@@ -91,23 +91,25 @@ def _set_tbs_validity(
         # -2 minutes to protect from the certificate readers time skew
         val["not_before"] = asn1_x509.Time(
             name="utc_time",
-            value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2),
+            value=(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)).replace(microsecond=0),
         )
     else:
         val["not_before"] = asn1_x509.Time(
             name="utc_time",
-            value=not_before,
+            value=not_before.replace(microsecond=0),
         )
 
     if not_after is None:
         val["not_after"] = asn1_x509.Time(
             name="utc_time",
-            value=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(365 * 3, 0, 0),
+            value=(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(365 * 3, 0, 0)).replace(
+                microsecond=0
+            ),
         )
     else:
         val["not_after"] = asn1_x509.Time(
             name="utc_time",
-            value=not_after,
+            value=not_after.replace(microsecond=0),
         )
 
     tbs["validity"] = val

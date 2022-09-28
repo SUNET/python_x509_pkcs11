@@ -269,6 +269,22 @@ class TestOCSP(unittest.TestCase):
             or len(test_response["response_bytes"]["response"].native["tbs_response_data"]["response_extensions"]) == 0
         )
 
+        # Test produced_at
+        i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
+        data = asyncio.run(request([(i_name_h, i_key_h, serial)]))
+        test_request = asn1_ocsp.OCSPRequest.load(data)
+        self.assertTrue(isinstance(test_request, asn1_ocsp.OCSPRequest))
+        produced_at = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=5)).replace(
+            microsecond=0
+        )
+        data = asyncio.run(
+            response(new_key_label, name_dict, self._good_response(test_request), 0, produced_at=produced_at)
+        )
+        test_response = asn1_ocsp.OCSPResponse.load(data)
+        self.assertTrue(
+            test_response["response_bytes"]["response"].native["tbs_response_data"]["produced_at"] == produced_at
+        )
+
     def test_ocsp_response_cert_status(self) -> None:
         """
         Create an ocsp responses with different cert status
@@ -384,7 +400,9 @@ class TestOCSP(unittest.TestCase):
         extra_extensions.append(nonce_ext)
         with self.assertRaises(ValueError):
             data = asyncio.run(
-                response(new_key_label, name_dict, self._revoked_response(test_request), 0, extra_extensions)
+                response(
+                    new_key_label, name_dict, self._revoked_response(test_request), 0, extra_extensions=extra_extensions
+                )
             )
         nonce_val = token_bytes(32)
         nonce_ext["extn_value"] = nonce_val
@@ -393,7 +411,9 @@ class TestOCSP(unittest.TestCase):
         extra_extensions.append(nonce_ext)
         with self.assertRaises(DuplicateExtensionException):
             data = asyncio.run(
-                response(new_key_label, name_dict, self._revoked_response(test_request), 0, extra_extensions)
+                response(
+                    new_key_label, name_dict, self._revoked_response(test_request), 0, extra_extensions=extra_extensions
+                )
             )
 
         # Test both ok
@@ -404,7 +424,9 @@ class TestOCSP(unittest.TestCase):
         extra_extensions.append(nonce_ext)
         extra_extensions.append(extended_revoke_ext)
         data = asyncio.run(
-            response(new_key_label, name_dict, self._revoked_response(test_request), 0, extra_extensions)
+            response(
+                new_key_label, name_dict, self._revoked_response(test_request), 0, extra_extensions=extra_extensions
+            )
         )
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(isinstance(test_response, asn1_ocsp.OCSPResponse))
