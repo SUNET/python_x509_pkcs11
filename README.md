@@ -3,10 +3,9 @@
 Seamless async signing x509 using PKCS11 device for key storage
 
 Currently supports
-* Creating a root CA and generating its RSA key in the PKCS11 device
-* Using the key in the PKCS11 device to sign certificates (or Intermediate CAs)
-* Creating CRLs with the PKCS11 device key
-* Store multiple keys in the PKCS11 device enabling a full PKI infrastructure
+* Creating roots CA and generating its key in the PKCS11 device.
+* Using the keys in the PKCS11 device to sign certificates or Intermediate CAs.
+* Creating certificates, CSRs, CRLs, OCSPs  with the PKCS11 device keys enabling a full PKI infrastructure.
 * 'Advanced' handling of fragile persistent PKCS11 sessions, including recreating the session if PKCS11 operation timeout
 * This package is heavily uses python-pkcs11 and asn1crypto.
 * Package is async but python-pkcs11 is unfortunately still sync, probably due to the fragile nature of PKCS11
@@ -16,6 +15,7 @@ Currently supports
 
 ```bash
 # Install libs and add your user to the softhsm group
+# You should probably replace softhsm when using this in production, any PKCS11 device should work
 
 if awk -F= '/^NAME/{print $2}' /etc/os-release | grep -i "debian\|ubuntu"
 then
@@ -120,6 +120,9 @@ fi
 # Make your code changes
 # Then in the root folder, where this README is
 bash dev-run.sh
+
+# Build the package with flit
+flit build
 
 # Build the package with flit
 flit build

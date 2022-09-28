@@ -159,7 +159,9 @@ class TestCa(unittest.TestCase):
         exts = asn1_csr.Extensions()
 
         pkup = asn1_x509.PrivateKeyUsagePeriod()
-        pkup["not_before"] = GeneralizedTime(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(2))
+        pkup["not_before"] = GeneralizedTime(
+            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+        )
         pkup["not_after"] = GeneralizedTime(
             datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(365 * 10, 0, 0)
         )

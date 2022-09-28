@@ -63,6 +63,7 @@ def _set_tbs_this_update(
     tbs: asn1_crl.TbsCertList, this_update: Union[datetime.datetime, None]
 ) -> asn1_crl.TbsCertList:
     if this_update is None:
+        # -2 minutes to protect from the certificate readers time skew
         tbs["this_update"] = asn1_crl.Time(
             name="utc_time",
             value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2),
@@ -127,7 +128,7 @@ def _set_tbs_revoke_serial_numer(tbs: asn1_crl.TbsCertList, serial_number: int, 
     r_cert["user_certificate"] = serial_number
     r_cert["revocation_date"] = asn1_crl.Time(
         name="utc_time",
-        value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(2),
+        value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2),
     )
 
     ext = asn1_crl.CRLEntryExtension()
@@ -229,5 +230,4 @@ async def create(  # pylint: disable-msg=too-many-arguments
     cert_list["signature_algorithm"] = tbs["signature"]
     cert_list["signature"] = await PKCS11Session.sign(key_label, tbs.dump())
     pem_enc: bytes = asn1_pem.armor("X509 CRL", cert_list.dump())
-
     return pem_enc.decode("utf-8")

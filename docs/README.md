@@ -294,6 +294,8 @@ Our [ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_p
     	   not_after: Union[datetime.datetime, None] = None,
 	   exta_extensions: Union[asn1crypto.x509.Extensions, None] = None]) -> typing.Tuple[str, str]`
 
+## create()
+
 The `create()` function generate a CSR and then signs it
 with the same key from the key_label in the pkcs11 device.
 
@@ -347,10 +349,11 @@ Our [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_
            subject_name: dict[str, str],
 	   old_crl_pem: Union[str, None] = None,
 	   serial_number: Union[int, None] = None,
-	   reason: Union[int, None] = None
-	   this_update: Union[datetime.datetime, None] = None
+	   reason: Union[int, None] = None,
+	   this_update: Union[datetime.datetime, None] = None,
 	   next_update: Union[datetime.datetime, None] = None) -> str`
 
+## create()
 
 The `create()` function generate a CRL and then signs it with the
 key from the key_label in the pkcs11 device.
@@ -392,4 +395,241 @@ async def my_func() -> None:
 
 
 asyncio.run(my_func())
+```
+
+# Create OCSP requests and responses
+
+Our [ocsp](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/ocsp.py) module currently exposes four functions:
+
+ - `request(request_certs_data: List[Tuple[bytes, bytes, int]],
+           issuer_key_hashes: List[bytes],
+           serial_numbers: List[int],
+           key_label: Union[str, None] = None,
+	   requestor_name: Union[asn1crypto.ocsp.GeneralName, None] = None,
+           certs: Union[List[str], None] = None,
+	   extra_extensions: Union[asn1crypto.ocsp.TBSRequestExtensions, None] = None) -> bytes`
+
+- `response(key_label: str,
+	   responder_id: Dict[str,str],
+	   single_responses: asn1crypto.ocsp.Responses,
+	   response_status: int,
+	   extra_extensions: Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None) -> bytes`
+
+- `request_nonce(data: bytes) -> Union[bytes, None]`
+
+- `certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]`
+
+## request()
+
+The `request()` function generate a OCSP request.
+https://www.rfc-editor.org/rfc/rfc6960#section-4.1.1
+
+If key_label is not None and requestor_name is not None then sign the request with the key_label in the pkcs11 device.
+request_certs_data is a list of tuples (SHA1 hash of certificate issuer Name, SHA1 hash of certificate issuer public key, certificate serial number). See certificate_ocsp_data() here below.
+If requestor_name is not None then it will be written into the request
+
+for example:
+```python
+from asn1crypto.ocsp import GeneralName, Name
+
+requestor_name_dict = {
+    "country_name": "SE",
+    "state_or_province_name": "Stockholm",
+    "locality_name": "Stockholm",
+    "organization_name": "SUNET",
+    "organizational_unit_name": "SUNET Infrastructure",
+    "common_name": "ca-test.sunet.se",
+    "email_address": "soc@sunet.se",
+}
+
+# https://github.com/wbond/asn1crypto/blob/b5f03e6f9797c691a3b812a5bb1acade3a1f4eeb/asn1crypto/x509.py#L1414
+requestor_name = GeneralName(name="directory_name", value=(Name().build(requestor_name_dict)))
+print(requestor_name)
+```
+certs is a list of strings of PEM encoded certificates to write into the request
+
+extra_extensions if not None will be written into the request, for example a nonce:
+```python
+from secrets import token_bytes
+from asn1crypto.ocsp import TBSRequestExtensions, TBSRequestExtension, TBSRequestExtensionId
+
+nonce_ext = TBSRequestExtension()
+nonce_ext["extn_id"] = TBSRequestExtensionId("1.3.6.1.5.5.7.48.1.2")
+nonce_ext["extn_value"] = token_bytes(32) # The nonce
+extra_extensions = TBSRequestExtensions()
+extra_extensions.append(nonce_ext)
+
+print(extra_extensions)
+```
+
+### Example usage:
+```python
+import asyncio
+from python_x509_pkcs11.ocsp import request
+
+async def my_func() -> None:
+    request_certs_data = [(b'R\x94\xca?\xac`\xf7i\x819\x14\x94\xa7\x085H\x84\xb4&\xcc', b'\xad\xd0\x88DW\x96\'\xce\xf4"\xc6\xc77W\xc9\xefi\xa4[\x8b', 440320505043419981128735462508870123525487964711)]
+    ocsp_request = await request(request_certs_data)
+    print(ocsp_request)
+
+asyncio.run(my_func())
+```
+
+## response()
+
+The `request()` function generate a OCSP request.
+https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
+
+If key_label is not None and requestor_name is not None then sign the request with the key_label in the pkcs11 device.
+responder_id is the Dict with the responders x509 Names.
+single_responses is the single responses for all certs in the OCSP request for this OCSP response.
+response_status is the status code (only 0,1,2,3,5,6) for the OCSP response.
+
+### Example usage:
+```python
+import datetime
+import asyncio
+from asn1crypto.ocsp import Responses, SingleResponse, CertStatus, OCSPRequest
+from python_x509_pkcs11.ocsp import response, request
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+name_dict = {
+    "country_name": "SE",
+    "state_or_province_name": "Stockholm",
+    "locality_name": "Stockholm",
+    "organization_name": "SUNET",
+    "organizational_unit_name": "SUNET Infrastructure",
+    "common_name": "ca-test.sunet.se",
+    "email_address": "soc@sunet.se",
+}
+
+
+# Set all cert_statuses to good as a demonstration
+def single_responses(ocsp_request: OCSPRequest) -> Responses:
+    responses = Responses()
+
+    for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
+        curr_response = SingleResponse()
+        curr_response["cert_id"] = curr_req["req_cert"]
+        curr_response["cert_status"] = CertStatus("good")
+        curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+        responses.append(curr_response)
+    return responses
+
+
+async def my_func() -> None:
+    await PKCS11Session.create_keypair("my_rsa_key")
+    request_certs_data = [
+        (
+            b"R\x94\xca?\xac`\xf7i\x819\x14\x94\xa7\x085H\x84\xb4&\xcc",
+            b"\xad\xd0\x88DW\x96'\xce\xf4\"\xc6\xc77W\xc9\xefi\xa4[\x8b",
+            440320505043419981128735462508870123525487964711,
+        )
+    ]
+    ocsp_request_bytes = await request(request_certs_data)
+    ocsp_request = OCSPRequest.load(ocsp_request_bytes)
+
+    ocsp_response = await response("my_rsa_key", name_dict, single_responses(ocsp_request), 0)
+    print(ocsp_response)
+
+
+asyncio.run(my_func())
+```
+
+## request_nonce()
+
+The `request_nonce()` function extract the nonce or None from a OCSP request.
+Input is the bytes of a OCSP request. If you have a asn1crypto.ocsp.OCSPReqest then call .dump() on it.
+
+### Example usage:
+```python
+import asyncio
+from secrets import token_bytes
+from asn1crypto.ocsp import TBSRequestExtensions, TBSRequestExtension, TBSRequestExtensionId
+from python_x509_pkcs11.ocsp import request, request_nonce
+
+
+async def my_func() -> None:
+    nonce_ext = TBSRequestExtension()
+    nonce_ext["extn_id"] = TBSRequestExtensionId("1.3.6.1.5.5.7.48.1.2")
+    nonce_ext["extn_value"] = token_bytes(32)  # The nonce
+    extra_extensions = TBSRequestExtensions()
+    extra_extensions.append(nonce_ext)
+
+    request_certs_data = [
+        (
+            b"R\x94\xca?\xac`\xf7i\x819\x14\x94\xa7\x085H\x84\xb4&\xcc",
+            b"\xad\xd0\x88DW\x96'\xce\xf4\"\xc6\xc77W\xc9\xefi\xa4[\x8b",
+            440320505043419981128735462508870123525487964711,
+        )
+    ]
+    ocsp_request_bytes = await request(request_certs_data, extra_extensions=extra_extensions)
+
+    nonce = request_nonce(ocsp_request_bytes)
+    print(nonce)
+
+
+asyncio.run(my_func())
+```
+
+## certificate_ocsp_data()
+
+The `certificate_ocsp_data()` function extract the OCSP data from a certificate.
+Input is a PEM encoded certificate.
+
+Returns a tuple of:
+sha1 hash of issuer name
+sha1 hash of issuer public key
+serial number
+ocsp url
+
+The certificate MUST have the AKI extension (2.5.29.35)
+and the AIA extension with ocsp method (1.3.6.1.5.5.7.1.1).
+If not then OCSPMissingExtensionException will be raised.
+
+### Example usage:
+```python
+from python_x509_pkcs11.ocsp import certificate_ocsp_data
+
+cert = """-----BEGIN CERTIFICATE-----
+MIIFTjCCBDagAwIBAgIUTSCngZMLWEY0NsmHifr/Pu2bsicwDQYJKoZIhvcNAQEL
+BQAwgZwxCzAJBgNVBAYTAlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xEjAQBgNVBAcM
+CVN0b2NraG9sbTEOMAwGA1UECgwFU1VORVQxHTAbBgNVBAsMFFNVTkVUIEluZnJh
+c3RydWN0dXJlMRkwFwYDVQQDDBBjYS10ZXN0LnN1bmV0LnNlMRswGQYJKoZIhvcN
+AQkBFgxzb2NAc3VuZXQuc2UwHhcNMjIwOTI3MDYzODQwWhcNMjUwOTI2MDY0MDQw
+WjCBqzELMAkGA1UEBhMCU0UxEjAQBgNVBAgMCVN0b2NraG9sbTEXMBUGA1UEBwwO
+U3RvY2tob2xtX3Rlc3QxDjAMBgNVBAoMBVNVTkVUMR0wGwYDVQQLDBRTVU5FVCBJ
+bmZyYXN0cnVjdHVyZTEjMCEGA1UEAwwaY2EtdGVzdC1jcmVhdGUtMjAuc3VuZXQu
+c2UxGzAZBgkqhkiG9w0BCQEWDHNvY0BzdW5ldC5zZTCCASIwDQYJKoZIhvcNAQEB
+BQADggEPADCCAQoCggEBALZdE70YSvQgHIhWw+LQ47M9lEEeFjC0xKoptV6G586m
+yHKS4ti2NclE82sPrFiUye3/FitLT7Pf+eTKZ4rAU+P/LuirL5XYsTgf6Pf6UsKw
+9T9DDycO2llMmOHCGa+qPlMzDAJ/9Vffzr/bFz+Cv/n1/TWZhTMzAk4aGWfXvWbq
+CHpGhPLuB1TXfmRBOB8cUCfbrfUJ+i0lD8oivrJtAdEEJDLuAQ5sZ7YI5Xw1AFPZ
+fYHMY5Nw5PWydUI3OnpLL4rrAGDvHEvwtLro6znd8elHiK3SjgpMyTAgD4F2oZqQ
+zBrO/cUksMCkQiwPa0kgfRNu91vq2SpKo47eYdPFo1cCAwEAAaOCAXUwggFxMA4G
+A1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MIGgBggrBgEFBQcBAQSBkzCB
+kDBlBggrBgEFBQcwAoZZaHR0cDovL2xvY2FsaG9zdDo4MDAwL2NhLzNhOWU1ZTYy
+ZjFlN2IzZTIxN2RiMWUzNTNmMjA4MzNmZDI4NzI4ZThhZWMzZTEzOWU3OTRkMDFj
+NTE5ZGU5MTcwJwYIKwYBBQUHMAGGG2h0dHA6Ly9sb2NhbGhvc3Q6ODAwMC9vY3Nw
+LzBrBgNVHR8EZDBiMGCgXqBchlpodHRwOi8vbG9jYWxob3N0OjgwMDAvY3JsLzNh
+OWU1ZTYyZjFlN2IzZTIxN2RiMWUzNTNmMjA4MzNmZDI4NzI4ZThhZWMzZTEzOWU3
+OTRkMDFjNTE5ZGU5MTcwHQYDVR0OBBYEFFmrno6DYIVpbwUvhaMPr242LhmYMB8G
+A1UdIwQYMBaAFK3QiERXlifO9CLGxzdXye9ppFuLMA0GCSqGSIb3DQEBCwUAA4IB
+AQAkh+ijRkxjABqfkw4+fr8ZYAbdaZdXdZ2NgXGeB3DAFPYp6xZIREB+bE4YRd5n
+xIsYWZTya1oTTCcMA2oLMO7Jv5KqJgkS5jDKM+SK3QIK68HfCW2ZrhkcGAmYmxOY
+4eUkhFY3axEJ501/PqVxBRCj/FJbXsoI72v7lFj6MdESxEtJCj8lz5DdH3OHDgDd
+4SQomVowm8nIfuxIuuoSoZR4DluPeWMDUoiKky8ocVxEymtE1tJYdrrL3f0ZcFey
+mF+JNgr8wdkW7fMy3HpRk7QOvJ2calp9V2THBZ8T+UPKmCkBxdW511hDzLpIb7rA
+lgIDB0Y1AZDNLKuq6QWifdf3
+-----END CERTIFICATE-----
+"""
+
+i_n_h, i_k_h, serial, ocsp_url = certificate_ocsp_data(cert)
+print(i_n_h)
+print(i_k_h)
+print(serial)
+print(ocsp_url)
+
+# View the cert with:
+# openssl x509 -text -noout -in cert.pem
 ```

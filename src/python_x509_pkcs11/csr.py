@@ -88,9 +88,10 @@ def _set_tbs_validity(
     val = asn1_x509.Validity()
 
     if not_before is None:
+        # -2 minutes to protect from the certificate readers time skew
         val["not_before"] = asn1_x509.Time(
             name="utc_time",
-            value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(2),
+            value=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2),
         )
     else:
         val["not_before"] = asn1_x509.Time(
@@ -136,6 +137,8 @@ def _set_tbs_ski(tbs: asn1_x509.TbsCertificate) -> asn1_x509.TbsCertificate:
 
 
 def _set_tbs_aki(tbs: asn1_x509.TbsCertificate, identifier: bytes) -> asn1_x509.TbsCertificate:
+    return tbs
+
     aki = asn1_x509.AuthorityKeyIdentifier()
     aki["key_identifier"] = identifier
 
