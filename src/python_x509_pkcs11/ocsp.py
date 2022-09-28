@@ -283,10 +283,10 @@ async def response(  # pylint: disable-msg=too-many-arguments
     responder_id (Dict[str, str]): Dict with the responders x509 Names.
     single_responses (asn1_ocsp.Responses): Responses for all certs in request.
     response_status (int): Status code for the OCSP response.
-    produced_at (Union[datetime.datetime, None] = None): What time to write into produced_at.
-    It must be in UTC timezone. If None then it will be 2 minutes after UTC now.
     extra_extensions (Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None):
     Extra extensions to be written into the response, for example the nonce extension.
+    produced_at (Union[datetime.datetime, None] = None): What time to write into produced_at.
+    It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
 
     Returns:
     bytes

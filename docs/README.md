@@ -413,7 +413,8 @@ Our [ocsp](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509
 	   responder_id: Dict[str,str],
 	   single_responses: asn1crypto.ocsp.Responses,
 	   response_status: int,
-	   extra_extensions: Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None) -> bytes`
+	   extra_extensions: Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None,
+	   produced_at: Union[datetime.datetime, None] = None) -> bytes`
 
 - `request_nonce(data: bytes) -> Union[bytes, None]`
 
@@ -484,6 +485,19 @@ If key_label is not None and requestor_name is not None then sign the request wi
 responder_id is the Dict with the responders x509 Names.
 single_responses is the single responses for all certs in the OCSP request for this OCSP response.
 response_status is the status code (only 0,1,2,3,5,6) for the OCSP response.
+extra_extensions if not None will be written into the request, for example a nonce:
+```python
+from asn1crypto.ocsp import ResponseDataExtensions, ResponseDataExtension, ResponseDataExtensionId
+
+nonce_ext = ResponseDataExtension()
+nonce_ext["extn_id"] = ResponseDataExtensionId("1.3.6.1.5.5.7.48.1.2")
+nonce_ext["extn_value"] = token_bytes(32)
+extra_extensions = ResponseDataExtensions()
+extra_extensions.append(nonce_ext)
+```
+produced_at is what time to write into "produced_at" field.
+It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
+
 
 ### Example usage:
 ```python
