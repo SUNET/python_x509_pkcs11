@@ -514,9 +514,49 @@ xyfmfj1WbL6QDY8MYTQcKmuqWSu7G5aSPHk0XzS5yykhy5f6yBg558X1SFDfhv9s
 EaD/MrXPmz2BUG2NHMOLXE09ryqQzfVPfBliBaf7Zwfg
 -----END CERTIFICATE-----
 """
+        valid_certificate_ocsp_data_cert = """-----BEGIN CERTIFICATE-----
+MIIFTjCCBDagAwIBAgIUbdJG1iVUuT7Uo27pfZRCp3iD1yEwDQYJKoZIhvcNAQEL
+BQAwgZwxCzAJBgNVBAYTAlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xEjAQBgNVBAcM
+CVN0b2NraG9sbTEOMAwGA1UECgwFU1VORVQxHTAbBgNVBAsMFFNVTkVUIEluZnJh
+c3RydWN0dXJlMRkwFwYDVQQDDBBjYS10ZXN0LnN1bmV0LnNlMRswGQYJKoZIhvcN
+AQkBFgxzb2NAc3VuZXQuc2UwHhcNMjIwOTI4MTEzNTM4WhcNMjUwOTI3MTEzNzM4
+WjCBqzELMAkGA1UEBhMCU0UxEjAQBgNVBAgMCVN0b2NraG9sbTEXMBUGA1UEBwwO
+U3RvY2tob2xtX3Rlc3QxDjAMBgNVBAoMBVNVTkVUMR0wGwYDVQQLDBRTVU5FVCBJ
+bmZyYXN0cnVjdHVyZTEjMCEGA1UEAwwaY2EtdGVzdC1jcmVhdGUtMjAuc3VuZXQu
+c2UxGzAZBgkqhkiG9w0BCQEWDHNvY0BzdW5ldC5zZTCCASIwDQYJKoZIhvcNAQEB
+BQADggEPADCCAQoCggEBANkCM+bjU9rXA6yaFMPZGVGUpwovhmWI0bxEZyuCOd18
+W6wTbAU0/4liSgXh21F/GGRljlpYZPyASETBlqtOrOWoXWTKyNmOKjoY+vdmZqVS
+eFuc4PnA7I0TxcazHsTyyc30OONDABoRPI/f19t8hlszbb36vq7nA5OlG2X0lFs8
+qxwPbc5hnbJoCOQIHoc12T70gq2cwCLjEsz8U37diQG3GFfRzb4PFMJVxpetIcqI
+G778quRIPQZwusMUGjFen433gEXDSSP1e92pFRdudYTK8SBr6g4o5spT57M4pwpz
+OFPH/+ixZ8hHPmFUw52Vy+YEwcUP8bUW/8MQOiA2mskCAwEAAaOCAXUwggFxMA4G
+A1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MIGgBggrBgEFBQcBAQSBkzCB
+kDBlBggrBgEFBQcwAoZZaHR0cDovL2xvY2FsaG9zdDo4MDAwL2NhLzRhZGMzMTEz
+MTI4NmUxOGQzNDg0OTcxNzk4OTNmYjA3MmFiYmZiNjgwMDdiMGMxZGI1Nzc2ODMx
+YjcyYzJiNTQwJwYIKwYBBQUHMAGGG2h0dHA6Ly9sb2NhbGhvc3Q6ODAwMC9vY3Nw
+LzBrBgNVHR8EZDBiMGCgXqBchlpodHRwOi8vbG9jYWxob3N0OjgwMDAvY3JsLzRh
+ZGMzMTEzMTI4NmUxOGQzNDg0OTcxNzk4OTNmYjA3MmFiYmZiNjgwMDdiMGMxZGI1
+Nzc2ODMxYjcyYzJiNTQwHQYDVR0OBBYEFLaiqsKj6bS2zfkwInlUhglbLzS0MB8G
+A1UdIwQYMBaAFJ5ZDq9Xsd/VQ7YGwKolpxn0PM3jMA0GCSqGSIb3DQEBCwUAA4IB
+AQAf9meVVFl13r4mAbhAYTLFCYjbD19WE2qccRNWzBYYDHRyfsNWap2XqtBCclx9
+a+f69800sVqG0QLO4z614wTreM4fDafv5F+AS9Rjv3LsWh/3L6AjLId+VOr2MQ1l
+fZblPuENO0Ifcbtu1KUBvUBCGhENof/c+64uCFd3YsSxcNSk0cRpjrWWtKXimp/j
+dqc1yIVY8FUMpQZDb0jLXMI3ZhcKwkBo1K7sxve6Ehwy26NJQHvkjNH1DGegbNir
+ZHIK3/RRSe1UPB8Jin34rr7BpW90/n43nqMB9SROpr4LeI+oUo5NhKnnKWi57MrT
+iou2IdA6xuQG7IlqFPaCjJsn
+-----END CERTIFICATE-----
+"""
 
         with self.assertRaises(OCSPMissingExtensionException):
             i_n_h, i_k_h, serial, ocsp_url = certificate_ocsp_data(non_ocsp_cert)
-
         with self.assertRaises(OCSPMissingExtensionException):
             i_n_h, i_k_h, serial, ocsp_url = certificate_ocsp_data(non_aki_cert)
+
+        i_n_h, i_k_h, serial, ocsp_url = certificate_ocsp_data(valid_certificate_ocsp_data_cert)
+        self.assertTrue(isinstance(i_n_h, bytes))
+        self.assertTrue(len(i_n_h) > 5)
+        self.assertTrue(isinstance(i_k_h, bytes))
+        self.assertTrue(len(i_k_h) > 5)
+        self.assertTrue(isinstance(serial, int))
+        self.assertTrue(isinstance(ocsp_url, str))
+        self.assertTrue(len(ocsp_url) > 3)
