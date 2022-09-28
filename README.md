@@ -3,7 +3,7 @@
 Seamless async signing x509 using PKCS11 device for key storage
 
 Currently supports
-* Creating roots CA and generating its key in the PKCS11 device.
+* Creating root CAs and generating their keys in the PKCS11 device.
 * Using the keys in the PKCS11 device to sign certificates or Intermediate CAs.
 * Creating certificates, CSRs, CRLs, OCSPs  with the PKCS11 device keys enabling a full PKI infrastructure.
 * 'Advanced' handling of fragile persistent PKCS11 sessions, including recreating the session if PKCS11 operation timeout
