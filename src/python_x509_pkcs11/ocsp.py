@@ -200,7 +200,7 @@ def certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]:
     for _, extension in enumerate(cert["tbs_certificate"]["extensions"]):
         if extension["extn_id"].dotted == "1.3.6.1.5.5.7.1.1":
             for _, descr in enumerate(extension["extn_value"].native):
-                if "ocsp" == descr["access_method"] and "/ocsp/" in descr["access_location"]:
+                if descr["access_method"] == "ocsp" and "/ocsp/" in descr["access_location"]:
                     ocsp_url = descr["access_location"]
                     found = True
     if not found:

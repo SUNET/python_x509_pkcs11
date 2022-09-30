@@ -185,9 +185,8 @@ async def create(  # pylint: disable-msg=too-many-arguments
     data = pk_info.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
-    decoded_pk_info = PublicKeyInfo.load(data)
 
-    tbs = _create_tbs(subject_name, decoded_pk_info, extra_extensions)
+    tbs = _create_tbs(subject_name, PublicKeyInfo.load(data), extra_extensions)
 
     signed_csr = asn1_csr.CertificationRequest()
     signed_csr["certification_request_info"] = tbs

@@ -73,89 +73,91 @@ requestor_name_dict = {
 }
 
 
-class TestOCSP(unittest.TestCase):
-    """
-    Test our OCSP module.
-    """
+def _mixed_response(ocsp_request: asn1_ocsp.OCSPRequest) -> asn1_ocsp.Responses:
+    cert_ids: List[asn1_ocsp.CertId] = []
+    responses = asn1_ocsp.Responses()
 
-    def _mixed_response(self, ocsp_request: asn1_ocsp.OCSPRequest) -> asn1_ocsp.Responses:
-        cert_ids: List[asn1_ocsp.CertId] = []
-        responses = asn1_ocsp.Responses()
+    for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
+        cert_ids.append(curr_req["req_cert"])
 
-        for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
-            cert_ids.append(curr_req["req_cert"])
+    for index, cert_id in enumerate(cert_ids):
+        curr_response = asn1_ocsp.SingleResponse()
+        curr_response["cert_id"] = cert_id
 
-        for index, cert_id in enumerate(cert_ids):
-            curr_response = asn1_ocsp.SingleResponse()
-            curr_response["cert_id"] = cert_id
-
-            if index == 0:
-                curr_response["cert_status"] = asn1_ocsp.CertStatus("good")
-            elif index == 1:
-                revoked_info = asn1_ocsp.RevokedInfo()
-                revoked_info["revocation_time"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
-                    minutes=20
-                )
-                revoked_info["revocation_reason"] = asn1_ocsp.CRLReason(5)
-                curr_response["cert_status"] = asn1_ocsp.CertStatus({"revoked": revoked_info})
-            elif index == 2:
-                curr_response["cert_status"] = asn1_ocsp.CertStatus("unknown")
-
-            curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
-            responses.append(curr_response)
-        return responses
-
-    def _good_response(self, ocsp_request: asn1_ocsp.OCSPRequest) -> asn1_ocsp.Responses:
-        cert_ids: List[asn1_ocsp.CertId] = []
-        responses = asn1_ocsp.Responses()
-
-        for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
-            cert_ids.append(curr_req["req_cert"])
-
-        for _, cert_id in enumerate(cert_ids):
-            curr_response = asn1_ocsp.SingleResponse()
-            curr_response["cert_id"] = cert_id
+        if index == 0:
             curr_response["cert_status"] = asn1_ocsp.CertStatus("good")
-            curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
-            responses.append(curr_response)
-        return responses
-
-    def _revoked_response(self, ocsp_request: asn1_ocsp.OCSPRequest) -> asn1_ocsp.Responses:
-        cert_ids: List[asn1_ocsp.CertId] = []
-        responses = asn1_ocsp.Responses()
-
-        for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
-            cert_ids.append(curr_req["req_cert"])
-
-        for _, cert_id in enumerate(cert_ids):
-            curr_response = asn1_ocsp.SingleResponse()
-            curr_response["cert_id"] = cert_id
-
+        elif index == 1:
             revoked_info = asn1_ocsp.RevokedInfo()
             revoked_info["revocation_time"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
                 minutes=20
             )
             revoked_info["revocation_reason"] = asn1_ocsp.CRLReason(5)
-
             curr_response["cert_status"] = asn1_ocsp.CertStatus({"revoked": revoked_info})
-            curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
-            responses.append(curr_response)
-        return responses
-
-    def _unknown_response(self, ocsp_request: asn1_ocsp.OCSPRequest) -> asn1_ocsp.Responses:
-        cert_ids: List[asn1_ocsp.CertId] = []
-        responses = asn1_ocsp.Responses()
-
-        for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
-            cert_ids.append(curr_req["req_cert"])
-
-        for _, cert_id in enumerate(cert_ids):
-            curr_response = asn1_ocsp.SingleResponse()
-            curr_response["cert_id"] = cert_id
+        elif index == 2:
             curr_response["cert_status"] = asn1_ocsp.CertStatus("unknown")
-            curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
-            responses.append(curr_response)
-        return responses
+
+        curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+        responses.append(curr_response)
+    return responses
+
+
+def _good_response(ocsp_request: asn1_ocsp.OCSPRequest) -> asn1_ocsp.Responses:
+    cert_ids: List[asn1_ocsp.CertId] = []
+    responses = asn1_ocsp.Responses()
+
+    for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
+        cert_ids.append(curr_req["req_cert"])
+
+    for _, cert_id in enumerate(cert_ids):
+        curr_response = asn1_ocsp.SingleResponse()
+        curr_response["cert_id"] = cert_id
+        curr_response["cert_status"] = asn1_ocsp.CertStatus("good")
+        curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+        responses.append(curr_response)
+    return responses
+
+
+def _revoked_response(ocsp_request: asn1_ocsp.OCSPRequest) -> asn1_ocsp.Responses:
+    cert_ids: List[asn1_ocsp.CertId] = []
+    responses = asn1_ocsp.Responses()
+
+    for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
+        cert_ids.append(curr_req["req_cert"])
+
+    for _, cert_id in enumerate(cert_ids):
+        curr_response = asn1_ocsp.SingleResponse()
+        curr_response["cert_id"] = cert_id
+
+        revoked_info = asn1_ocsp.RevokedInfo()
+        revoked_info["revocation_time"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=20)
+        revoked_info["revocation_reason"] = asn1_ocsp.CRLReason(5)
+
+        curr_response["cert_status"] = asn1_ocsp.CertStatus({"revoked": revoked_info})
+        curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+        responses.append(curr_response)
+    return responses
+
+
+def _unknown_response(ocsp_request: asn1_ocsp.OCSPRequest) -> asn1_ocsp.Responses:
+    cert_ids: List[asn1_ocsp.CertId] = []
+    responses = asn1_ocsp.Responses()
+
+    for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
+        cert_ids.append(curr_req["req_cert"])
+
+    for _, cert_id in enumerate(cert_ids):
+        curr_response = asn1_ocsp.SingleResponse()
+        curr_response["cert_id"] = cert_id
+        curr_response["cert_status"] = asn1_ocsp.CertStatus("unknown")
+        curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+        responses.append(curr_response)
+    return responses
+
+
+class TestOCSP(unittest.TestCase):
+    """
+    Test our OCSP module.
+    """
 
     def test_ocsp_request(self) -> None:
         """
@@ -256,7 +258,7 @@ class TestOCSP(unittest.TestCase):
         data = asyncio.run(request([(i_name_h, i_key_h, serial)]))
         test_request = asn1_ocsp.OCSPRequest.load(data)
         self.assertTrue(isinstance(test_request, asn1_ocsp.OCSPRequest))
-        data = asyncio.run(response(new_key_label, name_dict, self._good_response(test_request), 0))
+        data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 0))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(isinstance(test_response, asn1_ocsp.OCSPResponse))
         self.assertTrue(test_response["response_bytes"].native is not None)
@@ -277,9 +279,7 @@ class TestOCSP(unittest.TestCase):
         produced_at = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=5)).replace(
             microsecond=0
         )
-        data = asyncio.run(
-            response(new_key_label, name_dict, self._good_response(test_request), 0, produced_at=produced_at)
-        )
+        data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 0, produced_at=produced_at))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(
             test_response["response_bytes"]["response"].native["tbs_response_data"]["produced_at"] == produced_at
@@ -299,7 +299,7 @@ class TestOCSP(unittest.TestCase):
         data = asyncio.run(request([(i_name_h, i_key_h, serial)]))
         test_request = asn1_ocsp.OCSPRequest.load(data)
         self.assertTrue(isinstance(test_request, asn1_ocsp.OCSPRequest))
-        data = asyncio.run(response(new_key_label, name_dict, self._revoked_response(test_request), 0))
+        data = asyncio.run(response(new_key_label, name_dict, _revoked_response(test_request), 0))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(isinstance(test_response, asn1_ocsp.OCSPResponse))
         self.assertTrue(
@@ -310,7 +310,7 @@ class TestOCSP(unittest.TestCase):
         )
 
         # Unknown
-        data = asyncio.run(response(new_key_label, name_dict, self._unknown_response(test_request), 0))
+        data = asyncio.run(response(new_key_label, name_dict, _unknown_response(test_request), 0))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(isinstance(test_response, asn1_ocsp.OCSPResponse))
         self.assertTrue(
@@ -324,7 +324,7 @@ class TestOCSP(unittest.TestCase):
         )
         test_request = asn1_ocsp.OCSPRequest.load(data)
         self.assertTrue(isinstance(test_request, asn1_ocsp.OCSPRequest))
-        data = asyncio.run(response(new_key_label, name_dict, self._mixed_response(test_request), 0))
+        data = asyncio.run(response(new_key_label, name_dict, _mixed_response(test_request), 0))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(isinstance(test_response, asn1_ocsp.OCSPResponse))
         self.assertTrue(test_response["response_bytes"].native is not None)
@@ -356,28 +356,28 @@ class TestOCSP(unittest.TestCase):
         test_request = asn1_ocsp.OCSPRequest.load(data)
 
         # Test status codes
-        data = asyncio.run(response(new_key_label, name_dict, self._good_response(test_request), 1))
+        data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 1))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(isinstance(test_response, asn1_ocsp.OCSPResponse))
         self.assertTrue(test_response["response_bytes"].native is None)
-        data = asyncio.run(response(new_key_label, name_dict, self._good_response(test_request), 2))
+        data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 2))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(test_response["response_bytes"].native is None)
-        data = asyncio.run(response(new_key_label, name_dict, self._good_response(test_request), 3))
+        data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 3))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(test_response["response_bytes"].native is None)
-        data = asyncio.run(response(new_key_label, name_dict, self._good_response(test_request), 5))
+        data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 5))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(test_response["response_bytes"].native is None)
-        data = asyncio.run(response(new_key_label, name_dict, self._good_response(test_request), 6))
+        data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 6))
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(test_response["response_bytes"].native is None)
 
         with self.assertRaises(ValueError):
-            data = asyncio.run(response(new_key_label, name_dict, self._good_response(test_request), 4))
+            data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 4))
             test_response = asn1_ocsp.OCSPResponse.load(data)
         with self.assertRaises(ValueError):
-            data = asyncio.run(response(new_key_label, name_dict, self._good_response(test_request), 99))
+            data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 99))
             test_response = asn1_ocsp.OCSPResponse.load(data)
 
     def test_ocsp_response_extensions(self) -> None:
@@ -401,7 +401,7 @@ class TestOCSP(unittest.TestCase):
         with self.assertRaises(ValueError):
             data = asyncio.run(
                 response(
-                    new_key_label, name_dict, self._revoked_response(test_request), 0, extra_extensions=extra_extensions
+                    new_key_label, name_dict, _revoked_response(test_request), 0, extra_extensions=extra_extensions
                 )
             )
         nonce_val = token_bytes(32)
@@ -412,7 +412,7 @@ class TestOCSP(unittest.TestCase):
         with self.assertRaises(DuplicateExtensionException):
             data = asyncio.run(
                 response(
-                    new_key_label, name_dict, self._revoked_response(test_request), 0, extra_extensions=extra_extensions
+                    new_key_label, name_dict, _revoked_response(test_request), 0, extra_extensions=extra_extensions
                 )
             )
 
@@ -424,9 +424,7 @@ class TestOCSP(unittest.TestCase):
         extra_extensions.append(nonce_ext)
         extra_extensions.append(extended_revoke_ext)
         data = asyncio.run(
-            response(
-                new_key_label, name_dict, self._revoked_response(test_request), 0, extra_extensions=extra_extensions
-            )
+            response(new_key_label, name_dict, _revoked_response(test_request), 0, extra_extensions=extra_extensions)
         )
         test_response = asn1_ocsp.OCSPResponse.load(data)
         self.assertTrue(isinstance(test_response, asn1_ocsp.OCSPResponse))

@@ -145,7 +145,7 @@ class PKCS11Session:
             cls.session.create_object(key_priv)
 
     @classmethod
-    async def create_keypair(cls, key_label: str, key_size: int = 2048) -> typing.Tuple[PublicKeyInfo, bytes]:
+    async def create_keypair(cls, key_label: str, key_size: int = 2048) -> typing.Tuple[str, bytes]:
         """Create a RSA keypair in the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
         Returns the data for the x509 'Subject Public Key Info'
