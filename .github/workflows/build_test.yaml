@@ -25,10 +25,6 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Lint with mypy and pylint
         run: |
-          export PKCS11_TOKEN="my_test_token_1"
-          export PKCS11_PIN2="1234"
-          export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
-
           # stop the build if there are Python syntax errors or undefined names
           mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null src/python_x509_pkcs11/*.py
           pylint --max-line-length 120 src/python_x509_pkcs11/*.py
@@ -38,4 +34,8 @@ jobs:
 
       - name: Test with pytest
         run: |
+          export PKCS11_TOKEN="my_test_token_1"
+          export PKCS11_PIN2="1234"
+          export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
+          softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
           python3 -m unittest
