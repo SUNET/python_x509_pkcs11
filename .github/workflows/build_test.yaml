@@ -39,7 +39,7 @@ jobs:
           export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
           # sudo chown -R $USER /var/lib/softhsm/
           id
-          exec su -l $USER
+          exec sudo su -l $USER
           id
           ls -al /var/lib/softhsm/
           ls -al /etc/softhsm/
