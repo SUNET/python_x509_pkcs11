@@ -19,14 +19,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          dnf install python3-devel python3-pip softhsm gcc
+          dnf install python3-devel python3-pip softhsm gcc -y
           # sudo usermod -a -G ods $USER
-          python3 -m pip install --upgrade pip
-          which pip3
-          which pip
           pip3 install mypy pylint
-          pip3 install asn1crypto
-          pip3 install python-pkcs11
           # if [ -f requirements.txt ]; then python3 -m pip install -r requirements.txt; fi
       - name: Lint with mypy and pylint
         run: |
@@ -42,11 +37,6 @@ jobs:
           export PKCS11_TOKEN="my_test_token_1"
           export PKCS11_PIN="1234"
           export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so"
-          python3 -V
-          id
-          # exec sudo su -l $USER
-          id
-          ls -al /var/lib/softhsm/
-          ls -al /etc/softhsm/
+          exec sudo su -l $USER
           softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
           python3 -m unittest
