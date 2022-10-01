@@ -3,37 +3,11 @@ name: python_x509_pkcs11-centos
 on: [push]
 
 jobs:
-  build:
+  container-test-job:
 
     runs-on: ubuntu-latest
     container: quay.io/centos/centos:stream9
-    strategy:
-      matrix:
-        python-version: ["3.9"]
-
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          dnf install python3-devel python3-pip softhsm gcc -y
-          sudo usermod -a -G ods $USER
-          pip3 install mypy pylint
-          python3 -m pip install -r requirements.txt
-      - name: Lint with mypy and pylint
-        run: |
-          mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null src/python_x509_pkcs11/*.py
-          pylint --max-line-length 120 src/python_x509_pkcs11/*.py
-          mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null tests/*.py
-          pylint --max-line-length 120 tests/*.py
-      - name: Test with pytest
-        run: |
-          export PKCS11_TOKEN="my_test_token_1"
-          export PKCS11_PIN="1234"
-          export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so"
-          exec sudo su -l $USER
-          softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
-          python3 -m unittest
+          dnf install python3-devel python3-pip softhsm gcc -y && sudo usermod -a -G ods $USER && pip3 install mypy pylint && python3 -m pip install -r requirements.txt && mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null src/python_x509_pkcs11/*.py && pylint --max-line-length 120 src/python_x509_pkcs11/*.py && mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null tests/*.py && pylint --max-line-length 120 tests/*.py && export PKCS11_TOKEN="my_test_token_1" && export PKCS11_PIN="1234" && export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so" && softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN && python3 -m unittest
