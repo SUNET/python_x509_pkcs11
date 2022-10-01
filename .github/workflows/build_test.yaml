@@ -25,8 +25,8 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Lint with mypy and pylint
         run: |
-          export PKCS11_TOKEN='my_test_token_1'
-          export PKCS11_PIN='1234
+          export PKCS11_TOKEN="my_test_token_1"
+          export PKCS11_PIN2="1234"
           export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
 
           # stop the build if there are Python syntax errors or undefined names
