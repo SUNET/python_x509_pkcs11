@@ -110,10 +110,11 @@ asyncio.run(my_func())
 if awk -F= '/^NAME/{print $2}' /etc/os-release | grep -i "debian\|ubuntu"
 then
     # Ubuntu / Debian
-    sudo apt-get install flit python3-mypy black
+    sudo apt-get install flit python3-mypy black pylint
 else
     # Redhat / Centos / Fedora
-    sudo dnf install python3-flit python3-mypy python3-black
+    sudo dnf install epel-release
+    sudo dnf install python3-flit python3-mypy python3-black pylint
 fi
 
 
@@ -123,8 +124,4 @@ bash dev-run.sh
 
 # Build the package with flit
 flit build
-
-# Build the package with flit
-flit build
-
 ```

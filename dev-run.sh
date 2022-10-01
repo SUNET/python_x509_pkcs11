@@ -6,8 +6,8 @@ then
 else
     export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so"
 fi
-export PKCS11_TOKEN='my_test_token_1'
-export PKCS11_PIN='1234'
+export PKCS11_TOKEN="my_test_token_1"
+export PKCS11_PIN="1234"
 
 # Recreating the PKCS11 device token
 echo "Deleting and reinitialize the PCKCS11 token"
@@ -21,7 +21,7 @@ echo "Checking tests"
 mypy --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null tests/*.py || exit 1
 
 echo "Running tests"
-python3 -m unittest
+python3 -m unittest || exit 1
 
 black --line-length 120 src/python_x509_pkcs11/*.py || exit 1
 black --line-length 120 tests/*.py || exit 1

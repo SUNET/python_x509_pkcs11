@@ -21,22 +21,9 @@ jobs:
           sudo apt-get install python3-dev softhsm2
           sudo usermod -a -G softhsm $USER
           python -m pip install --upgrade pip
-          pip install mypy pylint
+          pip install mypy black pylint
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Lint with mypy and pylint
+      - name: Run dev-run.sh
         run: |
-          # stop the build if there are Python syntax errors or undefined names
-          mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null src/python_x509_pkcs11/*.py
-          pylint --max-line-length 120 src/python_x509_pkcs11/*.py
-          # stop the build if there are Python syntax errors or undefined names
-          mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null tests/*.py
-          pylint --max-line-length 120 tests/*.py
-
-      - name: Test with pytest
-        run: |
-          export PKCS11_TOKEN="my_test_token_1"
-          export PKCS11_PIN="1234"
-          export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
           exec sudo su -l $USER
-          softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
-          python3 -m unittest
+          bash dev-run.sh

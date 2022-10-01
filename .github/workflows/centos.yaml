@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          dnf install git python3-devel python3-pip softhsm gcc sudo util-linux -y
-          useradd python_x509_pkcs11
+          dnf install git python3-devel python3-pip softhsm gcc sudo -y
+          useradd python_x509_pkcs11 -m
           usermod -a -G ods python_x509_pkcs11
-          sudo -u python_x509_pkcs11 "id && git clone https://github.com/SUNET/python_x509_pkcs11.git && cd python_x509_pkcs11 && python3 -m pip install -r requirements.txt && bash dev-run.sh"
+          sudo -u python_x509_pkcs11 bash -c 'export PATH="$PATH:$HOME/.local/bin" && id && git clone https://github.com/SUNET/python_x509_pkcs11.git && cd python_x509_pkcs11 && pip3 install mypy black pylint; python3 -m pip install -r requirements.txt && bash dev-run.sh'
