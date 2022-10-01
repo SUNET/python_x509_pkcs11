@@ -19,8 +19,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          sudo dnf install python3-devel python3-pip softhsm gcc
-          sudo usermod -a -G ods $USER
+          dnf install python3-devel python3-pip softhsm gcc
+          # sudo usermod -a -G ods $USER
           python3 -m pip install --upgrade pip
           pip install mypy pylint
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -40,7 +40,7 @@ jobs:
           export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so"
           python3 -V
           id
-          exec sudo su -l $USER
+          # exec sudo su -l $USER
           id
           ls -al /var/lib/softhsm/
           ls -al /etc/softhsm/
