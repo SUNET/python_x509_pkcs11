@@ -25,6 +25,8 @@ jobs:
           which pip3
           which pip
           pip3 install mypy pylint
+          pip3 install asn1crypto
+          pip3 install python-pkcs11
           if [ -f requirements.txt ]; then python3 -m pip install -r requirements.txt; fi
       - name: Lint with mypy and pylint
         run: |
