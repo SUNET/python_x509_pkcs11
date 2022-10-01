@@ -1,4 +1,4 @@
-name: python_x509_pkcs11
+name: python_x509_pkcs11-centos
 
 on: [push]
 
@@ -22,7 +22,9 @@ jobs:
           dnf install python3-devel python3-pip softhsm gcc
           # sudo usermod -a -G ods $USER
           python3 -m pip install --upgrade pip
-          pip install mypy pylint
+          which pip3
+          which pip
+          pip3 install mypy pylint
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Lint with mypy and pylint
         run: |

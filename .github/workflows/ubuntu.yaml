@@ -1,4 +1,4 @@
-name: python_x509_pkcs11
+name: python_x509_pkcs11-ubuntu
 
 on: [push]
 
