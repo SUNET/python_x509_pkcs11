@@ -1,3 +1,5 @@
+![workflow test](https://github.com/SUNET/python_x509_pkcs11/actions/workflows/ubuntu.yml/badge.svg)
+
 ## python_x509_pkcs11
 
 Seamless async signing x509 using PKCS11 device for key storage
