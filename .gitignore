@@ -1,4 +1,3 @@
-.github
 dist
 *.mypy_cache
 *__pycache__
