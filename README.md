@@ -1,4 +1,4 @@
-![workflow test](https://github.com/SUNET/python_x509_pkcs11/actions/workflows/ubuntu.yml/badge.svg)
+![workflow test](https://github.com/SUNET/python_x509_pkcs11/actions/workflows/ubuntu.yaml/badge.svg)
 
 ## python_x509_pkcs11
 
