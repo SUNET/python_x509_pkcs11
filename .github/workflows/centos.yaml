@@ -20,18 +20,15 @@ jobs:
       - name: Install dependencies
         run: |
           dnf install python3-devel python3-pip softhsm gcc -y
-          # sudo usermod -a -G ods $USER
+          sudo usermod -a -G ods $USER
           pip3 install mypy pylint
-          # if [ -f requirements.txt ]; then python3 -m pip install -r requirements.txt; fi
+          python3 -m pip install -r requirements.txt
       - name: Lint with mypy and pylint
         run: |
-          # stop the build if there are Python syntax errors or undefined names
           mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null src/python_x509_pkcs11/*.py
           pylint --max-line-length 120 src/python_x509_pkcs11/*.py
-          # stop the build if there are Python syntax errors or undefined names
           mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null tests/*.py
           pylint --max-line-length 120 tests/*.py
-
       - name: Test with pytest
         run: |
           export PKCS11_TOKEN="my_test_token_1"
