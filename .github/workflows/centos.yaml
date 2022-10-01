@@ -1,0 +1,48 @@
+name: python_x509_pkcs11
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    container: centos:7
+    strategy:
+      matrix:
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo dnf install python3-devel python3-pip softhsm gcc
+          sudo usermod -a -G ods $USER
+          python3 -m pip install --upgrade pip
+          pip install mypy pylint
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Lint with mypy and pylint
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null src/python_x509_pkcs11/*.py
+          pylint --max-line-length 120 src/python_x509_pkcs11/*.py
+          # stop the build if there are Python syntax errors or undefined names
+          mypy  --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/null tests/*.py
+          pylint --max-line-length 120 tests/*.py
+
+      - name: Test with pytest
+        run: |
+          export PKCS11_TOKEN="my_test_token_1"
+          export PKCS11_PIN="1234"
+          export PKCS11_MODULE="/usr/lib64/softhsm/libsofthsm.so"
+          python3 -V
+          id
+          exec sudo su -l $USER
+          id
+          ls -al /var/lib/softhsm/
+          ls -al /etc/softhsm/
+          softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
+          python3 -m unittest

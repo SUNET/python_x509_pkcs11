@@ -1,4 +1,4 @@
-name: Python package
+name: python_x509_pkcs11
 
 on: [push]
 
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
 
     steps:
       - uses: actions/checkout@v3
@@ -37,11 +37,6 @@ jobs:
           export PKCS11_TOKEN="my_test_token_1"
           export PKCS11_PIN="1234"
           export PKCS11_MODULE="/usr/lib/softhsm/libsofthsm2.so"
-          # sudo chown -R $USER /var/lib/softhsm/
-          id
           exec sudo su -l $USER
-          id
-          ls -al /var/lib/softhsm/
-          ls -al /etc/softhsm/
           softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN
           python3 -m unittest

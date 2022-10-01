@@ -15,8 +15,8 @@ else
     sudo usermod -a -G ods $USER
 fi
 
-# Or reboot, just make sure your shell now has the new group	
-echo "logout and login again to fix the softhsm group now"
+# Update your softhsm group membership
+exec sudo su -l $USER
 
 # Install this package
 pip3 install python_x509_pkcs11
