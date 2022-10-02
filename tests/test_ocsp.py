@@ -9,6 +9,7 @@ import asyncio
 from secrets import token_bytes
 
 from asn1crypto import x509 as asn1_x509
+from asn1crypto import pem as asn1_pem
 from asn1crypto import ocsp as asn1_ocsp
 
 
@@ -581,3 +582,104 @@ iou2IdA6xuQG7IlqFPaCjJsn
         self.assertTrue(isinstance(serial, int))
         self.assertTrue(isinstance(ocsp_url, str))
         self.assertTrue(len(ocsp_url) > 3)
+
+    def test_ocsp_response_extra_certs(self) -> None:
+        """
+        Test OCSP response extra certs
+        """
+
+        extra_cert1 = """-----BEGIN CERTIFICATE-----
+MIIE/jCCA+agAwIBAgIUQaPasXjfn0GaQozLCX54rl1mjXYwDQYJKoZIhvcNAQEL
+BQAwga4xCzAJBgNVBAYTAlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xFzAVBgNVBAcM
+DlN0b2NraG9sbV90ZXN0MRMwEQYDVQQKDApTVU5FVF9vY3NwMR0wGwYDVQQLDBRT
+VU5FVCBJbmZyYXN0cnVjdHVyZTEhMB8GA1UEAwwYY2EtdGVzdC1vY3NwLTQ1LnN1
+bmV0LnNlMRswGQYJKoZIhvcNAQkBFgxzb2NAc3VuZXQuc2UwHhcNMjIxMDAyMTEy
+MjA4WhcNMjUxMDAxMTEyNDA4WjBrMQswCQYDVQQGEwJTRTETMBEGA1UECAwKU29t
+ZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMSQwIgYD
+VQQDDBtjaGVjay1vY3NwLnRlc3QtNTcuc3VuZXQuc2UwggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQCpnsovJqsHTTWNTYTy09j6NuzYU0F9CDmB5u9YzG1q
+nZQbYdCVr7aveYpYB+Z3mufT0pvk9O9W+YUC5/uYAuWw7DU+mOjSdB5AbfgVNDZ+
+bI7liviriwi/udkTUy0AW7BAELTHEn9q6d/tPQjhVMrOKTlSqaXO3M+F2uEIBI4C
+Byo5Jip2XyMNC0pOTsXVUXbXM7CK9nbfvloFzrO0S+AupJ2yHi3EUphHBSb+yUGA
+YSm2xE79mdjiWt9e5IPEDLuNHFYfKst+6vcjm2RWpjEGcUwJ2PANXcs9qUpw0OKb
+qf7nYuEhYT7f3LjKd88FgOlP/g1dZzvU9uuavgbC4anvAgMBAAGjggFUMIIBUDCB
+oAYIKwYBBQUHAQEEgZMwgZAwZQYIKwYBBQUHMAKGWWh0dHA6Ly9sb2NhbGhvc3Q6
+ODAwMC9jYS80MTJjODBlMGMxYjMxNmYxM2FlMjA0Y2ViMmI5MDY4MTljZTM5ZWI1
+NmVkZTA5YmVlOTI4N2Y4MzhmZjQ5MTJiMCcGCCsGAQUFBzABhhtodHRwOi8vbG9j
+YWxob3N0OjgwMDAvb2NzcC8wawYDVR0fBGQwYjBgoF6gXIZaaHR0cDovL2xvY2Fs
+aG9zdDo4MDAwL2NybC80MTJjODBlMGMxYjMxNmYxM2FlMjA0Y2ViMmI5MDY4MTlj
+ZTM5ZWI1NmVkZTA5YmVlOTI4N2Y4MzhmZjQ5MTJiMB0GA1UdDgQWBBRgaGcW/4/T
+Dsx4Ccfc286GTZjwWjAfBgNVHSMEGDAWgBRZvuLKRazQkrNdouoG2y22z04/ezAN
+BgkqhkiG9w0BAQsFAAOCAQEAkQBHhVJcNq47Xo8gC2sVofRkDtTXxP66LDGULm9Y
+WaBAszSaDMisAMoaP9/VLgI7SkJN9aqLZYBo7EDIUVV5Na2iIOacFzDFAG25NmHU
+8ewSlZ4NB5bdzGr0BF/Vz5ucJokTYzUjTyadQPSdwzTGYhVKfNH54yYQWdhiZIt+
+cbUX2K+u7abHpQXgrWdqyUKLk5KRoKXAgnjyvsKsc1sWmZAYZQ9VoXQ9rFhUrbFB
+lZAbNZd5zXBFkrW5U1cHn22S61XFOjbDRt1Y80WAZR1dZ1YQBUqTTVAtpreSB3GY
+irPMqk3fnoma+7NawnMv/SJzFPoI1jrww/LnyN+XLIotLw==
+-----END CERTIFICATE-----
+"""
+        extra_cert2 = """-----BEGIN CERTIFICATE-----
+MIIE/jCCA+agAwIBAgIUMGcej1HFWNHrbcRZ0SHX64Th/fYwDQYJKoZIhvcNAQEL
+BQAwga4xCzAJBgNVBAYTAlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xFzAVBgNVBAcM
+DlN0b2NraG9sbV90ZXN0MRMwEQYDVQQKDApTVU5FVF9vY3NwMR0wGwYDVQQLDBRT
+VU5FVCBJbmZyYXN0cnVjdHVyZTEhMB8GA1UEAwwYY2EtdGVzdC1vY3NwLTQ1LnN1
+bmV0LnNlMRswGQYJKoZIhvcNAQkBFgxzb2NAc3VuZXQuc2UwHhcNMjIxMDAyMTEy
+MzAwWhcNMjUxMDAxMTEyNTAwWjBrMQswCQYDVQQGEwJTRTETMBEGA1UECAwKU29t
+ZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMSQwIgYD
+VQQDDBtjaGVjay1vY3NwLnRlc3QtNTcuc3VuZXQuc2UwggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQCpnsovJqsHTTWNTYTy09j6NuzYU0F9CDmB5u9YzG1q
+nZQbYdCVr7aveYpYB+Z3mufT0pvk9O9W+YUC5/uYAuWw7DU+mOjSdB5AbfgVNDZ+
+bI7liviriwi/udkTUy0AW7BAELTHEn9q6d/tPQjhVMrOKTlSqaXO3M+F2uEIBI4C
+Byo5Jip2XyMNC0pOTsXVUXbXM7CK9nbfvloFzrO0S+AupJ2yHi3EUphHBSb+yUGA
+YSm2xE79mdjiWt9e5IPEDLuNHFYfKst+6vcjm2RWpjEGcUwJ2PANXcs9qUpw0OKb
+qf7nYuEhYT7f3LjKd88FgOlP/g1dZzvU9uuavgbC4anvAgMBAAGjggFUMIIBUDCB
+oAYIKwYBBQUHAQEEgZMwgZAwZQYIKwYBBQUHMAKGWWh0dHA6Ly9sb2NhbGhvc3Q6
+ODAwMC9jYS8xNzNkZTU1NTRmZmNmM2I0NmI3ZWY3MWUxNGMzZTZjOTE4MzYxZDA1
+NWRjNWMxNDI5Mzk1NmJmYmJjZjUxMWViMCcGCCsGAQUFBzABhhtodHRwOi8vbG9j
+YWxob3N0OjgwMDAvb2NzcC8wawYDVR0fBGQwYjBgoF6gXIZaaHR0cDovL2xvY2Fs
+aG9zdDo4MDAwL2NybC8xNzNkZTU1NTRmZmNmM2I0NmI3ZWY3MWUxNGMzZTZjOTE4
+MzYxZDA1NWRjNWMxNDI5Mzk1NmJmYmJjZjUxMWViMB0GA1UdDgQWBBRgaGcW/4/T
+Dsx4Ccfc286GTZjwWjAfBgNVHSMEGDAWgBQaGUp9TABn4AuWI6ahidTMYWHpazAN
+BgkqhkiG9w0BAQsFAAOCAQEA2kF5wSSJwy05CSk44/HOcWju6tYPko4uT4v4zRim
++UBvR9yMXz/+RdwHurWmSBZPCm7cRbkLdXJk+XCz/3g24CvHgKoe4YumogoEQHlP
+C8Nzo/mRk8C0Gcbl4GkDSN/ujrECoapLbxsuKDLhPa6lkmn/N1BWVoohkvwZGcca
+HJfKd3Am/5yYf8w+QQH0LeyZZk9tM+d9XBGrqOFpL0T19zsyKiddbbRXceyftxyc
+5VGw62FbGoNqyVYDR1kX5FSuvOT/29L/5fSLCgn6ow3mH7TX16ZL8vTzDLUqlBtE
+FvdQ0EEx2Pssrry0iD5AieGyK2nKW94UA0gQenvtMS9mxQ==
+-----END CERTIFICATE-----
+"""
+
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+
+        i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
+        data = asyncio.run(request([(i_name_h, i_key_h, serial)]))
+        test_request = asn1_ocsp.OCSPRequest.load(data)
+        self.assertTrue(isinstance(test_request, asn1_ocsp.OCSPRequest))
+        data = asyncio.run(
+            response(new_key_label, name_dict, _good_response(test_request), 0, extra_certs=[extra_cert1, extra_cert2])
+        )
+        test_response = asn1_ocsp.OCSPResponse.load(data)
+        self.assertTrue(isinstance(test_response, asn1_ocsp.OCSPResponse))
+        self.assertTrue(test_response["response_bytes"].native is not None)
+        self.assertTrue(
+            test_response["response_bytes"]["response"].native["tbs_response_data"]["responses"][0]["cert_status"]
+            == "good"
+        )
+        self.assertTrue(len(test_response["response_bytes"]["response"].native["certs"]) == 2)
+
+        # Ensure certs are the same
+        cert_data = extra_cert1.encode("utf-8")
+        if asn1_pem.detect(cert_data):
+            _, _, cert_data = asn1_pem.unarmor(cert_data)
+        self.assertTrue(
+            test_response["response_bytes"]["response"].native["certs"][0]
+            == asn1_ocsp.Certificate.load(cert_data).native
+        )
+        cert_data = extra_cert2.encode("utf-8")
+        if asn1_pem.detect(cert_data):
+            _, _, cert_data = asn1_pem.unarmor(cert_data)
+        self.assertTrue(
+            test_response["response_bytes"]["response"].native["certs"][1]
+            == asn1_ocsp.Certificate.load(cert_data).native
+        )

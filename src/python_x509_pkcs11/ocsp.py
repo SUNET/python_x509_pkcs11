@@ -77,6 +77,7 @@ def _set_response_data(
                     raise ValueError("Nonce length error, https://datatracker.ietf.org/doc/html/rfc8954")
                 if len(ext["extn_value"].native) < 16:
                     print("Warning: Ignoring nonce since its smaller than 16 bytes")
+                    print("https://datatracker.ietf.org/doc/html/rfc8954")
                     continue
 
             exts.append(ext)
@@ -93,7 +94,7 @@ def _set_response_data(
 
 
 async def _set_response_signature(
-    key_label: str, basic_ocsp_response: asn1_ocsp.BasicOCSPResponse
+    key_label: str, extra_certs: Union[List[str], None], basic_ocsp_response: asn1_ocsp.BasicOCSPResponse
 ) -> asn1_ocsp.BasicOCSPResponse:
     sda = SignedDigestAlgorithm()
     sda["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
@@ -101,6 +102,16 @@ async def _set_response_signature(
     basic_ocsp_response["signature"] = await PKCS11Session().sign(
         key_label, basic_ocsp_response["tbs_response_data"].dump()
     )
+
+    if extra_certs:
+        resp_certs = asn1_ocsp.Certificates()
+        for cert in extra_certs:
+            cert_data = cert.encode("utf-8")
+            if asn1_pem.detect(cert_data):
+                _, _, cert_data = asn1_pem.unarmor(cert_data)
+            resp_certs.append(asn1_ocsp.Certificate.load(cert_data))
+        basic_ocsp_response["certs"] = resp_certs
+
     return basic_ocsp_response
 
 
@@ -113,17 +124,14 @@ async def _set_request_signature(
     signature["signature_algorithm"] = sda
     signature["signature"] = await PKCS11Session().sign(key_label, data.dump())
 
-    if certs is not None:
+    if certs:
         req_certs = asn1_ocsp.Certificates()
         for cert in certs:
             cert_data = cert.encode("utf-8")
             if asn1_pem.detect(cert_data):
                 _, _, cert_data = asn1_pem.unarmor(cert_data)
-            curr_cert = asn1_ocsp.Certificate.load(cert_data)
-            req_certs.append(curr_cert)
-
-        if certs:
-            signature["certs"] = req_certs
+            req_certs.append(asn1_ocsp.Certificate.load(cert_data))
+        signature["certs"] = req_certs
 
     return signature
 
@@ -159,7 +167,8 @@ def certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]:
     ocsp url
 
     The certificate MUST have the AKI extension (2.5.29.35)
-    and the AIA extension with ocsp method (1.3.6.1.5.5.7.1.1).
+    and the AIA extension with ocsp method (1.3.6.1.5.5.7.1.1)
+    raises OCSPMissingExtensionException if not.
 
     Parameters:
     pem (str): PEM encoded certificate.
@@ -196,16 +205,13 @@ def certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]:
     serial_number = cert["tbs_certificate"]["serial_number"].native
 
     # OCSP URL
-    found = False
     for _, extension in enumerate(cert["tbs_certificate"]["extensions"]):
         if extension["extn_id"].dotted == "1.3.6.1.5.5.7.1.1":
             for _, descr in enumerate(extension["extn_value"].native):
                 if descr["access_method"] == "ocsp" and "/ocsp/" in descr["access_location"]:
                     ocsp_url = descr["access_location"]
-                    found = True
-    if not found:
-        raise OCSPMissingExtensionException("AIA extension with ocsp method was not found in certificate/ " + pem)
-    return issuer_name_hash, issuer_key_hash, serial_number, ocsp_url
+                    return issuer_name_hash, issuer_key_hash, serial_number, ocsp_url
+    raise OCSPMissingExtensionException("AIA extension with ocsp method was not found in certificate/ " + pem)
 
 
 async def request(
@@ -274,6 +280,7 @@ async def response(  # pylint: disable-msg=too-many-arguments
     response_status: int,
     extra_extensions: Union[asn1_ocsp.ResponseDataExtensions, None] = None,
     produced_at: Union[datetime.datetime, None] = None,
+    extra_certs: Union[List[str], None] = None,
 ) -> bytes:
     """Create an OCSP response with the key_label key in the PKCS11 device.
     See https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
@@ -287,20 +294,23 @@ async def response(  # pylint: disable-msg=too-many-arguments
     Extra extensions to be written into the response, for example the nonce extension.
     produced_at (Union[datetime.datetime, None] = None): What time to write into produced_at.
     It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
+    extra_certs (Union[List[str], None] = None): List of PEM encoded certs
+    for the client the verify the signature chain.
 
     Returns:
     bytes
     """
 
+    ret: bytes
+
+    # Ensure valid response status
     if response_status not in [0, 1, 2, 3, 5, 6]:  # 4 is not used
         raise ValueError("status code must be one of [0, 1, 2, 3, 5, 6]")
-
-    ret: bytes
 
     # OCSP response
     ocsp_response = asn1_ocsp.OCSPResponse()
 
-    # Work on this
+    # Set response status
     ocsp_response["response_status"] = asn1_ocsp.OCSPResponseStatus(response_status)
 
     # Is error status
@@ -311,18 +321,17 @@ async def response(  # pylint: disable-msg=too-many-arguments
     # Basic OCSP response
     basic_ocsp_response = asn1_ocsp.BasicOCSPResponse()
 
-    # include 'certs' field
+    # Set response data
     basic_ocsp_response["tbs_response_data"] = _set_response_data(
         single_responses, responder_id, produced_at, extra_extensions
     )
 
     # Sign the response
-    basic_ocsp_response = await _set_response_signature(key_label, basic_ocsp_response)
+    basic_ocsp_response = await _set_response_signature(key_label, extra_certs, basic_ocsp_response)
 
     # Response bytes
     response_bytes = asn1_ocsp.ResponseBytes()
     response_bytes["response_type"] = asn1_ocsp.ResponseType("1.3.6.1.5.5.7.48.1.1")
-
     response_bytes["response"] = basic_ocsp_response
     ocsp_response["response_bytes"] = response_bytes
 

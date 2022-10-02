@@ -217,6 +217,14 @@ def _create_tbs_certificate(  # pylint: disable-msg=too-many-arguments
     return tbs
 
 
+async def _set_signature(
+    key_label: str, tbs: asn1_x509.TbsCertificate, signed_cert: asn1_x509.Certificate
+) -> asn1_x509.Certificate:
+    signed_cert["signature_algorithm"] = tbs["signature"]
+    signed_cert["signature_value"] = await PKCS11Session().sign(key_label, tbs.dump())
+    return signed_cert
+
+
 async def sign_csr(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     issuer_name: Dict[str, str],
@@ -244,13 +252,10 @@ async def sign_csr(  # pylint: disable-msg=too-many-arguments
     _, aki = await PKCS11Session().public_key_data(key_label)
 
     tbs = _request_to_tbs_certificate(csr_pem, keep_csr_extensions)
-
     tbs = _create_tbs_certificate(tbs, issuer_name, aki, not_before, not_after, extra_extensions)
 
     signed_cert = asn1_x509.Certificate()
     signed_cert["tbs_certificate"] = tbs
-    signed_cert["signature_algorithm"] = tbs["signature"]
-    signed_cert["signature_value"] = await PKCS11Session().sign(key_label, tbs.dump())
-
+    signed_cert = await _set_signature(key_label, tbs, signed_cert)
     pem_enc: bytes = asn1_pem.armor("CERTIFICATE", signed_cert.dump())
     return pem_enc.decode("utf-8")

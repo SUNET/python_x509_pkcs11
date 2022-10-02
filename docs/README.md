@@ -414,7 +414,8 @@ Our [ocsp](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509
 	   single_responses: asn1crypto.ocsp.Responses,
 	   response_status: int,
 	   extra_extensions: Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None,
-	   produced_at: Union[datetime.datetime, None] = None) -> bytes`
+	   produced_at: Union[datetime.datetime, None] = None,
+	   extra_certs: Union[List[str], None] = None) -> bytes`
 
 - `request_nonce(data: bytes) -> Union[bytes, None]`
 
@@ -502,6 +503,8 @@ extra_extensions.append(nonce_ext)
 produced_at is what time to write into "produced_at" field.
 It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
 
+extra_certs is a list of PEM encoded certs for the client the verify the signature chain.
+Default value is None.
 
 ### Example usage:
 ```python

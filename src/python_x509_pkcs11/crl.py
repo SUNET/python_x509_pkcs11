@@ -188,6 +188,14 @@ def _load_crl(crl_pem: str) -> asn1_crl.CertificateList:
     return cert_list
 
 
+async def _set_signature(
+    key_label: str, tbs: asn1_crl.TbsCertList, cert_list: asn1_crl.CertificateList
+) -> asn1_crl.CertificateList:
+    cert_list["signature_algorithm"] = tbs["signature"]
+    cert_list["signature"] = await PKCS11Session.sign(key_label, tbs.dump())
+    return cert_list
+
+
 async def create(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     subject_name: Dict[str, str],
@@ -227,7 +235,6 @@ async def create(  # pylint: disable-msg=too-many-arguments
 
     cert_list = asn1_crl.CertificateList()
     cert_list["tbs_cert_list"] = tbs
-    cert_list["signature_algorithm"] = tbs["signature"]
-    cert_list["signature"] = await PKCS11Session.sign(key_label, tbs.dump())
+    cert_list = await _set_signature(key_label, tbs, cert_list)
     pem_enc: bytes = asn1_pem.armor("X509 CRL", cert_list.dump())
     return pem_enc.decode("utf-8")

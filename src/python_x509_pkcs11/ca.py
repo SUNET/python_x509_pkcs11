@@ -151,6 +151,17 @@ def _create_tbs(
     return tbs
 
 
+async def _set_csr_signature(
+    key_label: str, tbs: asn1_csr.CertificationRequestInfo, signed_csr: asn1_csr.CertificationRequest
+) -> asn1_csr.CertificationRequest:
+    sda = SignedDigestAlgorithm()
+    sda["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
+
+    signed_csr["signature_algorithm"] = sda
+    signed_csr["signature"] = await PKCS11Session().sign(key_label, tbs.dump())
+    return signed_csr
+
+
 async def create(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     subject_name: Dict[str, str],
@@ -163,22 +174,22 @@ async def create(  # pylint: disable-msg=too-many-arguments
 ) -> Tuple[str, str]:
     """Create and sign a CSR with in the PKCS11 device.
 
-        Returns the csr and the signed ca.
+    Returns the csr and the signed ca.
 
-        Parameters:
-        key_label (str): Keypair label to create for the new ca
-        subject_name (typing.Dict[str, str]): Dict with x509 subject names
-        key_size (int = 2048): Key size, 2048 and 4096 works best.
-        signer_subject_name (Union[typing.Dict[str, str], None] = None):
+    Parameters:
+    key_label (str): Keypair label to create for the new ca
+    subject_name (typing.Dict[str, str]): Dict with x509 subject names
+    key_size (int = 2048): Key size, 2048 and 4096 works best.
+    signer_subject_name (Union[typing.Dict[str, str], None] = None):
     Dict with x509 subject names, if None then this will be root a (selfsigned) ca.
-        signer_key_label (Union[str, None] = None):
+    signer_key_label (Union[str, None] = None):
     Keylabel to sign this ca with, if None then this will be root a (selfsigned) ca.
-        not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
-        not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
-        extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca.
+    not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
+    not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
+    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca.
 
-        Returns:
-        typing.Tuple[str, str]
+    Returns:
+    typing.Tuple[str, str]
     """
 
     pk_info, _ = await PKCS11Session().create_keypair(key_label, key_size)
@@ -187,16 +198,9 @@ async def create(  # pylint: disable-msg=too-many-arguments
         _, _, data = asn1_pem.unarmor(data)
 
     tbs = _create_tbs(subject_name, PublicKeyInfo.load(data), extra_extensions)
-
     signed_csr = asn1_csr.CertificationRequest()
     signed_csr["certification_request_info"] = tbs
-
-    sda = SignedDigestAlgorithm()
-    sda["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
-
-    signed_csr["signature_algorithm"] = sda
-    signed_csr["signature"] = await PKCS11Session().sign(key_label, tbs.dump())
-
+    signed_csr = await _set_csr_signature(key_label, tbs, signed_csr)
     pem_enc: bytes = asn1_pem.armor("CERTIFICATE REQUEST", signed_csr.dump())
 
     # If this will be a root CA or not
