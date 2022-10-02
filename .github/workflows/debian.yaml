@@ -1,0 +1,16 @@
+name: python_x509_pkcs11-debian
+
+on: [push]
+
+jobs:
+  container-test-job:
+
+    runs-on: ubuntu-latest
+    container: debian:latest
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install git python3-dev python3-pip softhsm2 sudo python3-asn1crypto mypy black pylint -y
+          useradd python_x509_pkcs11 -m
+          usermod -a -G softhsm python_x509_pkcs11
+          sudo -u python_x509_pkcs11 bash -c 'export PATH="$PATH:$HOME/.local/bin" && id && cd && git clone https://github.com/SUNET/python_x509_pkcs11.git && cd python_x509_pkcs11 && python3 -m pip install -r requirements.txt && bash dev-run.sh'
