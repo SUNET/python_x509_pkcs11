@@ -22,4 +22,4 @@ jobs:
           python3 -m pip install -r requirements.txt && \
           bash dev-run.sh && \
           flit build  && \
-          pip3 install dist/python_x509_pkcs11*.whl' && \
+          pip3 install dist/python_x509_pkcs11*.whl'
