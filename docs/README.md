@@ -560,7 +560,7 @@ asyncio.run(my_func())
 ## request_nonce()
 
 The `request_nonce()` function extract the nonce or None from a OCSP request.
-Input is the bytes of a OCSP request. If you have a asn1crypto.ocsp.OCSPReqest then call .dump() on it.
+Input is the bytes of a OCSP request. If you have a asn1crypto.ocsp.OCSPRequest then call dump() on it to get the bytes.
 
 ### Example usage for request_nonce():
 ```python
