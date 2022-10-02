@@ -479,7 +479,7 @@ asyncio.run(my_func())
 
 ## response()
 
-The `request()` function generate a OCSP request.
+The `response()` function generate a OCSP response.
 https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
 
 If key_label is not None and requestor_name is not None then sign the request with the key_label in the pkcs11 device.
