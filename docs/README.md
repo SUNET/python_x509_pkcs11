@@ -77,7 +77,7 @@ openssl rsa -in rsaprivkey.pem -RSAPublicKey_out -outform DER -out PublicKey.der
 If a keypair with label already exists in the PKCS11 device
 then pkcs11.MultipleObjectsReturned will be raised.
 
-### Example usage:
+### Example usage for import_keypair():
 ```python
 import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -108,7 +108,7 @@ the public key info and the public keys x509 'Subject Key identifier' value.
 If a keypair with label already exists in the PKCS11 device
 then pkcs11.MultipleObjectsReturned will be raised.
 
-### Example usage:
+### Example usage for create_keypair():
 ```python
 import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -127,7 +127,7 @@ asyncio.run(my_func())
 
 The `key_labels()` function return a list of key labels in the PKCS11 device.
 
-### Example usage:
+### Example usage for key_labels():
 ```python
 import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -146,7 +146,7 @@ asyncio.run(my_func())
 
 The `sign()` function signs the data using the private_key in the PKCS11 device with this label.
 
-### Example usage:
+### Example usage for sign():
 ```python
 import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -166,7 +166,7 @@ asyncio.run(my_func())
 
 The `verify()` function verifies a signature and its data using the private_key in the PKCS11 device with this label.
 
-### Example usage:
+### Example usage for verify():
 ```python
 import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -190,7 +190,7 @@ asyncio.run(my_func())
 The `public_key_data()` function returns the data for the x509 'Public Key Info'
 and 'Key Identifier' valid for this keypair from the public key in the PKCS11 device with this label.
 
-### Example usage:
+### Example usage for public_key_data():
 ```python
 import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
@@ -235,7 +235,7 @@ import datetime
 datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
 ```
 
-### Example usage:
+### Example usage for sign_csr():
 ```python
 import asyncio
 from python_x509_pkcs11 import csr
@@ -313,7 +313,7 @@ datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
 This function uses the `sign_csr()` from the `csr` module to sign
 the generated CSR.
 
-### Example usage:
+### Example usage for create():
 ```python
 import asyncio
 from python_x509_pkcs11.ca import create
@@ -371,7 +371,7 @@ import datetime
 datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
 ```
 
-### Example usage:
+### Example usage for create():
 ```python
 import asyncio
 from python_x509_pkcs11.crl import create
@@ -464,7 +464,7 @@ extra_extensions.append(nonce_ext)
 print(extra_extensions)
 ```
 
-### Example usage:
+### Example usage for request():
 ```python
 import asyncio
 from python_x509_pkcs11.ocsp import request
@@ -482,7 +482,7 @@ asyncio.run(my_func())
 The `response()` function generate a OCSP response.
 https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
 
-If key_label is not None and requestor_name is not None then sign the request with the key_label in the pkcs11 device.
+key_label is the key label in the PKCS11 device that will sign the response.
 
 responder_id is the Dict with the responders x509 Names.
 
@@ -506,7 +506,7 @@ It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
 extra_certs is a list of PEM encoded certs for the client the verify the signature chain.
 Default value is None.
 
-### Example usage:
+### Example usage for response():
 ```python
 import datetime
 import asyncio
@@ -562,7 +562,7 @@ asyncio.run(my_func())
 The `request_nonce()` function extract the nonce or None from a OCSP request.
 Input is the bytes of a OCSP request. If you have a asn1crypto.ocsp.OCSPReqest then call .dump() on it.
 
-### Example usage:
+### Example usage for request_nonce():
 ```python
 import asyncio
 from secrets import token_bytes
@@ -608,7 +608,7 @@ The certificate MUST have the AKI extension (2.5.29.35)
 and the AIA extension with ocsp method (1.3.6.1.5.5.7.1.1).
 If not then OCSPMissingExtensionException will be raised.
 
-### Example usage:
+### Example usage for certificate_ocsp_data():
 ```python
 from python_x509_pkcs11.ocsp import certificate_ocsp_data
 
