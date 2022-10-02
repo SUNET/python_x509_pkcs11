@@ -1,4 +1,6 @@
-![workflow test](https://github.com/SUNET/python_x509_pkcs11/actions/workflows/ubuntu.yaml/badge.svg)
+![workflow ubuntu](https://github.com/SUNET/python_x509_pkcs11/actions/workflows/ubuntu.yaml/badge.svg)
+![workflow centos](https://github.com/SUNET/python_x509_pkcs11/actions/workflows/centos.yaml/badge.svg)
+![workflow debian](https://github.com/SUNET/python_x509_pkcs11/actions/workflows/debian.yaml/badge.svg)
 
 ## python_x509_pkcs11
 
