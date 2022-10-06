@@ -14,12 +14,12 @@ jobs:
           useradd python_x509_pkcs11 -m
           usermod -a -G ods python_x509_pkcs11
           sudo -u python_x509_pkcs11 bash -c \
-	  'export PATH="$PATH:$HOME/.local/bin" && \
-	  cd && \
-	  git clone https://github.com/SUNET/python_x509_pkcs11.git && \
-	  cd python_x509_pkcs11 && \
-	  pip3 install mypy black pylint flit && \
-	  python3 -m pip install -r requirements.txt && \
-	  bash dev-run.sh && \
-	  flit build && \
-	  pip3 install dist/python_x509_pkcs11*.whl'
+          'export PATH="$PATH:$HOME/.local/bin" && \
+          cd && \
+          git clone https://github.com/SUNET/python_x509_pkcs11.git && \
+          cd python_x509_pkcs11 && \
+          pip3 install mypy black pylint flit && \
+          python3 -m pip install -r requirements.txt && \
+          bash dev-run.sh && \
+          flit build && \
+          pip3 install dist/python_x509_pkcs11*.whl'

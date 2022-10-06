@@ -22,7 +22,7 @@ jobs:
           sudo usermod -a -G softhsm $USER
           python -m pip install --upgrade pip
           pip install mypy black pylint flit
-	  pip install -r requirements.txt
+          pip install -r requirements.txt
       - name: Run dev-run.sh
         run: |
           exec sudo su -l $USER
