@@ -1,2 +1,2 @@
-asn1crypto >= 1.4.0
+asn1crypto >= 1.5.1
 python-pkcs11 >= 0.7.0

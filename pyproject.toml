@@ -1,5 +1,5 @@
 description = "Python async library for signing x509 using keys in an pkcs11 device such as a HSM"
-version = "0.4.0"
+version = "0.4.1"
 
 [build-system]
 requires = [
@@ -12,13 +12,13 @@ module = "python_x509_pkcs11"
 description-file = "README.md"
 requires-python = ">=3.7"
 
-keywords = "x509,OCSP,pkcs11,HSM"
+keywords = "x509,OCSP,ed25519,pkcs11,HSM"
 license = "MIT"
 author = "Victor Näslund"
 author-email = "victor@sunet.se"
 home-page = "https://github.com/SUNET/python_x509_pkcs11"
 
 requires = [
-    "asn1crypto>=1.4.0",
+    "asn1crypto>=1.5.1",
     "python-pkcs11>=0.7.0"
 ]

@@ -8,22 +8,36 @@ Exposes the functions:
 from typing import Union, Dict
 import datetime
 
-from asn1crypto import crl as asn1_crl
+from asn1crypto.crl import (
+    AuthorityKeyIdentifier,
+    CertificateList,
+    CRLEntryExtension,
+    CRLEntryExtensionId,
+    CRLEntryExtensions,
+    Name,
+    RevokedCertificate,
+    RevokedCertificates,
+    TbsCertList,
+    TBSCertListExtensions,
+    TBSCertListExtension,
+    TBSCertListExtensionId,
+    Time,
+)
 from asn1crypto import pem as asn1_pem
-from asn1crypto.algos import SignedDigestAlgorithm, SignedDigestAlgorithmId
 
 from .pkcs11_handle import PKCS11Session
 from .error import DuplicateExtensionException
+from .lib import signed_digest_algo
 
 
-def _check_tbs_duplicate_extensions(tbs: asn1_crl.TbsCertList) -> None:
+def _check_tbs_duplicate_extensions(tbs: TbsCertList) -> None:
     """A certificate MUST NOT include more
     than one instance of a particular extension. For example, a
     certificate may contain only one authority key identifier extension
     https://www.rfc-editor.org/rfc/rfc5280#section-4.2
 
     Parameters:
-    tbs (asn1_crl.TbsCertList): The 'To be signed' crl
+    tbs (TbsCertList): The 'To be signed' crl
 
     Returns:
     None
@@ -36,45 +50,41 @@ def _check_tbs_duplicate_extensions(tbs: asn1_crl.TbsCertList) -> None:
         extensions.append(ext["extn_id"].dotted)
 
 
-def _set_tbs_version(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
+def _set_tbs_version(tbs: TbsCertList) -> TbsCertList:
     tbs["version"] = 1
     return tbs
 
 
-def _set_tbs_issuer(tbs: asn1_crl.TbsCertList, subject_name: Dict[str, str]) -> asn1_crl.TbsCertList:
-    tbs["issuer"] = asn1_crl.Name().build(subject_name)
+def _set_tbs_issuer(tbs: TbsCertList, subject_name: Dict[str, str]) -> TbsCertList:
+    tbs["issuer"] = Name().build(subject_name)
     return tbs
 
 
-def _set_tbs_next_update(
-    tbs: asn1_crl.TbsCertList, next_update: Union[datetime.datetime, None]
-) -> asn1_crl.TbsCertList:
+def _set_tbs_next_update(tbs: TbsCertList, next_update: Union[datetime.datetime, None]) -> TbsCertList:
     if next_update is None:
-        tbs["next_update"] = asn1_crl.Time(
+        tbs["next_update"] = Time(
             name="utc_time",
             value=(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)).replace(microsecond=0),
         )
     else:
-        tbs["next_update"] = asn1_crl.Time(name="utc_time", value=next_update.replace(microsecond=0))
+        tbs["next_update"] = Time(name="utc_time", value=next_update.replace(microsecond=0))
     return tbs
 
 
-def _set_tbs_this_update(
-    tbs: asn1_crl.TbsCertList, this_update: Union[datetime.datetime, None]
-) -> asn1_crl.TbsCertList:
+def _set_tbs_this_update(tbs: TbsCertList, this_update: Union[datetime.datetime, None]) -> TbsCertList:
     if this_update is None:
         # -2 minutes to protect from the certificate readers time skew
-        tbs["this_update"] = asn1_crl.Time(
+        tbs["this_update"] = Time(
             name="utc_time",
             value=(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)).replace(microsecond=0),
         )
     else:
-        tbs["this_update"] = asn1_crl.Time(name="utc_time", value=this_update.replace(microsecond=0))
+        tbs["this_update"] = Time(name="utc_time", value=this_update.replace(microsecond=0))
     return tbs
 
 
-def _set_tbs_aki(tbs: asn1_crl.TbsCertList, identifier: bytes) -> asn1_crl.TbsCertList:
-    aki = asn1_crl.AuthorityKeyIdentifier()
+def _set_tbs_aki(tbs: TbsCertList, identifier: bytes) -> TbsCertList:
+    aki = AuthorityKeyIdentifier()
     aki["key_identifier"] = identifier
 
     for _, extension in enumerate(tbs["crl_extensions"]):
@@ -82,12 +92,12 @@ def _set_tbs_aki(tbs: asn1_crl.TbsCertList, identifier: bytes) -> asn1_crl.TbsCe
             extension["extn_value"] = aki
             return tbs
 
-    ext = asn1_crl.TBSCertListExtension()
-    ext["extn_id"] = asn1_crl.TBSCertListExtensionId("2.5.29.35")
+    ext = TBSCertListExtension()
+    ext["extn_id"] = TBSCertListExtensionId("2.5.29.35")
     ext["extn_value"] = aki
 
     if len(tbs["crl_extensions"]) == 0:
-        exts = asn1_crl.TBSCertListExtensions()
+        exts = TBSCertListExtensions()
         exts.append(ext)
         tbs["crl_extensions"] = exts
     else:
@@ -96,19 +106,19 @@ def _set_tbs_aki(tbs: asn1_crl.TbsCertList, identifier: bytes) -> asn1_crl.TbsCe
 
 
 def _set_tbs_update_crl_number(
-    tbs: asn1_crl.TbsCertList,
-) -> asn1_crl.TbsCertList:
+    tbs: TbsCertList,
+) -> TbsCertList:
     for _, extension in enumerate(tbs["crl_extensions"]):
         if extension["extn_id"].dotted == "2.5.29.20":
             extension["extn_value"] = extension["extn_value"].native + 1
             return tbs
 
-    ext = asn1_crl.TBSCertListExtension()
-    ext["extn_id"] = asn1_crl.TBSCertListExtensionId("2.5.29.20")
+    ext = TBSCertListExtension()
+    ext["extn_id"] = TBSCertListExtensionId("2.5.29.20")
     ext["extn_value"] = 1
 
     if len(tbs["crl_extensions"]) == 0:
-        exts = asn1_crl.TBSCertListExtensions()
+        exts = TBSCertListExtensions()
         exts.append(ext)
         tbs["crl_extensions"] = exts
     else:
@@ -116,32 +126,25 @@ def _set_tbs_update_crl_number(
     return tbs
 
 
-def _set_tbs_signature(tbs: asn1_crl.TbsCertList) -> asn1_crl.TbsCertList:
-    algo = SignedDigestAlgorithm()
-    algo["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
-    tbs["signature"] = algo
-    return tbs
-
-
-def _set_tbs_revoke_serial_numer(tbs: asn1_crl.TbsCertList, serial_number: int, reason: int) -> asn1_crl.TbsCertList:
-    r_cert = asn1_crl.RevokedCertificate()
+def _set_tbs_revoke_serial_numer(tbs: TbsCertList, serial_number: int, reason: int) -> TbsCertList:
+    r_cert = RevokedCertificate()
     r_cert["user_certificate"] = serial_number
-    r_cert["revocation_date"] = asn1_crl.Time(
+    r_cert["revocation_date"] = Time(
         name="utc_time",
         value=(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)).replace(microsecond=0),
     )
 
-    ext = asn1_crl.CRLEntryExtension()
-    ext["extn_id"] = asn1_crl.CRLEntryExtensionId("2.5.29.21")
+    ext = CRLEntryExtension()
+    ext["extn_id"] = CRLEntryExtensionId("2.5.29.21")
     ext["critical"] = False
     ext["extn_value"] = reason
 
-    exts = asn1_crl.CRLEntryExtensions()
+    exts = CRLEntryExtensions()
     exts.append(ext)
 
     r_cert["crl_entry_extensions"] = exts
 
-    rcs = asn1_crl.RevokedCertificates()
+    rcs = RevokedCertificates()
 
     if len(tbs["revoked_certificates"]) != 0:
         # Overwrite the old entry for this serial number
@@ -154,19 +157,19 @@ def _set_tbs_revoke_serial_numer(tbs: asn1_crl.TbsCertList, serial_number: int, 
     return tbs
 
 
-def _set_tbs_extensions(tbs: asn1_crl.TbsCertList, aki: bytes) -> asn1_crl.TbsCertList:
+def _set_tbs_extensions(tbs: TbsCertList, aki: bytes) -> TbsCertList:
     tbs = _set_tbs_aki(tbs, aki)
     _check_tbs_duplicate_extensions(tbs)
     return tbs
 
 
 def _create_tbs_cert_list(
-    tbs: asn1_crl.TbsCertList,
+    tbs: TbsCertList,
     subject_name: Dict[str, str],
     aki: bytes,
     this_update: Union[datetime.datetime, None],
     next_update: Union[datetime.datetime, None],
-) -> asn1_crl.TbsCertList:
+) -> TbsCertList:
     # Set extensions
     tbs = _set_tbs_extensions(tbs, aki)
 
@@ -176,23 +179,21 @@ def _create_tbs_cert_list(
     tbs = _set_tbs_next_update(tbs, next_update)
     tbs = _set_tbs_this_update(tbs, this_update)
     tbs = _set_tbs_update_crl_number(tbs)
-    tbs = _set_tbs_signature(tbs)
     return tbs
 
 
-def _load_crl(crl_pem: str) -> asn1_crl.CertificateList:
+def _load_crl(crl_pem: str) -> CertificateList:
     data = crl_pem.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
-    cert_list = asn1_crl.CertificateList.load(data)
+    cert_list = CertificateList.load(data)
     return cert_list
 
 
-async def _set_signature(
-    key_label: str, tbs: asn1_crl.TbsCertList, cert_list: asn1_crl.CertificateList
-) -> asn1_crl.CertificateList:
-    cert_list["signature_algorithm"] = tbs["signature"]
-    cert_list["signature"] = await PKCS11Session.sign(key_label, tbs.dump())
+async def _set_signature(key_label: str, key_type: str, cert_list: CertificateList) -> CertificateList:
+    cert_list["tbs_cert_list"]["signature"] = signed_digest_algo(key_type)
+    cert_list["signature_algorithm"] = cert_list["tbs_cert_list"]["signature"]
+    cert_list["signature"] = await PKCS11Session.sign(key_label, cert_list["tbs_cert_list"].dump())
     return cert_list
 
 
@@ -204,6 +205,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
     reason: Union[int, None] = None,
     this_update: Union[datetime.datetime, None] = None,
     next_update: Union[datetime.datetime, None] = None,
+    key_type: str = "ed25519",
 ) -> str:
     """Create a CRL signed by the key with the key_label in the PKCS11 device.
 
@@ -215,6 +217,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
     reason (Union[int, None] = None]): The reason for revocation, skip if None.
     this_update (Union[datetime.datetime, None] = None): The CRLs timestamp.
     next_update (Union[datetime.datetime, None] = None): The next CRLs timestamp.
+    key_type (str = "ed25519"): Key type.
 
     Returns:
     str
@@ -225,7 +228,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
     if old_crl_pem is not None:
         tbs = _load_crl(old_crl_pem)["tbs_cert_list"]
     else:
-        tbs = asn1_crl.TbsCertList()
+        tbs = TbsCertList()
 
     # If appending serial number to exisiting crl or creating a new empty crl
     if serial_number is not None and reason is not None:
@@ -233,8 +236,8 @@ async def create(  # pylint: disable-msg=too-many-arguments
 
     tbs = _create_tbs_cert_list(tbs, subject_name, aki, this_update, next_update)
 
-    cert_list = asn1_crl.CertificateList()
+    cert_list = CertificateList()
     cert_list["tbs_cert_list"] = tbs
-    cert_list = await _set_signature(key_label, tbs, cert_list)
+    cert_list = await _set_signature(key_label, key_type, cert_list)
     pem_enc: bytes = asn1_pem.armor("X509 CRL", cert_list.dump())
     return pem_enc.decode("utf-8")
