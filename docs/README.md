@@ -42,33 +42,53 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 This is basically a wrapper around the [python-pkcs11](https://python-pkcs11.readthedocs.io/en/stable/) package.
 Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/pkcs11_handle.py) module currently exposes 6 functions:
 
-- `import_keypair(key_label: str,
-  	          public_key: bytes,
-         	  private_key: bytes) -> None:`
+- `import_keypair(public_key: bytes,
+         	  private_key: bytes,
+		  key_label: str,
+  	          key_type: str,
+		  ) -> None:`
 
 - `create_keypair(key_label: str,
-         	  key_size: int = 2048) -> typing.Tuple[str, bytes]:`
+         	  key_size: int = 2048,
+		  key_type: str = "ed25519",
+		  ) -> typing.Tuple[str, bytes]:`
 
  - `key_labels() -> typing.List[str]:`
 
  - `sign(key_label: str,
          data: bytes,
 	 verify_signature: bool = True,
-	 mechanism: pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS) -> bytes:`
+	 mechanism: Union[pkcs11.Mechanism, None] = None,
+ 	 key_type: str = "ed25519",
+	 ) -> bytes:`
 
  - `verify(key_label: str,
           data: bytes,
 	  signature: bytes,
-	  mechanism: pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS) -> bool:`
+	  mechanism: Union[pkcs11.Mechanism, None] = None,
+	  key_type: str = "ed25519",
+	  ) -> bool:`
 
-- `public_key_data(key_label: str) -> typing.Tuple[str, bytes]`
+- `public_key_data(key_label: str,
+  	           key_type: str = "ed25519"
+		   ) -> typing.Tuple[str, bytes]`
 
 ## import_keypair()
 
-The `import_keypair()` function imports a RSA keypair in the PKCS11 device with this label
+The `import_keypair()` function imports a DER encoded keypair in the PKCS11 device with this label
+
+key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
 
 Generating public_key and private_key can be done with:
 ```bash
+# Generating public_key and private_key can be done with:
+# ed25519 key type
+openssl genpkey -algorithm ed25519 -out private.pem
+openssl pkey -in private.pem -outform DER -out private.key
+openssl pkey -in private.pem -pubout -out public.pem
+openssl pkey -in private.pem -pubout -outform DER -out public.key
+
+# RSA key type
 openssl genrsa -out rsaprivkey.pem 2048
 openssl rsa -inform pem -in rsaprivkey.pem -outform der -out PrivateKey.der
 openssl rsa -in rsaprivkey.pem -RSAPublicKey_out -outform DER -out PublicKey.der
@@ -88,7 +108,7 @@ priv = b"0\x82\x04\xa4\x02\x01\x00\x02\x82\x01\x01\x00\xd9\xb6C,O\xc0\x83\xca\xa
 
 
 async def my_func() -> None:
-    await PKCS11Session.import_keypair("my_rsa_key", pub, priv)
+    await PKCS11Session.import_keypair(pub, priv, "my_rsa_key", "RSA")
     public_key, identifier = await PKCS11Session.public_key_data(
         "my_rsa_key"
     )
@@ -105,6 +125,8 @@ The `create_keypair()` function generate a keypair in the PKCS11 device with thi
 Returns typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes] which is a tuple of
 the public key info and the public keys x509 'Subject Key identifier' value.
 
+key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+
 If a keypair with label already exists in the PKCS11 device
 then pkcs11.MultipleObjectsReturned will be raised.
 
@@ -115,7 +137,7 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
     print(public_key)
     print(identifier)
 
@@ -134,7 +156,7 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
+    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
     labels = await PKCS11Session.key_labels()
     print(labels)
 
@@ -154,8 +176,8 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 async def my_func() -> None:
     data = b"DATA TO BE SIGNED"
-    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
-    signature = await PKCS11Session.sign("my_rsa_key", data)
+    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
+    signature = await PKCS11Session.sign("my_ed25519_key", data)
     print(signature)
 
 
@@ -174,9 +196,9 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 async def my_func() -> None:
     data = b"DATA TO BE SIGNED"
-    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
-    signature = await PKCS11Session.sign("my_rsa_key", data)
-    if await PKCS11Session.verify("my_rsa_key", data, signature):
+    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
+    signature = await PKCS11Session.sign("my_ed25519_key", data)
+    if await PKCS11Session.verify("my_ed25519_key", data, signature):
         print("OK sig")
     else:
         print("BAD sig")
@@ -198,10 +220,10 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 async def my_func() -> None:
     public_key_created, identifier_created = await PKCS11Session.create_keypair(
-        "my_rsa_key"
+        "my_ed25519_key"
     )
     public_key_loaded, identifier_loaded = await PKCS11Session.public_key_data(
-        "my_rsa_key"
+        "my_ed25519_key"
     )
     print(public_key_created)
     print(public_key_loaded)
@@ -221,13 +243,17 @@ Our [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_
 	     not_before: Union[datetime.datetime, None] = None,
     	     not_after: Union[datetime.datetime, None] = None,
     	     keep_csr_extensions: bool = True,
-    	     extra_extensions: Union[asn1crypto.x509.Extensions, None] = None) -> str`
+    	     extra_extensions: Union[asn1crypto.x509.Extensions, None] = None
+             key_type: str = "ed25519",
+             ) -> str`
  
 ## sign_csr()
 
 The `sign_csr()` function signs the pem_encoded CSR, writes the 'Subject Key Identifier'
 and 'Authority Key Identifier' extensions into the signed certificate based on
 the public key from the CSR and the public key from key_label in the PKCS11 device.
+
+key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
 
 The not_before and not_after parameters must be in UTC timezone, for example:
 ```python
@@ -273,8 +299,8 @@ async def my_func() -> None:
         "email_address": "soc@sunet.se",
     }
 
-    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
-    cert_pem = await csr.sign_csr("my_rsa_key", issuer_name, csr_pem)
+    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
+    cert_pem = await csr.sign_csr("my_ed25519_key", issuer_name, csr_pem)
     print(cert_pem)
 
 
@@ -292,7 +318,9 @@ Our [ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_p
 	   signer_key_label Union[str, None] = None,
 	   not_before: Union[datetime.datetime, None] = None,
     	   not_after: Union[datetime.datetime, None] = None,
-	   exta_extensions: Union[asn1crypto.x509.Extensions, None] = None]) -> typing.Tuple[str, str]`
+	   exta_extensions: Union[asn1crypto.x509.Extensions, None] = None],
+           key_type: str = "ed25519",
+           ) -> typing.Tuple[str, str]`
 
 ## create()
 
@@ -301,6 +329,8 @@ with the same key from the key_label in the pkcs11 device.
 
 signer_key_label is the key label for the key in the PKCS11 device should sign this ca. If signer_key_label is None then this will be a root (selfsigned) CA.
 signer_subject_name will be the issuing name for CA If signer_key_label is None then this will be a root (selfsigned) CA.
+
+key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
 
 If extra_extensions is not None then those extensions will be written into the CA certificate.
 
@@ -329,7 +359,7 @@ async def my_func() -> None:
         "common_name": "ca-test.sunet.se",
         "email_address": "soc@sunet.se",
     }
-    csr_pem, root_cert_pem = await create("my_rsa_key", root_ca_name_dict)
+    csr_pem, root_cert_pem = await create("my_ed25519_key", root_ca_name_dict)
 
     print("CSR which was selfsigned into root CA")
     print(csr_pem)
@@ -351,7 +381,9 @@ Our [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_
 	   serial_number: Union[int, None] = None,
 	   reason: Union[int, None] = None,
 	   this_update: Union[datetime.datetime, None] = None,
-	   next_update: Union[datetime.datetime, None] = None) -> str`
+	   next_update: Union[datetime.datetime, None] = None,
+           key_type: str = "ed25519",
+           ) -> str`
 
 ## create()
 
@@ -362,9 +394,11 @@ If old_crl_pem, an pem encoded CRL, is not None then this function
 will take that CRLs with its revoked serial numbers and extensions
 and simply overwrite its version, timestamps and signature related fields.
 
+key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+
 If serial_number and [reason](https://github.com/wbond/asn1crypto/blob/b5f03e6f9797c691a3b812a5bb1acade3a1f4eeb/asn1crypto/crl.py#L97) is not None then this serial number
 with its reason will be added to the revocation list in the CRL.
-
+                              
 The this_update and next_update parameters must be in UTC timezone, for example:
 ```python
 import datetime
@@ -389,8 +423,8 @@ async def my_func() -> None:
         "email_address": "soc@sunet.se",
     }
 
-    public_key, identifier = await PKCS11Session.create_keypair("my_rsa_key")
-    crl_pem = await create("my_rsa_key", name_dict)
+    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
+    crl_pem = await create("my_ed25519_key", name_dict)
     print(crl_pem)
 
 
@@ -402,20 +436,24 @@ asyncio.run(my_func())
 Our [ocsp](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/ocsp.py) module currently exposes four functions:
 
  - `request(request_certs_data: List[Tuple[bytes, bytes, int]],
-           issuer_key_hashes: List[bytes],
-           serial_numbers: List[int],
-           key_label: Union[str, None] = None,
-	   requestor_name: Union[asn1crypto.ocsp.GeneralName, None] = None,
-           certs: Union[List[str], None] = None,
-	   extra_extensions: Union[asn1crypto.ocsp.TBSRequestExtensions, None] = None) -> bytes`
+            issuer_key_hashes: List[bytes],
+            serial_numbers: List[int],
+            key_label: Union[str, None] = None,
+	    requestor_name: Union[asn1crypto.ocsp.GeneralName, None] = None,
+            certs: Union[List[str], None] = None,
+            extra_extensions: Union[asn1crypto.ocsp.TBSRequestExtensions, None] = None,
+            key_type: str = "ed25519",
+            ) -> bytes`
 
 - `response(key_label: str,
-	   responder_id: Dict[str,str],
-	   single_responses: asn1crypto.ocsp.Responses,
-	   response_status: int,
-	   extra_extensions: Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None,
-	   produced_at: Union[datetime.datetime, None] = None,
-	   extra_certs: Union[List[str], None] = None) -> bytes`
+	    responder_id: Dict[str,str],
+	    single_responses: asn1crypto.ocsp.Responses,
+	    response_status: int,
+	    extra_extensions: Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None,
+	    produced_at: Union[datetime.datetime, None] = None,
+	    extra_certs: Union[List[str], None] = None,
+            key_type: str = "ed25519",
+            ) -> bytes`
 
 - `request_nonce(data: bytes) -> Union[bytes, None]`
 
@@ -429,7 +467,10 @@ https://www.rfc-editor.org/rfc/rfc6960#section-4.1.1
 If key_label is not None and requestor_name is not None then sign the request with the key_label in the pkcs11 device.
 request_certs_data is a list of tuples (SHA1 hash of certificate issuer Name, SHA1 hash of certificate issuer public key, certificate serial number). See certificate_ocsp_data() here below.
 If requestor_name is not None then it will be written into the request
+key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
 
+
+                              
 for example:
 ```python
 from asn1crypto.ocsp import GeneralName, Name
@@ -500,6 +541,9 @@ nonce_ext["extn_value"] = token_bytes(32)
 extra_extensions = ResponseDataExtensions()
 extra_extensions.append(nonce_ext)
 ```
+
+key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+
 produced_at is what time to write into "produced_at" field.
 It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
 
@@ -539,7 +583,7 @@ def single_responses(ocsp_request: OCSPRequest) -> Responses:
 
 
 async def my_func() -> None:
-    await PKCS11Session.create_keypair("my_rsa_key")
+    await PKCS11Session.create_keypair("my_ed25519_key")
     request_certs_data = [
         (
             b"R\x94\xca?\xac`\xf7i\x819\x14\x94\xa7\x085H\x84\xb4&\xcc",
@@ -550,7 +594,7 @@ async def my_func() -> None:
     ocsp_request_bytes = await request(request_certs_data)
     ocsp_request = OCSPRequest.load(ocsp_request_bytes)
 
-    ocsp_response = await response("my_rsa_key", name_dict, single_responses(ocsp_request), 0)
+    ocsp_response = await response("my_ed25519_key", name_dict, single_responses(ocsp_request), 0)
     print(ocsp_response)
 
 

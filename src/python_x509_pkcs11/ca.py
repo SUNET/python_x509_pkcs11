@@ -7,62 +7,73 @@ Exposes the functions:
 from typing import Union, Dict, Tuple
 import datetime
 
-import asn1crypto
-from asn1crypto.keys import PublicKeyInfo
-from asn1crypto import x509 as asn1_x509
-from asn1crypto import csr as asn1_csr
+from asn1crypto.x509 import (
+    BasicConstraints,
+    Extension,
+    Extensions,
+    ExtensionId,
+    KeyUsage,
+    Name,
+)
+from asn1crypto.csr import (
+    CertificationRequest,
+    CertificationRequestInfo,
+    CRIAttribute,
+    CRIAttributes,
+    CSRAttributeType,
+    SetOfExtensions,
+)
 from asn1crypto import pem as asn1_pem
-from asn1crypto.algos import SignedDigestAlgorithm, SignedDigestAlgorithmId
+from asn1crypto.keys import PublicKeyInfo
 
 from .pkcs11_handle import PKCS11Session
 from .csr import sign_csr
+from .lib import signed_digest_algo
 
 
 def _set_tbs_version(
-    tbs: asn1_csr.CertificationRequestInfo,
-) -> asn1_csr.CertificationRequestInfo:
+    tbs: CertificationRequestInfo,
+) -> CertificationRequestInfo:
     tbs["version"] = 0
     return tbs
 
 
-def _set_tbs_subject(
-    tbs: asn1_csr.CertificationRequestInfo, subject_name: Dict[str, str]
-) -> asn1_csr.CertificationRequestInfo:
-    tbs["subject"] = asn1_csr.Name().build(subject_name)
+def _set_tbs_subject(tbs: CertificationRequestInfo, subject_name: Dict[str, str]) -> CertificationRequestInfo:
+    tbs["subject"] = Name().build(subject_name)
     return tbs
 
 
 def _set_tbs_subject_pk_info(
-    tbs: asn1_csr.CertificationRequestInfo,
-    pk_info: asn1crypto.keys.PublicKeyInfo,
-) -> asn1_csr.CertificationRequestInfo:
+    tbs: CertificationRequestInfo,
+    pk_info: PublicKeyInfo,
+) -> CertificationRequestInfo:
     tbs["subject_pk_info"] = pk_info
     return tbs
 
 
 def _set_tbs_basic_constraints(
-    tbs: asn1_csr.CertificationRequestInfo,
-) -> asn1_csr.CertificationRequestInfo:
-    b_c = asn1_x509.BasicConstraints()
+    tbs: CertificationRequestInfo,
+) -> CertificationRequestInfo:
+    b_c = BasicConstraints()
     b_c["ca"] = True
 
-    ext = asn1_x509.Extension()
-    ext["extn_id"] = asn1_x509.ExtensionId("2.5.29.19")
+    ext = Extension()
+    ext["extn_id"] = ExtensionId("2.5.29.19")
     ext["critical"] = True
     ext["extn_value"] = b_c
 
-    exts = asn1_csr.Extensions()
+    exts = Extensions()
     exts.append(ext)
 
-    ses = asn1_csr.SetOfExtensions()
+    ses = SetOfExtensions()
     ses.append(exts)
 
-    cria = asn1_csr.CRIAttribute()
-    cria["type"] = asn1_csr.CSRAttributeType("1.2.840.113549.1.9.14")
+    cria = CRIAttribute()
+    cria["type"] = CSRAttributeType("1.2.840.113549.1.9.14")
     cria["values"] = ses
 
     if len(tbs["attributes"]) == 0:
-        crias = asn1_csr.CRIAttributes()
+        crias = CRIAttributes()
         crias.append(cria)
         tbs["attributes"] = crias
     else:
@@ -71,28 +82,28 @@ def _set_tbs_basic_constraints(
 
 
 def _set_tbs_key_usage(
-    tbs: asn1_csr.CertificationRequestInfo,
-) -> asn1_csr.CertificationRequestInfo:
+    tbs: CertificationRequestInfo,
+) -> CertificationRequestInfo:
     # https://github.com/wbond/asn1crypto/blob/master/asn1crypto/x509.py#L438
     # Bit 0, 5 ,6, from left to right
-    k_u = asn1_x509.KeyUsage(("100001100",))
-    ext = asn1_x509.Extension()
-    ext["extn_id"] = asn1_x509.ExtensionId("2.5.29.15")
+    k_u = KeyUsage(("100001100",))
+    ext = Extension()
+    ext["extn_id"] = ExtensionId("2.5.29.15")
     ext["critical"] = True
     ext["extn_value"] = k_u
 
-    exts = asn1_csr.Extensions()
+    exts = Extensions()
     exts.append(ext)
 
-    ses = asn1_csr.SetOfExtensions()
+    ses = SetOfExtensions()
     ses.append(exts)
 
-    cria = asn1_csr.CRIAttribute()
-    cria["type"] = asn1_csr.CSRAttributeType("1.2.840.113549.1.9.14")
+    cria = CRIAttribute()
+    cria["type"] = CSRAttributeType("1.2.840.113549.1.9.14")
     cria["values"] = ses
 
     if len(tbs["attributes"]) == 0:
-        crias = asn1_csr.CRIAttributes()
+        crias = CRIAttributes()
         crias.append(cria)
         tbs["attributes"] = crias
     else:
@@ -100,19 +111,17 @@ def _set_tbs_key_usage(
     return tbs
 
 
-def _set_tbs_extra_extensions(
-    tbs: asn1_csr.CertificationRequestInfo, extra_extensions: asn1_x509.Extensions
-) -> asn1_csr.CertificationRequestInfo:
+def _set_tbs_extra_extensions(tbs: CertificationRequestInfo, extra_extensions: Extensions) -> CertificationRequestInfo:
 
-    ses = asn1_csr.SetOfExtensions()
+    ses = SetOfExtensions()
     ses.append(extra_extensions)
 
-    cria = asn1_csr.CRIAttribute()
-    cria["type"] = asn1_csr.CSRAttributeType("1.2.840.113549.1.9.14")
+    cria = CRIAttribute()
+    cria["type"] = CSRAttributeType("1.2.840.113549.1.9.14")
     cria["values"] = ses
 
     if len(tbs["attributes"]) == 0:
-        crias = asn1_csr.CRIAttributes()
+        crias = CRIAttributes()
         crias.append(cria)
         tbs["attributes"] = crias
     else:
@@ -121,9 +130,7 @@ def _set_tbs_extra_extensions(
     return tbs
 
 
-def _set_tbs_extensions(
-    tbs: asn1_csr.CertificationRequestInfo, extra_extensions: asn1_x509.Extensions
-) -> asn1_csr.CertificationRequestInfo:
+def _set_tbs_extensions(tbs: CertificationRequestInfo, extra_extensions: Extensions) -> CertificationRequestInfo:
     """Set all x509 extensions"""
 
     if extra_extensions is not None:
@@ -136,10 +143,10 @@ def _set_tbs_extensions(
 
 def _create_tbs(
     subject_name: Dict[str, str],
-    pk_info: asn1crypto.keys.PublicKeyInfo,
-    extra_extensions: asn1_x509.Extensions,
-) -> asn1_csr.CertificationRequestInfo:
-    tbs = asn1_csr.CertificationRequestInfo()
+    pk_info: PublicKeyInfo,
+    extra_extensions: Extensions,
+) -> CertificationRequestInfo:
+    tbs = CertificationRequestInfo()
 
     # Set all extensions
     tbs = _set_tbs_extensions(tbs, extra_extensions)
@@ -151,14 +158,9 @@ def _create_tbs(
     return tbs
 
 
-async def _set_csr_signature(
-    key_label: str, tbs: asn1_csr.CertificationRequestInfo, signed_csr: asn1_csr.CertificationRequest
-) -> asn1_csr.CertificationRequest:
-    sda = SignedDigestAlgorithm()
-    sda["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
-
-    signed_csr["signature_algorithm"] = sda
-    signed_csr["signature"] = await PKCS11Session().sign(key_label, tbs.dump())
+async def _set_csr_signature(key_label: str, key_type: str, signed_csr: CertificationRequest) -> CertificationRequest:
+    signed_csr["signature_algorithm"] = signed_digest_algo(key_type)
+    signed_csr["signature"] = await PKCS11Session().sign(key_label, signed_csr["certification_request_info"].dump())
     return signed_csr
 
 
@@ -170,7 +172,8 @@ async def create(  # pylint: disable-msg=too-many-arguments
     signer_key_label: Union[str, None] = None,
     not_before: Union[datetime.datetime, None] = None,
     not_after: Union[datetime.datetime, None] = None,
-    extra_extensions: Union[asn1_x509.Extensions, None] = None,
+    extra_extensions: Union[Extensions, None] = None,
+    key_type: str = "ed25519",
 ) -> Tuple[str, str]:
     """Create and sign a CSR with in the PKCS11 device.
 
@@ -187,6 +190,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
     not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
     not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
     extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca.
+    key_type (str = "ed25519"): Key type.
 
     Returns:
     typing.Tuple[str, str]
@@ -198,9 +202,9 @@ async def create(  # pylint: disable-msg=too-many-arguments
         _, _, data = asn1_pem.unarmor(data)
 
     tbs = _create_tbs(subject_name, PublicKeyInfo.load(data), extra_extensions)
-    signed_csr = asn1_csr.CertificationRequest()
+    signed_csr = CertificationRequest()
     signed_csr["certification_request_info"] = tbs
-    signed_csr = await _set_csr_signature(key_label, tbs, signed_csr)
+    signed_csr = await _set_csr_signature(key_label, key_type, signed_csr)
     pem_enc: bytes = asn1_pem.armor("CERTIFICATE REQUEST", signed_csr.dump())
 
     # If this will be a root CA or not

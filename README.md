@@ -95,7 +95,7 @@ async def my_func() -> None:
         "common_name": "ca-test.sunet.se",
         "email_address": "soc@sunet.se",
     }
-    csr_pem, root_cert_pem = await create("my_rsa_key", root_ca_name_dict)
+    csr_pem, root_cert_pem = await create("my_ed25519_key", root_ca_name_dict)
 
     print("CSR which was selfsigned into root CA")
     print(csr_pem)
