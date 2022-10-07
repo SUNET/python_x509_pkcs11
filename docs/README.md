@@ -77,7 +77,13 @@ Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/py
 
 The `import_keypair()` function imports a DER encoded keypair in the PKCS11 device with this label
 
-key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+key_type must be:
+* [ed25519](https://en.wikipedia.org/wiki/EdDSA). This is default.
+* ed448
+* secp256r1
+* secp384r1
+* secp521r1
+* rsa
 
 Generating public_key and private_key can be done with:
 ```bash
@@ -125,7 +131,13 @@ The `create_keypair()` function generate a keypair in the PKCS11 device with thi
 Returns typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes] which is a tuple of
 the public key info and the public keys x509 'Subject Key identifier' value.
 
-key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+key_type must be:
+* [ed25519](https://en.wikipedia.org/wiki/EdDSA). This is default.
+* ed448
+* secp256r1
+* secp384r1
+* secp521r1
+* rsa
 
 If a keypair with label already exists in the PKCS11 device
 then pkcs11.MultipleObjectsReturned will be raised.
@@ -253,7 +265,13 @@ The `sign_csr()` function signs the pem_encoded CSR, writes the 'Subject Key Ide
 and 'Authority Key Identifier' extensions into the signed certificate based on
 the public key from the CSR and the public key from key_label in the PKCS11 device.
 
-key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+key_type must be:
+* [ed25519](https://en.wikipedia.org/wiki/EdDSA). This is default.
+* ed448
+* secp256r1
+* secp384r1
+* secp521r1
+* rsa
 
 The not_before and not_after parameters must be in UTC timezone, for example:
 ```python
@@ -330,7 +348,13 @@ with the same key from the key_label in the pkcs11 device.
 signer_key_label is the key label for the key in the PKCS11 device should sign this ca. If signer_key_label is None then this will be a root (selfsigned) CA.
 signer_subject_name will be the issuing name for CA If signer_key_label is None then this will be a root (selfsigned) CA.
 
-key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+key_type must be:
+* [ed25519](https://en.wikipedia.org/wiki/EdDSA). This is default.
+* ed448
+* secp256r1
+* secp384r1
+* secp521r1
+* rsa
 
 If extra_extensions is not None then those extensions will be written into the CA certificate.
 
@@ -394,7 +418,13 @@ If old_crl_pem, an pem encoded CRL, is not None then this function
 will take that CRLs with its revoked serial numbers and extensions
 and simply overwrite its version, timestamps and signature related fields.
 
-key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+key_type must be:
+* [ed25519](https://en.wikipedia.org/wiki/EdDSA). This is default.
+* ed448
+* secp256r1
+* secp384r1
+* secp521r1
+* rsa
 
 If serial_number and [reason](https://github.com/wbond/asn1crypto/blob/b5f03e6f9797c691a3b812a5bb1acade3a1f4eeb/asn1crypto/crl.py#L97) is not None then this serial number
 with its reason will be added to the revocation list in the CRL.
@@ -467,7 +497,14 @@ https://www.rfc-editor.org/rfc/rfc6960#section-4.1.1
 If key_label is not None and requestor_name is not None then sign the request with the key_label in the pkcs11 device.
 request_certs_data is a list of tuples (SHA1 hash of certificate issuer Name, SHA1 hash of certificate issuer public key, certificate serial number). See certificate_ocsp_data() here below.
 If requestor_name is not None then it will be written into the request
-key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+
+key_type must be:
+* [ed25519](https://en.wikipedia.org/wiki/EdDSA). This is default.
+* ed448
+* secp256r1
+* secp384r1
+* secp521r1
+* rsa
 
 
                               
@@ -542,7 +579,13 @@ extra_extensions = ResponseDataExtensions()
 extra_extensions.append(nonce_ext)
 ```
 
-key_type must be "RSA" or [ed25519](https://en.wikipedia.org/wiki/EdDSA). "ed25519" is default.
+key_type must be:
+* [ed25519](https://en.wikipedia.org/wiki/EdDSA). This is default.
+* ed448
+* secp256r1
+* secp384r1
+* secp521r1
+* rsa
 
 produced_at is what time to write into "produced_at" field.
 It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
