@@ -193,7 +193,7 @@ def _load_crl(crl_pem: str) -> CertificateList:
 async def _set_signature(key_label: str, key_type: str, cert_list: CertificateList) -> CertificateList:
     cert_list["tbs_cert_list"]["signature"] = signed_digest_algo(key_type)
     cert_list["signature_algorithm"] = cert_list["tbs_cert_list"]["signature"]
-    cert_list["signature"] = await PKCS11Session.sign(key_label, cert_list["tbs_cert_list"].dump())
+    cert_list["signature"] = await PKCS11Session.sign(key_label, cert_list["tbs_cert_list"].dump(), key_type=key_type)
     return cert_list
 
 
@@ -222,7 +222,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
     Returns:
     str
     """
-    _, aki = await PKCS11Session().public_key_data(key_label)
+    _, aki = await PKCS11Session().public_key_data(key_label, key_type=key_type)
 
     # If appending to existing crl or creating a new empty crl
     if old_crl_pem is not None:

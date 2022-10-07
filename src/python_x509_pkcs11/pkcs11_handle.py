@@ -16,6 +16,7 @@ Exposes the functions:
 from typing import Tuple, AsyncIterator, Dict, Union, Any
 from threading import Lock, Thread
 import os
+from hashlib import sha256
 from concurrent.futures import ThreadPoolExecutor
 from asyncio import get_event_loop, sleep
 from contextlib import asynccontextmanager
@@ -41,13 +42,70 @@ from pkcs11 import (
 )
 from pkcs11.exceptions import NoSuchKey, SignatureInvalid, MultipleObjectsReturned
 from pkcs11.util.rsa import encode_rsa_public_key, decode_rsa_public_key, decode_rsa_private_key
-from pkcs11.util.ec import encode_named_curve_parameters
+from pkcs11.util.ec import (
+    encode_named_curve_parameters,
+    encode_ec_public_key,
+    decode_ec_public_key,
+    decode_ec_private_key,
+)
 
 from .error import PKCS11TimeoutException, PKCS11UnknownErrorException
 from .lib import DEBUG, key_types, key_type_values
 
 TIMEOUT = 3  # Seconds
 pool = ThreadPoolExecutor()
+
+
+def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> bytes:
+    """Convert a R&S ECDSA 256 bit signature into openssl format.
+
+    Paramters:
+    signature (bytes): The sig.
+    key_type (str): Key type.
+
+    Returns:
+    bytes
+    """
+
+    asn1_integer_code = 2
+
+    asn1_init = bytearray([48])
+    if key_type in ["secp521r1"]:
+        asn1_init.append(129)
+
+    r_length = int(len(signature) / 2)
+    s_length = int(len(signature) / 2)
+
+    r_data = signature[:r_length]
+    s_data = signature[r_length:]
+
+    if len(signature) % 8 != 0:
+        # Remove leading zeros, since integers cant start with a 0
+        while r_data[0] == 0:
+            r_data = r_data[1:]
+            r_length -= 1
+        while s_data[0] == 0:
+            s_data = s_data[1:]
+            s_length -= 1
+
+    # Ensure the integers are postive numbers
+    if not r_data[0] < 128:
+        r_data = bytearray([0]) + r_data[:]
+        r_length += 1
+
+    if not s_data[0] < 128:
+        s_data = bytearray([0]) + s_data[:]
+        s_length += 1
+
+    return bytes(
+        asn1_init
+        + bytearray([r_length + s_length + 4])
+        + bytearray([asn1_integer_code, r_length])
+        + r_data
+        + bytearray([asn1_integer_code, s_length])
+        + s_data
+    )
+
 
 # Taken from https://github.com/danni/python-pkcs11/blob/master/pkcs11/util/ec.py
 # Will submit merge request soon
@@ -77,7 +135,38 @@ def decode_ed25519_public_key(der: bytes, encode_ec_point: bool = True) -> Dict[
     return {
         Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
         Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-        Attribute.EC_PARAMS: b"\x13\x0cedwards25519",
+        Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.112"),
+        Attribute.EC_POINT: ecpoint,
+    }
+
+
+def decode_ed448_public_key(der: bytes, encode_ec_point: bool = True) -> Dict[int, Any]:
+    """
+    Decode a DER-encoded EC public key as stored by OpenSSL into a dictionary
+    of attributes able to be passed to :meth:`pkcs11.Session.create_object`.
+    .. note:: **encode_ec_point**
+        For use as an attribute `EC_POINT` should be DER-encoded (True).
+        For key derivation implementations can vary.  Since v2.30 the
+        specification says implementations MUST accept a raw `EC_POINT` for
+        ECDH (False), however not all implementations follow this yet.
+    :param bytes der: DER-encoded key
+    :param encode_ec_point: See text.
+    :rtype: dict(Attribute,*)
+    """
+
+    asn1 = PublicKeyInfo.load(der)
+
+    assert asn1.algorithm == "ed448", "Wrong algorithm, not an ed448 key!"
+
+    ecpoint = bytes(asn1["public_key"])
+
+    if encode_ec_point:
+        ecpoint = OctetString(ecpoint).dump()
+
+    return {
+        Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
+        Attribute.CLASS: ObjectClass.PUBLIC_KEY,
+        Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.113"),
         Attribute.EC_POINT: ecpoint,
     }
 
@@ -94,13 +183,31 @@ def decode_ed25519_private_key(der: bytes) -> Dict[int, Any]:
     return {
         Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
         Attribute.CLASS: ObjectClass.PRIVATE_KEY,
-        Attribute.EC_PARAMS: b"\x13\x0cedwards25519",
+        Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.112"),
         # Apparently only the last 32 bytes is the private key values
         Attribute.VALUE: asn1["private_key"].contents[-32:],
     }
 
 
-def encode_ed25519_public_key(key: PublicKey) -> PublicKeyInfo:
+def decode_ed448_private_key(der: bytes) -> Dict[int, Any]:
+    """
+    Decode a DER-encoded EC private key as stored by OpenSSL into a dictionary
+    of attributes able to be passed to :meth:`pkcs11.Session.create_object`.
+    :param bytes der: DER-encoded key
+    :rtype: dict(Attribute,*)
+    """
+
+    asn1 = PrivateKeyInfo.load(der)
+    return {
+        Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
+        Attribute.CLASS: ObjectClass.PRIVATE_KEY,
+        Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.113"),
+        # Apparently only the last 32 bytes is the private key values
+        Attribute.VALUE: asn1["private_key"].contents[-57:],
+    }
+
+
+def encode_ed25519_public_key(key: PublicKey) -> bytes:
     """
     Encode a DER-encoded EC public key as stored by OpenSSL.
     :param PublicKey key: EC public key
@@ -109,14 +216,35 @@ def encode_ed25519_public_key(key: PublicKey) -> PublicKeyInfo:
 
     ecpoint = bytes(OctetString.load(key[Attribute.EC_POINT]))
 
-    return PublicKeyInfo(
+    ret: bytes = PublicKeyInfo(
         {
             "algorithm": {
                 "algorithm": "ed25519",
             },
             "public_key": ecpoint,
         }
-    )
+    ).dump()
+    return ret
+
+
+def encode_ed448_public_key(key: PublicKey) -> bytes:
+    """
+    Encode a DER-encoded EC public key as stored by OpenSSL.
+    :param PublicKey key: EC public key
+    :rtype: bytes
+    """
+
+    ecpoint = bytes(OctetString.load(key[Attribute.EC_POINT]))
+
+    ret: bytes = PublicKeyInfo(
+        {
+            "algorithm": {
+                "algorithm": "ed448",
+            },
+            "public_key": ecpoint,
+        }
+    ).dump()
+    return ret
 
 
 @asynccontextmanager
@@ -218,13 +346,18 @@ class PKCS11Session:
             except NoSuchKey:
                 pass
 
-            if key_type == "RSA":
+            if key_type == "rsa":
                 key_pub = decode_rsa_public_key(public_key)
                 key_priv = decode_rsa_private_key(private_key)
-
-            else:  # key_type == "ed25519":
+            elif key_type == "ed25519":
                 key_pub = decode_ed25519_public_key(public_key)
                 key_priv = decode_ed25519_private_key(private_key)
+            elif key_type == "ed448":
+                key_pub = decode_ed448_public_key(public_key)
+                key_priv = decode_ed448_private_key(private_key)
+            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+                key_pub = decode_ec_public_key(public_key)
+                key_priv = decode_ec_private_key(private_key)
 
             key_pub[Attribute.TOKEN] = True
             key_pub[Attribute.LABEL] = key_label
@@ -269,9 +402,9 @@ class PKCS11Session:
                     print(ex)
                     print("Generating a key since " + "no key with that label was found")
                 # Generate the rsa keypair
-                if key_type == "RSA":
+                if key_type == "rsa":
                     key_pub, _ = cls.session.generate_keypair(KeyType.RSA, key_size, store=True, label=key_label)
-                else:  # key_type == "ed25519":
+                elif key_type == "ed25519":
                     parameters = cls.session.create_domain_parameters(
                         KeyType.EC_EDWARDS,
                         {Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.112")},
@@ -280,8 +413,27 @@ class PKCS11Session:
                     key_pub, _ = parameters.generate_keypair(
                         mechanism=Mechanism.EC_EDWARDS_KEY_PAIR_GEN, store=True, label=key_label
                     )
+                elif key_type == "ed448":
+                    parameters = cls.session.create_domain_parameters(
+                        KeyType.EC_EDWARDS,
+                        {Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.113")},
+                        local=True,
+                    )
+                    key_pub, _ = parameters.generate_keypair(
+                        mechanism=Mechanism.EC_EDWARDS_KEY_PAIR_GEN, store=True, label=key_label
+                    )
+                elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+                    parameters = cls.session.create_domain_parameters(
+                        KeyType.EC,
+                        {Attribute.EC_PARAMS: encode_named_curve_parameters(key_type)},
+                        local=True,
+                    )
+                    key_pub, _ = parameters.generate_keypair(
+                        store=True,
+                        label=key_label,
+                    )
 
-            if key_type == "RSA":
+            if key_type == "rsa":
                 # Create the PublicKeyInfo object
                 rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
                 pki = PublicKeyInfo()
@@ -289,8 +441,12 @@ class PKCS11Session:
                 pka["algorithm"] = PublicKeyAlgorithmId("rsa")
                 pki["algorithm"] = pka
                 pki["public_key"] = rsa_pub
-            else:  # key_type == "ed25519":
-                pki = encode_ed25519_public_key(key_pub)
+            elif key_type == "ed25519":
+                pki = PublicKeyInfo.load(encode_ed25519_public_key(key_pub))
+            elif key_type == "ed448":
+                pki = PublicKeyInfo.load(encode_ed448_public_key(key_pub))
+            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+                pki = PublicKeyInfo.load(encode_ec_public_key(key_pub))
 
             key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
             return key_pub_pem.decode("utf-8"), pki.sha1
@@ -308,14 +464,47 @@ class PKCS11Session:
             await cls._healthy_session()
 
             key_labels: Dict[str, str] = {}
-            for key_type in key_types:
+
+            # For rsa
+            for obj in cls.session.get_objects(
+                {
+                    Attribute.CLASS: ObjectClass.PUBLIC_KEY,
+                    Attribute.KEY_TYPE: key_type_values["rsa"],
+                }
+            ):
+                key_labels[obj.label] = "rsa"
+
+            # For ed25519
+            for obj in cls.session.get_objects(
+                {
+                    Attribute.CLASS: ObjectClass.PUBLIC_KEY,
+                    Attribute.KEY_TYPE: key_type_values["ed25519"],
+                    Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.112"),
+                }
+            ):
+                key_labels[obj.label] = "ed25519"
+
+            # For ed448
+            for obj in cls.session.get_objects(
+                {
+                    Attribute.CLASS: ObjectClass.PUBLIC_KEY,
+                    Attribute.KEY_TYPE: key_type_values["ed448"],
+                    Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.113"),
+                }
+            ):
+                key_labels[obj.label] = "ed448"
+
+            # for secp256r1, secp384r1, secp521r1
+            for curve in ["secp256r1", "secp384r1", "secp521r1"]:
                 for obj in cls.session.get_objects(
                     {
                         Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                        Attribute.KEY_TYPE: key_type_values[key_type],
+                        Attribute.KEY_TYPE: key_type_values[curve],
+                        Attribute.EC_PARAMS: encode_named_curve_parameters(curve),
                     }
                 ):
-                    key_labels[obj.label] = key_type
+                    key_labels[obj.label] = curve
+
             return key_labels
 
     @classmethod
@@ -364,11 +553,20 @@ class PKCS11Session:
                     label=key_label,
                 )
 
-            if key_type == "ed25519":
+            if key_type in ["ed25519", "ed448"]:
                 if mechanism is not None and mechanism != Mechanism.EDDSA:
                     raise ValueError("mechanism for key_type 'ed25519' must be None or Mechanism.EDDSA")
                 mech = Mechanism.EDDSA
-            else:
+            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+                if mechanism is not None and mechanism != Mechanism.ECDSA:
+                    raise ValueError(
+                        "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or Mechanism.ECDSA"
+                    )
+                mech = Mechanism.ECDSA
+                hash_obj = sha256()
+                hash_obj.update(data)
+                data = hash_obj.digest()
+            else:  # rsa
                 if mechanism is None:
                     mech = Mechanism.SHA256_RSA_PKCS
                 else:
@@ -383,6 +581,10 @@ class PKCS11Session:
             if verify_signature:
                 if not key_pub.verify(data, signature, mechanism=mech):
                     raise SignatureInvalid
+
+            if key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+                signature = convert_ec_signature_openssl_format(signature, key_type)
+
             return signature
 
     @classmethod
@@ -424,11 +626,21 @@ class PKCS11Session:
                 label=key_label,
             )
 
-            if key_type == "ed25519":
+            if key_type in ["ed25519", "ed448"]:
                 if mechanism is not None and mechanism != Mechanism.EDDSA:
                     raise ValueError("mechanism for key_type 'ed25519' must be None or Mechanism.EDDSA")
                 mech = Mechanism.EDDSA
-            else:
+            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+                if mechanism is not None and mechanism != Mechanism.ECDSA:
+                    raise ValueError(
+                        "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or Mechanism.ECDSA"
+                    )
+                mech = Mechanism.ECDSA
+                hash_obj = sha256()
+                hash_obj.update(data)
+                data = hash_obj.digest()
+
+            else:  # rsa
                 if mechanism is None:
                     mech = Mechanism.SHA256_RSA_PKCS
                 else:
@@ -464,7 +676,7 @@ class PKCS11Session:
                 label=key_label,
             )
 
-            if key_type == "RSA":
+            if key_type == "rsa":
                 # Create the PublicKeyInfo object
                 rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
 
@@ -474,8 +686,12 @@ class PKCS11Session:
                 pki["algorithm"] = pka
                 pki["public_key"] = rsa_pub
 
-            else:  # key_type == "ed25519":
-                pki = encode_ed25519_public_key(key_pub)
+            elif key_type == "ed25519":
+                pki = PublicKeyInfo.load(encode_ed25519_public_key(key_pub))
+            elif key_type == "ed448":
+                pki = PublicKeyInfo.load(encode_ed448_public_key(key_pub))
+            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+                pki = PublicKeyInfo.load(encode_ec_public_key(key_pub))
 
             key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
             return key_pub_pem.decode("utf-8"), pki.sha1

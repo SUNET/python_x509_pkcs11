@@ -119,7 +119,9 @@ async def _set_response_signature(
 ) -> BasicOCSPResponse:
     basic_ocsp_response["signature_algorithm"] = signed_digest_algo(key_type)
     basic_ocsp_response["signature"] = await PKCS11Session().sign(
-        key_label, basic_ocsp_response["tbs_response_data"].dump()
+        key_label,
+        basic_ocsp_response["tbs_response_data"].dump(),
+        key_type=key_type,
     )
 
     if extra_certs:
@@ -142,7 +144,7 @@ async def _set_request_signature(
     certs: Union[List[str], None],
 ) -> Signature:
     signature["signature_algorithm"] = signed_digest_algo(key_type)
-    signature["signature"] = await PKCS11Session().sign(key_label, data.dump())
+    signature["signature"] = await PKCS11Session().sign(key_label, data.dump(), key_type=key_type)
 
     if certs:
         req_certs = Certificates()

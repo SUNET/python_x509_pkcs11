@@ -6,6 +6,7 @@ import unittest
 import datetime
 import os
 import asyncio
+import subprocess
 
 from asn1crypto.core import GeneralizedTime
 from asn1crypto import x509 as asn1_x509
@@ -13,6 +14,7 @@ from asn1crypto import csr as asn1_csr
 from asn1crypto import pem as asn1_pem
 
 from src.python_x509_pkcs11.ca import create
+from src.python_x509_pkcs11.lib import key_types
 
 # Replace the above with this should you use this code
 # from python_x509_pkcs11.ca import create
@@ -190,35 +192,62 @@ class TestCa(unittest.TestCase):
         """
         Create an intermediate CA in the pkcs11 device.
         """
+        for key_type in key_types:
+            new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        _, _ = asyncio.run(create(new_key_label, signer_name_dict))
+            _, root_ca_pem = asyncio.run(create(new_key_label, signer_name_dict, key_type=key_type))
 
-        new_key_label2 = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        _, im_cert_pem = asyncio.run(
-            create(
-                new_key_label2, signed_name_dict, signer_subject_name=signer_name_dict, signer_key_label=new_key_label
+            new_key_label2 = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+            _, im_cert_pem = asyncio.run(
+                create(
+                    new_key_label2,
+                    signed_name_dict,
+                    signer_subject_name=signer_name_dict,
+                    signer_key_label=new_key_label,
+                    key_type=key_type,
+                )
             )
-        )
 
-        data = im_cert_pem.encode("utf-8")
-        if asn1_pem.detect(data):
-            _, _, data = asn1_pem.unarmor(data)
+            with open(new_key_label + ".crt", "wb") as f_data:
+                f_data.write(root_ca_pem.encode("utf-8"))
+            with open(new_key_label2 + ".crt", "wb") as f_data:
+                f_data.write(im_cert_pem.encode("utf-8"))
 
-        test_cert = asn1_x509.Certificate.load(data)
-        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+            # Verify with openssl
+            subprocess.check_call(
+                "openssl verify -verbose -CAfile "
+                + new_key_label
+                + ".crt"
+                + " "
+                + new_key_label2
+                + ".crt"
+                + " > /dev/null && rm -f "
+                + new_key_label
+                + ".crt"
+                + " "
+                + new_key_label2
+                + ".crt",
+                shell=True,
+            )
 
-        # Check subject name and issuer name, should not be equal since this is an intermediate CA
-        cert_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["subject"].native
-        cert_issuer_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["issuer"].native
-        self.assertTrue(cert_name_dict["common_name"] != cert_issuer_name_dict["common_name"])
+            data = im_cert_pem.encode("utf-8")
+            if asn1_pem.detect(data):
+                _, _, data = asn1_pem.unarmor(data)
 
-        # Check AKI and SKI, should not be equal since this is an intermediate CA
-        tbs = test_cert["tbs_certificate"]
-        for _, extension in enumerate(tbs["extensions"]):
-            if extension["extn_id"].dotted == "2.5.29.14":
-                ski = extension["extn_value"].native
-        for _, extension in enumerate(tbs["extensions"]):
-            if extension["extn_id"].dotted == "2.5.29.35":
-                aki = extension["extn_value"].native["key_identifier"]
-        self.assertTrue(ski != aki)
+            test_cert = asn1_x509.Certificate.load(data)
+            self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+
+            # Check subject name and issuer name, should not be equal since this is an intermediate CA
+            cert_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["subject"].native
+            cert_issuer_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["issuer"].native
+            self.assertTrue(cert_name_dict["common_name"] != cert_issuer_name_dict["common_name"])
+
+            # Check AKI and SKI, should not be equal since this is an intermediate CA
+            tbs = test_cert["tbs_certificate"]
+            for _, extension in enumerate(tbs["extensions"]):
+                if extension["extn_id"].dotted == "2.5.29.14":
+                    ski = extension["extn_value"].native
+            for _, extension in enumerate(tbs["extensions"]):
+                if extension["extn_id"].dotted == "2.5.29.35":
+                    aki = extension["extn_value"].native["key_identifier"]
+            self.assertTrue(ski != aki)

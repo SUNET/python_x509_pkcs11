@@ -160,7 +160,9 @@ def _create_tbs(
 
 async def _set_csr_signature(key_label: str, key_type: str, signed_csr: CertificationRequest) -> CertificationRequest:
     signed_csr["signature_algorithm"] = signed_digest_algo(key_type)
-    signed_csr["signature"] = await PKCS11Session().sign(key_label, signed_csr["certification_request_info"].dump())
+    signed_csr["signature"] = await PKCS11Session().sign(
+        key_label, signed_csr["certification_request_info"].dump(), key_type=key_type
+    )
     return signed_csr
 
 
@@ -196,7 +198,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
     typing.Tuple[str, str]
     """
 
-    pk_info, _ = await PKCS11Session().create_keypair(key_label, key_size)
+    pk_info, _ = await PKCS11Session().create_keypair(key_label, key_size, key_type=key_type)
     data = pk_info.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
@@ -219,4 +221,5 @@ async def create(  # pylint: disable-msg=too-many-arguments
         not_before=not_before,
         not_after=not_after,
         keep_csr_extensions=True,
+        key_type=key_type,
     )

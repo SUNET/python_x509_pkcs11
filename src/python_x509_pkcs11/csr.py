@@ -217,7 +217,9 @@ def _create_tbs_certificate(  # pylint: disable-msg=too-many-arguments
 async def _set_signature(key_label: str, key_type: str, signed_cert: Certificate) -> Certificate:
     signed_cert["tbs_certificate"]["signature"] = signed_digest_algo(key_type)
     signed_cert["signature_algorithm"] = signed_cert["tbs_certificate"]["signature"]
-    signed_cert["signature_value"] = await PKCS11Session().sign(key_label, signed_cert["tbs_certificate"].dump())
+    signed_cert["signature_value"] = await PKCS11Session().sign(
+        key_label, signed_cert["tbs_certificate"].dump(), key_type=key_type
+    )
     return signed_cert
 
 
@@ -247,7 +249,7 @@ async def sign_csr(  # pylint: disable-msg=too-many-arguments
     str
     """
 
-    _, aki = await PKCS11Session().public_key_data(key_label)
+    _, aki = await PKCS11Session().public_key_data(key_label, key_type)
 
     tbs = _request_to_tbs_certificate(csr_pem, keep_csr_extensions)
     tbs = _create_tbs_certificate(tbs, issuer_name, aki, not_before, not_after, extra_extensions)
