@@ -23,11 +23,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install mypy black pylint flit
           pip install -r requirements.txt
-      - name: Update shell
-        run: |
-          exec sudo su -l $USER
       - name: Run dev-run.sh
         run: |
-          bash dev-run.sh
-          flit build
-          pip3 install dist/python_x509_pkcs11*.whl
+          sudo -u $USER bash -c 'export PATH="$PATH:$HOME/.local/bin" && \
+          exec sudo su -l $USER && \
+          bash dev-run.sh && \
+          flit build && \
+          pip3 install dist/python_x509_pkcs11*.whl'
