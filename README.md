@@ -95,6 +95,15 @@ async def my_func() -> None:
         "common_name": "ca-test.sunet.se",
         "email_address": "soc@sunet.se",
     }
+
+    # key_type must be:
+    # [ed25519](https://en.wikipedia.org/wiki/EdDSA). This is default.
+    # ed448
+    # secp256r1
+    # secp384r1
+    # secp521r1
+    # rsa
+
     csr_pem, root_cert_pem = await create("my_ed25519_key", root_ca_name_dict)
 
     print("CSR which was selfsigned into root CA")
