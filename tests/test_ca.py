@@ -238,9 +238,10 @@ class TestCa(unittest.TestCase):
             self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
 
             # Check subject name and issuer name, should not be equal since this is an intermediate CA
-            cert_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["subject"].native
-            cert_issuer_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["issuer"].native
-            self.assertTrue(cert_name_dict["common_name"] != cert_issuer_name_dict["common_name"])
+            self.assertTrue(
+                test_cert["tbs_certificate"]["subject"].native["common_name"]
+                != test_cert["tbs_certificate"]["issuer"].native["common_name"]
+            )
 
             # Check AKI and SKI, should not be equal since this is an intermediate CA
             tbs = test_cert["tbs_certificate"]

@@ -10,7 +10,7 @@ export PKCS11_TOKEN="my_test_token_1"
 export PKCS11_PIN="1234"
 
 # Recreating the PKCS11 device token
-echo "Deleting and reinitialize the PCKCS11 token"
+echo "Deleting and reinitialize the PKCS11 token"
 softhsm2-util --delete-token --token my_test_token_1
 softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN | exit 1
 
