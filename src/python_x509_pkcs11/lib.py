@@ -41,9 +41,15 @@ def signed_digest_algo(key_type: str) -> SignedDigestAlgorithm:
     elif key_type == "ed448":
         algo = SignedDigestAlgorithm()
         algo["algorithm"] = SignedDigestAlgorithmId("ed448")
-    elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+    elif key_type == "secp256r1":
         algo = SignedDigestAlgorithm()
         algo["algorithm"] = SignedDigestAlgorithmId("sha256_ecdsa")
+    elif key_type == "secp384r1":
+        algo = SignedDigestAlgorithm()
+        algo["algorithm"] = SignedDigestAlgorithmId("sha384_ecdsa")
+    elif key_type == "secp521r1":
+        algo = SignedDigestAlgorithm()
+        algo["algorithm"] = SignedDigestAlgorithmId("sha512_ecdsa")
     elif key_type == "rsa":
         algo = SignedDigestAlgorithm()
         algo["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")

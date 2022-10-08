@@ -16,7 +16,7 @@ Exposes the functions:
 from typing import Tuple, AsyncIterator, Dict, Union, Any
 from threading import Lock, Thread
 import os
-from hashlib import sha256
+from hashlib import sha256, sha384, sha512
 from concurrent.futures import ThreadPoolExecutor
 from asyncio import get_event_loop, sleep
 from contextlib import asynccontextmanager
@@ -57,10 +57,12 @@ pool = ThreadPoolExecutor()
 
 
 def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> bytes:
-    """Convert a R&S ECDSA 256 bit signature into openssl format.
+    """Convert a R&S ECDSA signature into the default openssl format.
+
+    https://stackoverflow.com/questions/66101825/asn-1-structure-of-ecdsa-signature-in-x-509-certificate
 
     Paramters:
-    signature (bytes): The sig.
+    signature (bytes): The signature.
     key_type (str): Key type.
 
     Returns:
@@ -68,8 +70,8 @@ def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> byte
     """
 
     asn1_integer_code = 2
-
     asn1_init = bytearray([48])
+
     if key_type in ["secp521r1"]:
         asn1_init.append(129)
 
@@ -79,8 +81,8 @@ def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> byte
     r_data = signature[:r_length]
     s_data = signature[r_length:]
 
+    # Remove leading zeros, since integers cant start with a 0
     if len(signature) % 8 != 0:
-        # Remove leading zeros, since integers cant start with a 0
         while r_data[0] == 0:
             r_data = r_data[1:]
             r_length -= 1
@@ -508,6 +510,45 @@ class PKCS11Session:
             return key_labels
 
     @classmethod
+    async def _sign(  # pylint: disable-msg=too-many-arguments
+        cls,
+        key_label: str,
+        data: bytes,
+        verify_signature: bool,
+        mechanism: Mechanism,
+        key_type: str,
+    ) -> bytes:
+
+        async with async_lock(cls._lock):
+            # Ensure we get a healthy pkcs11 session
+            await cls._healthy_session()
+
+            # Get private key to sign the data with
+            key_priv = cls.session.get_key(
+                key_type=key_type_values[key_type],
+                object_class=ObjectClass.PRIVATE_KEY,
+                label=key_label,
+            )
+            if verify_signature:
+                key_pub = cls.session.get_key(
+                    key_type=key_type_values[key_type],
+                    object_class=ObjectClass.PUBLIC_KEY,
+                    label=key_label,
+                )
+
+            # Sign the data
+            signature = key_priv.sign(data, mechanism=mechanism)
+
+            if not isinstance(signature, bytes):
+                raise SignatureInvalid
+
+            if verify_signature:
+                if not key_pub.verify(data, signature, mechanism=mechanism):
+                    raise SignatureInvalid
+
+            return signature
+
+    @classmethod
     async def sign(  # pylint: disable-msg=too-many-arguments
         cls,
         key_label: str,
@@ -536,56 +577,42 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        async with async_lock(cls._lock):
-            # Ensure we get a healthy pkcs11 session
-            await cls._healthy_session()
+        if key_type in ["ed25519", "ed448"]:
+            if mechanism is not None and mechanism != Mechanism.EDDSA:
+                raise ValueError("mechanism for key_type 'ed25519' must be None or Mechanism.EDDSA")
+            mech = Mechanism.EDDSA
 
-            # Get private key to sign the data with
-            key_priv = cls.session.get_key(
-                key_type=key_type_values[key_type],
-                object_class=ObjectClass.PRIVATE_KEY,
-                label=key_label,
-            )
-            if verify_signature:
-                key_pub = cls.session.get_key(
-                    key_type=key_type_values[key_type],
-                    object_class=ObjectClass.PUBLIC_KEY,
-                    label=key_label,
+        elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+            if mechanism is not None and mechanism != Mechanism.ECDSA:
+                raise ValueError(
+                    "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or Mechanism.ECDSA"
                 )
+            mech = Mechanism.ECDSA
 
-            if key_type in ["ed25519", "ed448"]:
-                if mechanism is not None and mechanism != Mechanism.EDDSA:
-                    raise ValueError("mechanism for key_type 'ed25519' must be None or Mechanism.EDDSA")
-                mech = Mechanism.EDDSA
-            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
-                if mechanism is not None and mechanism != Mechanism.ECDSA:
-                    raise ValueError(
-                        "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or Mechanism.ECDSA"
-                    )
-                mech = Mechanism.ECDSA
+            # Set hash alg
+            if key_type == "secp256r1":
                 hash_obj = sha256()
-                hash_obj.update(data)
-                data = hash_obj.digest()
-            else:  # rsa
-                if mechanism is None:
-                    mech = Mechanism.SHA256_RSA_PKCS
-                else:
-                    mech = mechanism
+            if key_type == "secp384r1":
+                hash_obj = sha384()
+            if key_type == "secp521r1":
+                hash_obj = sha512()
 
-            # Sign the data
-            signature = key_priv.sign(data, mechanism=mech)
+            hash_obj.update(data)
+            data = hash_obj.digest()
 
-            if not isinstance(signature, bytes):
-                raise SignatureInvalid
+        else:  # rsa
+            if mechanism is None:
+                mech = Mechanism.SHA256_RSA_PKCS
+            else:
+                mech = mechanism
 
-            if verify_signature:
-                if not key_pub.verify(data, signature, mechanism=mech):
-                    raise SignatureInvalid
+        signature = await cls._sign(key_label, data, verify_signature, mech, key_type)
 
-            if key_type in ["secp256r1", "secp384r1", "secp521r1"]:
-                signature = convert_ec_signature_openssl_format(signature, key_type)
+        # PKCS11 specific stuff for EC curves, sig is in R&S format, convert it to openssl format
+        if key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+            signature = convert_ec_signature_openssl_format(signature, key_type)
 
-            return signature
+        return signature
 
     @classmethod
     async def verify(  # pylint: disable-msg=too-many-arguments
@@ -636,7 +663,15 @@ class PKCS11Session:
                         "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or Mechanism.ECDSA"
                     )
                 mech = Mechanism.ECDSA
-                hash_obj = sha256()
+
+                # Set hash alg
+                if key_type == "secp256r1":
+                    hash_obj = sha256()
+                if key_type == "secp384r1":
+                    hash_obj = sha384()
+                if key_type == "secp521r1":
+                    hash_obj = sha512()
+
                 hash_obj.update(data)
                 data = hash_obj.digest()
 
