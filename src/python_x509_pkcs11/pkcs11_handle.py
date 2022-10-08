@@ -13,7 +13,7 @@ Exposes the functions:
 - public_key_data()
 """
 
-from typing import Tuple, AsyncIterator, Dict, Union, Any
+from typing import Tuple, AsyncIterator, Dict, Union
 from threading import Lock, Thread
 import os
 from hashlib import sha256, sha384, sha512
@@ -30,6 +30,7 @@ from asn1crypto.keys import (
     PublicKeyInfo,
     RSAPublicKey,
 )
+from asn1crypto.algos import SignedDigestAlgorithmId
 from pkcs11 import (
     Attribute,
     KeyType,
@@ -111,11 +112,11 @@ def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> byte
 
 # Taken from https://github.com/danni/python-pkcs11/blob/master/pkcs11/util/ec.py
 # Will submit merge request soon
-def decode_ed25519_public_key(der: bytes, encode_ec_point: bool = True) -> Dict[int, Any]:
+def decode_eddsa_public_key(der: bytes, encode_eddsa_point: bool = True) -> Dict[int, Union[str, int, bytes]]:
     """
-    Decode a DER-encoded EC public key as stored by OpenSSL into a dictionary
+    Decode a DER-encoded EdDSA public key as stored by OpenSSL into a dictionary
     of attributes able to be passed to :meth:`pkcs11.Session.create_object`.
-    .. note:: **encode_ec_point**
+    .. note:: **encode_eddsa_point**
         For use as an attribute `EC_POINT` should be DER-encoded (True).
         For key derivation implementations can vary.  Since v2.30 the
         specification says implementations MUST accept a raw `EC_POINT` for
@@ -127,55 +128,24 @@ def decode_ed25519_public_key(der: bytes, encode_ec_point: bool = True) -> Dict[
 
     asn1 = PublicKeyInfo.load(der)
 
-    assert asn1.algorithm == "ed25519", "Wrong algorithm, not an ed25519 key!"
+    assert asn1.algorithm in ["ed25519", "ed448"], "Wrong algorithm, not an eddsa key!"
 
     ecpoint = bytes(asn1["public_key"])
 
-    if encode_ec_point:
+    if encode_eddsa_point:
         ecpoint = OctetString(ecpoint).dump()
 
     return {
         Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
         Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-        Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.112"),
+        Attribute.EC_PARAMS: encode_named_curve_parameters(SignedDigestAlgorithmId(asn1.algorithm).dotted),
         Attribute.EC_POINT: ecpoint,
     }
 
 
-def decode_ed448_public_key(der: bytes, encode_ec_point: bool = True) -> Dict[int, Any]:
+def decode_eddsa_private_key(der: bytes) -> Dict[int, Union[str, int, bytes]]:
     """
-    Decode a DER-encoded EC public key as stored by OpenSSL into a dictionary
-    of attributes able to be passed to :meth:`pkcs11.Session.create_object`.
-    .. note:: **encode_ec_point**
-        For use as an attribute `EC_POINT` should be DER-encoded (True).
-        For key derivation implementations can vary.  Since v2.30 the
-        specification says implementations MUST accept a raw `EC_POINT` for
-        ECDH (False), however not all implementations follow this yet.
-    :param bytes der: DER-encoded key
-    :param encode_ec_point: See text.
-    :rtype: dict(Attribute,*)
-    """
-
-    asn1 = PublicKeyInfo.load(der)
-
-    assert asn1.algorithm == "ed448", "Wrong algorithm, not an ed448 key!"
-
-    ecpoint = bytes(asn1["public_key"])
-
-    if encode_ec_point:
-        ecpoint = OctetString(ecpoint).dump()
-
-    return {
-        Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
-        Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-        Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.113"),
-        Attribute.EC_POINT: ecpoint,
-    }
-
-
-def decode_ed25519_private_key(der: bytes) -> Dict[int, Any]:
-    """
-    Decode a DER-encoded EC private key as stored by OpenSSL into a dictionary
+    Decode a DER-encoded EdDSA private key as stored by OpenSSL into a dictionary
     of attributes able to be passed to :meth:`pkcs11.Session.create_object`.
     :param bytes der: DER-encoded key
     :rtype: dict(Attribute,*)
@@ -185,64 +155,25 @@ def decode_ed25519_private_key(der: bytes) -> Dict[int, Any]:
     return {
         Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
         Attribute.CLASS: ObjectClass.PRIVATE_KEY,
-        Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.112"),
-        # Apparently only the last 32 bytes is the private key values
-        Attribute.VALUE: asn1["private_key"].contents[-32:],
+        Attribute.EC_PARAMS: encode_named_curve_parameters(SignedDigestAlgorithmId(asn1.algorithm).dotted),
+        # Only the last 32/57 bytes is the private key values
+        Attribute.VALUE: asn1["private_key"].contents[-32:]
+        if asn1.algorithm == "ed25519"
+        else asn1["private_key"].contents[-57:],
     }
 
 
-def decode_ed448_private_key(der: bytes) -> Dict[int, Any]:
+def encode_eddsa_public_key(key: PublicKey) -> bytes:
     """
-    Decode a DER-encoded EC private key as stored by OpenSSL into a dictionary
-    of attributes able to be passed to :meth:`pkcs11.Session.create_object`.
-    :param bytes der: DER-encoded key
-    :rtype: dict(Attribute,*)
-    """
-
-    asn1 = PrivateKeyInfo.load(der)
-    return {
-        Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
-        Attribute.CLASS: ObjectClass.PRIVATE_KEY,
-        Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.113"),
-        # Apparently only the last 32 bytes is the private key values
-        Attribute.VALUE: asn1["private_key"].contents[-57:],
-    }
-
-
-def encode_ed25519_public_key(key: PublicKey) -> bytes:
-    """
-    Encode a DER-encoded EC public key as stored by OpenSSL.
-    :param PublicKey key: EC public key
+    Encode a DER-encoded EdDSA public key as stored by OpenSSL.
+    :param PublicKey key: EdDSA public key
     :rtype: bytes
     """
 
     ecpoint = bytes(OctetString.load(key[Attribute.EC_POINT]))
-
     ret: bytes = PublicKeyInfo(
         {
-            "algorithm": {
-                "algorithm": "ed25519",
-            },
-            "public_key": ecpoint,
-        }
-    ).dump()
-    return ret
-
-
-def encode_ed448_public_key(key: PublicKey) -> bytes:
-    """
-    Encode a DER-encoded EC public key as stored by OpenSSL.
-    :param PublicKey key: EC public key
-    :rtype: bytes
-    """
-
-    ecpoint = bytes(OctetString.load(key[Attribute.EC_POINT]))
-
-    ret: bytes = PublicKeyInfo(
-        {
-            "algorithm": {
-                "algorithm": "ed448",
-            },
+            "algorithm": {"algorithm": "ed25519" if len(ecpoint) == 32 else "ed448"},
             "public_key": ecpoint,
         }
     ).dump()
@@ -351,12 +282,11 @@ class PKCS11Session:
             if key_type == "rsa":
                 key_pub = decode_rsa_public_key(public_key)
                 key_priv = decode_rsa_private_key(private_key)
-            elif key_type == "ed25519":
-                key_pub = decode_ed25519_public_key(public_key)
-                key_priv = decode_ed25519_private_key(private_key)
-            elif key_type == "ed448":
-                key_pub = decode_ed448_public_key(public_key)
-                key_priv = decode_ed448_private_key(private_key)
+
+            elif key_type in ["ed25519", "ed448"]:
+                key_pub = decode_eddsa_public_key(public_key)
+                key_priv = decode_eddsa_private_key(private_key)
+
             elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
                 key_pub = decode_ec_public_key(public_key)
                 key_priv = decode_ec_private_key(private_key)
@@ -406,6 +336,7 @@ class PKCS11Session:
                 # Generate the rsa keypair
                 if key_type == "rsa":
                     key_pub, _ = cls.session.generate_keypair(KeyType.RSA, key_size, store=True, label=key_label)
+
                 elif key_type == "ed25519":
                     parameters = cls.session.create_domain_parameters(
                         KeyType.EC_EDWARDS,
@@ -415,6 +346,7 @@ class PKCS11Session:
                     key_pub, _ = parameters.generate_keypair(
                         mechanism=Mechanism.EC_EDWARDS_KEY_PAIR_GEN, store=True, label=key_label
                     )
+
                 elif key_type == "ed448":
                     parameters = cls.session.create_domain_parameters(
                         KeyType.EC_EDWARDS,
@@ -443,10 +375,10 @@ class PKCS11Session:
                 pka["algorithm"] = PublicKeyAlgorithmId("rsa")
                 pki["algorithm"] = pka
                 pki["public_key"] = rsa_pub
-            elif key_type == "ed25519":
-                pki = PublicKeyInfo.load(encode_ed25519_public_key(key_pub))
-            elif key_type == "ed448":
-                pki = PublicKeyInfo.load(encode_ed448_public_key(key_pub))
+
+            elif key_type in ["ed25519", "ed448"]:
+                pki = PublicKeyInfo.load(encode_eddsa_public_key(key_pub))
+
             elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
                 pki = PublicKeyInfo.load(encode_ec_public_key(key_pub))
 
@@ -721,10 +653,9 @@ class PKCS11Session:
                 pki["algorithm"] = pka
                 pki["public_key"] = rsa_pub
 
-            elif key_type == "ed25519":
-                pki = PublicKeyInfo.load(encode_ed25519_public_key(key_pub))
-            elif key_type == "ed448":
-                pki = PublicKeyInfo.load(encode_ed448_public_key(key_pub))
+            elif key_type in ["ed25519", "ed448"]:
+                pki = PublicKeyInfo.load(encode_eddsa_public_key(key_pub))
+
             elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
                 pki = PublicKeyInfo.load(encode_ec_public_key(key_pub))
 
