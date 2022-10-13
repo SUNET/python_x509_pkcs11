@@ -41,7 +41,7 @@ from pkcs11 import (
     Session,
     Token,
 )
-from pkcs11.exceptions import NoSuchKey, SignatureInvalid, MultipleObjectsReturned
+from pkcs11.exceptions import NoSuchKey, SignatureInvalid, MultipleObjectsReturned, GeneralError
 from pkcs11.util.rsa import encode_rsa_public_key, decode_rsa_public_key, decode_rsa_private_key
 from pkcs11.util.ec import (
     encode_named_curve_parameters,
@@ -200,12 +200,28 @@ class PKCS11Session:
     session: Session = None
     token: Token = None
 
+    # def __del__(cls) -> None:
+    # print("removing")
+    # cls.session.close()
+
+    @classmethod
+    def _close_session(cls) -> None:
+        # print("closing")
+        # pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
+        # cls.token = pkcs11_lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
+        if cls.session is not None:
+            cls.session.close()
+            cls.session = None
+
     @classmethod
     def _open_session(cls, force: bool = False) -> None:
         cls._session_status = 9
         try:
+            # if force or cls.session is None:
             if force or cls.session is None:
+                # print("gg1")
                 pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
+                pkcs11_lib.reinitialize()
                 cls.token = pkcs11_lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
                 cls.session = cls.token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
 
@@ -216,27 +232,42 @@ class PKCS11Session:
             )
             cls._session_status = 0
         except NoSuchKey:
-            cls._session_status = 0
+            try:
+                _, _ = cls.session.generate_keypair(KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True)
+                cls._session_status = 0
+            except GeneralError:
+                pass
+        except GeneralError as exc:
+            if DEBUG:
+                print("Token failed")
+                print(exc)
+            # raise exc
 
     @classmethod
     async def _healthy_session(cls) -> None:
-        thread = Thread(target=cls._open_session, args=())
+        thread = Thread(target=cls._open_session, args=([False]))
         thread.start()
         thread.join(timeout=TIMEOUT)
 
         if thread.is_alive() or cls._session_status != 0:
             if DEBUG:
+                # print(cls._session_status)
+                # print(thread.is_alive())
                 print("Current PKCS11 session is unhealthy, opening a new session")
 
-            thread2 = Thread(target=cls._open_session, args=({"force": True}))
+            thread2 = Thread(target=cls._close_session, args=())
             thread2.start()
-
             # yield to other coroutines while we wait for thread2 to join
             await sleep(0)
-
             thread2.join(timeout=TIMEOUT)
 
-            if thread2.is_alive():
+            thread3 = Thread(target=cls._open_session, args=([True]))
+            thread3.start()
+            # yield to other coroutines while we wait for thread3 to join
+            await sleep(0)
+            thread3.join(timeout=TIMEOUT)
+
+            if thread3.is_alive():
                 raise PKCS11TimeoutException("ERROR: Could not get a healthy PKCS11 connection in time")
         if cls._session_status != 0:
             raise PKCS11UnknownErrorException("ERROR: Could not get a healthy PKCS11 connection")
@@ -329,9 +360,9 @@ class PKCS11Session:
                     label=key_label,
                 )
                 raise MultipleObjectsReturned
-            except NoSuchKey as ex:
+            except NoSuchKey as exc:
                 if DEBUG:
-                    print(ex)
+                    print(exc)
                     print("Generating a key since " + "no key with that label was found")
                 # Generate the rsa keypair
                 if key_type == "rsa":
@@ -499,7 +530,7 @@ class PKCS11Session:
         key_label (str): Keypair label.
         data (bytes): Bytes to be signed.
         verify_signature (bool = True): If is should verify the signature. PKCS11 operations can be expensive
-        mechanism (pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS]): Which signature mechanism to use
+        mechanism (Union[pkcs11.Mechanism, None] = None]): Which signature mechanism to use
         key_type (str = "ed25519"): Key type.
 
         Returns:
@@ -511,13 +542,13 @@ class PKCS11Session:
 
         if key_type in ["ed25519", "ed448"]:
             if mechanism is not None and mechanism != Mechanism.EDDSA:
-                raise ValueError("mechanism for key_type 'ed25519' must be None or Mechanism.EDDSA")
+                raise ValueError("mechanism for key_type 'ed25519' must be None or pkcs11.Mechanism.EDDSA")
             mech = Mechanism.EDDSA
 
         elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
             if mechanism is not None and mechanism != Mechanism.ECDSA:
                 raise ValueError(
-                    "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or Mechanism.ECDSA"
+                    "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or pkcs11.Mechanism.ECDSA"
                 )
             mech = Mechanism.ECDSA
 
@@ -564,7 +595,7 @@ class PKCS11Session:
         key_label (str): Keypair label.
         data (bytes): Bytes to be signed.
         signature (bytes): The signature.
-        mechanism (pkcs11.Mechanism = Mechanism.SHA256_RSA_PKCS): Which signature mechanism to use
+        mechanism (Union[pkcs11.Mechanism, None] = None): Which signature mechanism to use
         key_type (str = "ed25519"): Key type.
 
         Returns:
@@ -587,12 +618,12 @@ class PKCS11Session:
 
             if key_type in ["ed25519", "ed448"]:
                 if mechanism is not None and mechanism != Mechanism.EDDSA:
-                    raise ValueError("mechanism for key_type 'ed25519' must be None or Mechanism.EDDSA")
+                    raise ValueError("mechanism for key_type 'ed25519' must be None or pkcs11.Mechanism.EDDSA")
                 mech = Mechanism.EDDSA
             elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
                 if mechanism is not None and mechanism != Mechanism.ECDSA:
                     raise ValueError(
-                        "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or Mechanism.ECDSA"
+                        "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or pkcs11.Mechanism.ECDSA"
                     )
                 mech = Mechanism.ECDSA
 

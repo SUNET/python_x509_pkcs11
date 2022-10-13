@@ -166,12 +166,13 @@ async def _set_csr_signature(key_label: str, key_type: str, signed_csr: Certific
     return signed_csr
 
 
-async def create(  # pylint: disable-msg=too-many-arguments
+async def create(  # pylint: disable-msg=too-many-arguments,too-many-locals
     key_label: str,
     subject_name: Dict[str, str],
     key_size: int = 2048,
     signer_subject_name: Union[Dict[str, str], None] = None,
     signer_key_label: Union[str, None] = None,
+    signer_key_type: str = "ed25519",
     not_before: Union[datetime.datetime, None] = None,
     not_after: Union[datetime.datetime, None] = None,
     extra_extensions: Union[Extensions, None] = None,
@@ -210,9 +211,10 @@ async def create(  # pylint: disable-msg=too-many-arguments
     pem_enc: bytes = asn1_pem.armor("CERTIFICATE REQUEST", signed_csr.dump())
 
     # If this will be a root CA or not
-    if signer_key_label is not None and signer_subject_name is not None:
+    if signer_key_label is not None and signer_subject_name is not None and signer_key_type:
         key_label = signer_key_label
         subject_name = signer_subject_name
+        key_type = signer_key_type
 
     return pem_enc.decode("utf-8"), await sign_csr(
         key_label,

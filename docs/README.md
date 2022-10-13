@@ -70,7 +70,7 @@ Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/py
 	  ) -> bool:`
 
 - `public_key_data(key_label: str,
-  	           key_type: str = "ed25519"
+  	           key_type: str = "ed25519",
 		   ) -> typing.Tuple[str, bytes]`
 
 ## import_keypair()
@@ -141,6 +141,8 @@ key_type must be:
 
 If a keypair with label already exists in the PKCS11 device
 then pkcs11.MultipleObjectsReturned will be raised.
+
+key_size is only used for rsa, ignored otherwise.
 
 ### Example usage for create_keypair():
 ```python
