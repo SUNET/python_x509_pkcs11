@@ -114,7 +114,8 @@ priv = b"0\x82\x04\xa4\x02\x01\x00\x02\x82\x01\x01\x00\xd9\xb6C,O\xc0\x83\xca\xa
 async def my_func() -> None:
     await PKCS11Session.import_keypair(pub, priv, "my_rsa_key", "rsa_2048")
     public_key, identifier = await PKCS11Session.public_key_data(
-        "my_rsa_key"
+        "my_rsa_key",
+	key_type="rsa_2048",
     )
     print(public_key)
     print(identifier)
