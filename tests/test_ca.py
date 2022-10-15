@@ -60,57 +60,56 @@ class TestCa(unittest.TestCase):
         Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        for key_type in key_types:
+            new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+            # Test non default key size
+            _, root_cert_pem = asyncio.run(create(new_key_label[:-1], name_dict, key_type=key_type))
+            data = root_cert_pem.encode("utf-8")
+            if asn1_pem.detect(data):
+                _, _, data = asn1_pem.unarmor(data)
 
-        # Test non default key size
-        _, root_cert_pem = asyncio.run(create(new_key_label[:-1], name_dict, 4096))
-        data = root_cert_pem.encode("utf-8")
-        if asn1_pem.detect(data):
-            _, _, data = asn1_pem.unarmor(data)
+            test_cert = asn1_x509.Certificate.load(data)
+            self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
 
-        test_cert = asn1_x509.Certificate.load(data)
-        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+            # Ensure subject name and issuer name is the same signce this is root ca
+            cert_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["subject"].native
+            cert_issuer_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["issuer"].native
+            self.assertTrue(cert_name_dict["common_name"] == cert_issuer_name_dict["common_name"])
 
-        # Ensure subject name and issuer name is the same signce this is root ca
-        cert_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["subject"].native
-        cert_issuer_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["issuer"].native
-        self.assertTrue(cert_name_dict["common_name"] == cert_issuer_name_dict["common_name"])
+            # Ensure AKI and SKI is the same as this is a root CA
+            tbs = test_cert["tbs_certificate"]
+            for _, extension in enumerate(tbs["extensions"]):
+                if extension["extn_id"].dotted == "2.5.29.14":
+                    ski = extension["extn_value"].native
+            for _, extension in enumerate(tbs["extensions"]):
+                if extension["extn_id"].dotted == "2.5.29.35":
+                    aki = extension["extn_value"].native["key_identifier"]
+            self.assertTrue(aki == ski)
 
-        # Ensure AKI and SKI is the same as this is a root CA
-        tbs = test_cert["tbs_certificate"]
-        for _, extension in enumerate(tbs["extensions"]):
-            if extension["extn_id"].dotted == "2.5.29.14":
-                ski = extension["extn_value"].native
-        for _, extension in enumerate(tbs["extensions"]):
-            if extension["extn_id"].dotted == "2.5.29.35":
-                aki = extension["extn_value"].native["key_identifier"]
-        self.assertTrue(aki == ski)
+            # Test default values
+            csr_pem, root_cert_pem = asyncio.run(create(new_key_label[:-2], name_dict))
+            data = root_cert_pem.encode("utf-8")
+            if asn1_pem.detect(data):
+                _, _, data = asn1_pem.unarmor(data)
+            test_cert = asn1_x509.Certificate.load(data)
 
-        # Test default values
-        csr_pem, root_cert_pem = asyncio.run(create(new_key_label[:-2], name_dict))
-        data = root_cert_pem.encode("utf-8")
-        if asn1_pem.detect(data):
-            _, _, data = asn1_pem.unarmor(data)
-        test_cert = asn1_x509.Certificate.load(data)
+            data = csr_pem.encode("utf-8")
+            if asn1_pem.detect(data):
+                _, _, data = asn1_pem.unarmor(data)
+            test_csr = asn1_csr.CertificationRequest.load(data)
 
-        data = csr_pem.encode("utf-8")
-        if asn1_pem.detect(data):
-            _, _, data = asn1_pem.unarmor(data)
-        test_csr = asn1_csr.CertificationRequest.load(data)
+            self.assertTrue(isinstance(test_csr, asn1_csr.CertificationRequest))
+            tbs = asn1_x509.TbsCertificate()
+            tbs["subject_public_key_info"] = test_csr["certification_request_info"]["subject_pk_info"]
+            self.assertTrue(
+                tbs["subject_public_key_info"].dump() == test_cert["tbs_certificate"]["subject_public_key_info"].dump()
+            )
 
-        self.assertTrue(isinstance(test_csr, asn1_csr.CertificationRequest))
-        tbs = asn1_x509.TbsCertificate()
-        tbs["subject_public_key_info"] = test_csr["certification_request_info"]["subject_pk_info"]
-        self.assertTrue(
-            tbs["subject_public_key_info"].dump() == test_cert["tbs_certificate"]["subject_public_key_info"].dump()
-        )
-
-        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
-        cert_exts = test_cert["tbs_certificate"]["extensions"]
-        self.assertTrue(isinstance(cert_exts, asn1_x509.Extensions))
-        # CSR exts (key usage and basic constraints
-        # + authority and subject key identifier = 4
-        self.assertTrue(len(cert_exts) == 4)
+            self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+            self.assertTrue(isinstance(test_cert["tbs_certificate"]["extensions"], asn1_x509.Extensions))
+            # CSR exts (key usage and basic constraints
+            # + authority and subject key identifier = 4
+            self.assertTrue(len(test_cert["tbs_certificate"]["extensions"]) == 4)
 
     def test_create_ca_not_before_not_after(self) -> None:
         """
@@ -193,19 +192,6 @@ class TestCa(unittest.TestCase):
         Create an intermediate CA in the pkcs11 device.
         """
         for key_type in key_types:
-            # import time
-            # for x in range(10000):
-            # key_type = "secp256r1"
-            # if x % 15 == 0:
-            # work on this
-            #    subprocess.check_call("export PKCS11_MODULE='/usr/lib/softhsm/libsofthsm2.so';
-            # export PKCS11_TOKEN='my_test_token_1';
-            # export PKCS11_PIN='1234'; softhsm2-util --delete-token --token my_test_token_1;
-            # softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN \
-            # --pin $PKCS11_PIN --so-pin $PKCS11_PIN", shell=True)
-            # time.sleep(0.1)
-            # print("bb")
-
             new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
             _, root_ca_pem = asyncio.run(create(new_key_label, signer_name_dict, key_type=key_type))
 
@@ -227,57 +213,50 @@ class TestCa(unittest.TestCase):
                 f_data.write(im_cert_pem.encode("utf-8"))
 
             # Verify with openssl
-            try:
-                subprocess.check_call(
-                    "openssl verify -verbose -CAfile "
-                    + new_key_label
-                    + ".crt"
-                    + " "
-                    + new_key_label2
-                    + ".crt"
-                    + " > /dev/null && "
-                    + "rm -f "
-                    + new_key_label
-                    + ".crt"
-                    + " "
-                    + new_key_label2
-                    + ".crt",
-                    shell=True,
-                )
-            except:
-                subprocess.check_call("echo failed > fail", shell=True)
-                subprocess.check_call(
-                    "echo " + new_key_label + ".crt" + " \n " + new_key_label2 + ".crt >> fail", shell=True
-                )
-                raise
-
             subprocess.check_call(
-                "softhsm2-util --delete-token --token my_test_token_1; softhsm2-util "
-                "--init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN",
+                "openssl verify -verbose -CAfile "
+                + new_key_label
+                + ".crt"
+                + " "
+                + new_key_label2
+                + ".crt"
+                + " > /dev/null && "
+                + "rm -f "
+                + new_key_label
+                + ".crt"
+                + " "
+                + new_key_label2
+                + ".crt",
                 shell=True,
             )
+
+            # subprocess.check_call(
+            #     "softhsm2-util --delete-token --token my_test_token_1; softhsm2-util "
+            #     "--init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so-pin $PKCS11_PIN",
+            #     shell=True,
+            # )
 
             data = im_cert_pem.encode("utf-8")
             if asn1_pem.detect(data):
                 _, _, data = asn1_pem.unarmor(data)
 
-            im_cert_pem = asn1_x509.Certificate.load(data)
-            self.assertTrue(isinstance(im_cert_pem, asn1_x509.Certificate))
+            im_cert_pem_asn1 = asn1_x509.Certificate.load(data)
+            self.assertTrue(isinstance(im_cert_pem_asn1, asn1_x509.Certificate))
 
             # Check subject name and issuer name, should not be equal since this is an intermediate CA
-            # self.assertTrue(
-            #    im_cert_pem["tbs_certificate"]["subject"].native["common_name"]
-            #    != im_cert_pem["tbs_certificate"]["issuer"].native["common_name"]
-            # )
-            # # Check AKI and SKI, should not be equal since this is an intermediate CA
-            # tbs = im_cert_pem["tbs_certificate"]
-            # for _, extension in enumerate(tbs["extensions"]):
-            #     if extension["extn_id"].dotted == "2.5.29.14":
-            #         ski = extension["extn_value"].native
-            # for _, extension in enumerate(tbs["extensions"]):
-            #     if extension["extn_id"].dotted == "2.5.29.35":
-            #         aki = extension["extn_value"].native["key_identifier"]
-            # self.assertTrue(ski != aki)
+            self.assertTrue(
+                im_cert_pem_asn1["tbs_certificate"]["subject"].native["common_name"]
+                != im_cert_pem_asn1["tbs_certificate"]["issuer"].native["common_name"]
+            )
+            # Check AKI and SKI, should not be equal since this is an intermediate CA
+            tbs = im_cert_pem_asn1["tbs_certificate"]
+            for _, extension in enumerate(tbs["extensions"]):
+                if extension["extn_id"].dotted == "2.5.29.14":
+                    ski = extension["extn_value"].native
+            for _, extension in enumerate(tbs["extensions"]):
+                if extension["extn_id"].dotted == "2.5.29.35":
+                    aki = extension["extn_value"].native["key_identifier"]
+            self.assertTrue(ski != aki)
 
     def test_create_intermediate_diff_key_type_ca(self) -> None:
         """
@@ -304,39 +283,32 @@ class TestCa(unittest.TestCase):
             f_data.write(im_cert_pem.encode("utf-8"))
 
         # Verify with openssl
-        try:
-            subprocess.check_call(
-                "openssl verify -verbose -CAfile "
-                + new_key_label
-                + ".crt"
-                + " "
-                + new_key_label2
-                + ".crt"
-                + " > /dev/null "
-                + "&& rm -f "
-                + new_key_label
-                + ".crt"
-                + " "
-                + new_key_label2
-                + ".crt",
-                shell=True,
-            )
-        except:
-            subprocess.check_call("echo failed > fail", shell=True)
-            subprocess.check_call(
-                "echo " + new_key_label + ".crt" + " \n " + new_key_label2 + ".crt >> fail", shell=True
-            )
-            raise
+        subprocess.check_call(
+            "openssl verify -verbose -CAfile "
+            + new_key_label
+            + ".crt"
+            + " "
+            + new_key_label2
+            + ".crt"
+            + " > /dev/null "
+            + "&& rm -f "
+            + new_key_label
+            + ".crt"
+            + " "
+            + new_key_label2
+            + ".crt",
+            shell=True,
+        )
 
         data = im_cert_pem.encode("utf-8")
         if asn1_pem.detect(data):
             _, _, data = asn1_pem.unarmor(data)
 
-        im_cert_pem = asn1_x509.Certificate.load(data)
-        self.assertTrue(isinstance(im_cert_pem, asn1_x509.Certificate))
+        im_cert_pem_asn1 = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(im_cert_pem_asn1, asn1_x509.Certificate))
 
         # Check subject name and issuer name, should not be equal since this is an intermediate CA
-        # self.assertTrue(
-        #    im_cert_pem["tbs_certificate"]["subject"].native["common_name"]
-        #    != im_cert_pem["tbs_certificate"]["issuer"].native["common_name"]
-        # )
+        self.assertTrue(
+            im_cert_pem_asn1["tbs_certificate"]["subject"].native["common_name"]
+            != im_cert_pem_asn1["tbs_certificate"]["issuer"].native["common_name"]
+        )

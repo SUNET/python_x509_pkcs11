@@ -29,7 +29,7 @@ from .error import DuplicateExtensionException
 from .lib import signed_digest_algo
 
 
-def _request_to_tbs_certificate(csr_pem: str, keep_csr_extensions: bool) -> TbsCertificate:
+def _request_to_tbs_certificate(csr_pem: str, keep_csr_extensions: Union[bool, None]) -> TbsCertificate:
     data = csr_pem.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
@@ -40,7 +40,7 @@ def _request_to_tbs_certificate(csr_pem: str, keep_csr_extensions: bool) -> TbsC
     tbs["subject"] = req["certification_request_info"]["subject"]
     tbs["subject_public_key_info"] = req["certification_request_info"]["subject_pk_info"]
 
-    if not keep_csr_extensions:
+    if keep_csr_extensions is not None and keep_csr_extensions is False:
         return tbs
 
     exts = Extensions()
@@ -214,7 +214,10 @@ def _create_tbs_certificate(  # pylint: disable-msg=too-many-arguments
     return tbs
 
 
-async def _set_signature(key_label: str, key_type: str, signed_cert: Certificate) -> Certificate:
+async def _set_signature(key_label: str, key_type: Union[str, None], signed_cert: Certificate) -> Certificate:
+    if key_type is None:
+        key_type = "ed25519"
+
     signed_cert["tbs_certificate"]["signature"] = signed_digest_algo(key_type)
     signed_cert["signature_algorithm"] = signed_cert["tbs_certificate"]["signature"]
     signed_cert["signature_value"] = await PKCS11Session().sign(
@@ -229,21 +232,21 @@ async def sign_csr(  # pylint: disable-msg=too-many-arguments
     csr_pem: str,
     not_before: Union[datetime.datetime, None] = None,
     not_after: Union[datetime.datetime, None] = None,
-    keep_csr_extensions: bool = True,
+    keep_csr_extensions: Union[bool, None] = None,
     extra_extensions: Union[Extensions, None] = None,
-    key_type: str = "ed25519",
+    key_type: Union[str, None] = None,
 ) -> str:
     """Sign a CSR by the key with the key_label in the PKCS11 device.
 
     Parameters:
     key_label (str): Keypair label.
-    issuer_name (typing.Dict[str, str]): Dict with the signers x509 Names.
+    issuer_name (Dict[str, str]): Dict with the signers x509 Names.
     csr_pem (Union[str, None] = None]): A CSR to sign.
     not_before (Union[datetime.datetime, None] = None): The certificate is not valid before this time.
     not_after (Union[datetime.datetime, None] = None): The certificate is not valid after this time.
     keep_csr_extensions (bool = True]): If we should keep or remove the x509 extensions in the CSR.
     extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the certificate.
-    key_type (str = "ed25519"): Key type.
+    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
 
     Returns:
     str

@@ -102,7 +102,8 @@ async def my_func() -> None:
     # secp256r1
     # secp384r1
     # secp521r1
-    # rsa
+    # rsa_2048
+    # rsa_4096
 
     csr_pem, root_cert_pem = await create("my_ed25519_key", root_ca_name_dict, key_type="ed25519")
 

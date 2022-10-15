@@ -49,29 +49,26 @@ Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/py
 		  ) -> None:`
 
 - `create_keypair(key_label: str,
-         	  key_size: int = 2048,
-		  key_type: str = "ed25519",
-		  ) -> typing.Tuple[str, bytes]:`
+		  key_type: Union[str, None] = None,
+		  ) -> Tuple[str, bytes]:`
 
- - `key_labels() -> typing.List[str]:`
+ - `key_labels() -> List[str]:`
 
  - `sign(key_label: str,
          data: bytes,
-	 verify_signature: bool = True,
-	 mechanism: Union[pkcs11.Mechanism, None] = None,
- 	 key_type: str = "ed25519",
+	 verify_signature: Union[bool, None] = None,
+ 	 key_type: Union[str, None] = None,
 	 ) -> bytes:`
 
  - `verify(key_label: str,
           data: bytes,
 	  signature: bytes,
-	  mechanism: Union[pkcs11.Mechanism, None] = None,
-	  key_type: str = "ed25519",
+	  key_type: Union[str, None] = None,
 	  ) -> bool:`
 
 - `public_key_data(key_label: str,
-  	           key_type: str = "ed25519",
-		   ) -> typing.Tuple[str, bytes]`
+  		   key_type: Union[str, None] = None,
+		   ) -> Tuple[str, bytes]:`
 
 ## import_keypair()
 
@@ -83,7 +80,8 @@ key_type must be:
 * secp256r1
 * secp384r1
 * secp521r1
-* rsa
+* rsa_2048
+* rsa_4096
 
 Generating public_key and private_key can be done with:
 ```bash
@@ -114,7 +112,7 @@ priv = b"0\x82\x04\xa4\x02\x01\x00\x02\x82\x01\x01\x00\xd9\xb6C,O\xc0\x83\xca\xa
 
 
 async def my_func() -> None:
-    await PKCS11Session.import_keypair(pub, priv, "my_rsa_key", "RSA")
+    await PKCS11Session.import_keypair(pub, priv, "my_rsa_key", "rsa_2048")
     public_key, identifier = await PKCS11Session.public_key_data(
         "my_rsa_key"
     )
@@ -128,7 +126,7 @@ asyncio.run(my_func())
 ## create_keypair()
 
 The `create_keypair()` function generate a keypair in the PKCS11 device with this label
-Returns typing.Tuple[asn1crypto.keys.PublicKeyInfo, bytes] which is a tuple of
+Returns Tuple[asn1crypto.keys.PublicKeyInfo, bytes] which is a tuple of
 the public key info and the public keys x509 'Subject Key identifier' value.
 
 key_type must be:
@@ -137,12 +135,11 @@ key_type must be:
 * secp256r1
 * secp384r1
 * secp521r1
-* rsa
+* rsa_2048
+* rsa_4096
 
 If a keypair with label already exists in the PKCS11 device
 then pkcs11.MultipleObjectsReturned will be raised.
-
-key_size is only used for rsa, ignored otherwise.
 
 ### Example usage for create_keypair():
 ```python
@@ -151,7 +148,7 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
+    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key", key_type="ed25519")
     print(public_key)
     print(identifier)
 
@@ -252,14 +249,14 @@ asyncio.run(my_func())
 Our [csr](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/csr.py) module currently exposes one function:
 
  - `sign_csr(key_label: str,
-   	     issuer_name: dict[str, str],
+   	     issuer_name: Dict[str, str],
       	     csr_pem: str,
 	     not_before: Union[datetime.datetime, None] = None,
     	     not_after: Union[datetime.datetime, None] = None,
-    	     keep_csr_extensions: bool = True,
-    	     extra_extensions: Union[asn1crypto.x509.Extensions, None] = None
+    	     keep_csr_extensions: Union[bool, None] = None,
+    	     extra_extensions: Union[asn1crypto.x509.Extensions, None] = None,
              key_type: str = "ed25519",
-             ) -> str`
+             ) -> str:`
  
 ## sign_csr()
 
@@ -273,7 +270,10 @@ key_type must be:
 * secp256r1
 * secp384r1
 * secp521r1
-* rsa
+* rsa_2048
+* rsa_4096
+
+keep_csr_extensions is True by default.
 
 The not_before and not_after parameters must be in UTC timezone, for example:
 ```python
@@ -332,15 +332,15 @@ asyncio.run(my_func())
 Our [ca](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/ca.py) module currently exposes one function:
 
  - `create(key_label: str,
-           key_size: int,
-	   subject_name: dict[str, str],
-	   signer_subject_name Union[typing.Dict[str, str], None],
-	   signer_key_label Union[str, None] = None,
+	   subject_name: Dict[str, str],
+	   signer_subject_name: Union[Dict[str, str], None] = None,
+	   signer_key_label: Union[str, None] = None,
+   	   signer_key_type: Union[str, None] = None,
 	   not_before: Union[datetime.datetime, None] = None,
     	   not_after: Union[datetime.datetime, None] = None,
-	   exta_extensions: Union[asn1crypto.x509.Extensions, None] = None],
-           key_type: str = "ed25519",
-           ) -> typing.Tuple[str, str]`
+	   extra_extensions: Union[asn1crypto.x509.Extensions, None] = None,
+           key_type: Union[str, None] = None,
+           ) -> Tuple[str, str]:`
 
 ## create()
 
@@ -348,6 +348,7 @@ The `create()` function generate a CSR and then signs it
 with the same key from the key_label in the pkcs11 device.
 
 signer_key_label is the key label for the key in the PKCS11 device should sign this ca. If signer_key_label is None then this will be a root (selfsigned) CA.
+signer_key_type, default is ed25519.
 signer_subject_name will be the issuing name for CA If signer_key_label is None then this will be a root (selfsigned) CA.
 
 key_type must be:
@@ -356,7 +357,8 @@ key_type must be:
 * secp256r1
 * secp384r1
 * secp521r1
-* rsa
+* rsa_2048
+* rsa_4096
 
 If extra_extensions is not None then those extensions will be written into the CA certificate.
 
@@ -402,14 +404,14 @@ asyncio.run(my_func())
 Our [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/crl.py) module currently exposes one function:
 
  - `create(key_label: str,
-           subject_name: dict[str, str],
+           subject_name: Dict[str, str],
 	   old_crl_pem: Union[str, None] = None,
 	   serial_number: Union[int, None] = None,
 	   reason: Union[int, None] = None,
 	   this_update: Union[datetime.datetime, None] = None,
 	   next_update: Union[datetime.datetime, None] = None,
-           key_type: str = "ed25519",
-           ) -> str`
+           key_type: Union[str, None] = None,
+           ) -> str:`
 
 ## create()
 
@@ -426,7 +428,8 @@ key_type must be:
 * secp256r1
 * secp384r1
 * secp521r1
-* rsa
+* rsa_2048
+* rsa_4096
 
 If serial_number and [reason](https://github.com/wbond/asn1crypto/blob/b5f03e6f9797c691a3b812a5bb1acade3a1f4eeb/asn1crypto/crl.py#L97) is not None then this serial number
 with its reason will be added to the revocation list in the CRL.
@@ -474,8 +477,8 @@ Our [ocsp](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509
 	    requestor_name: Union[asn1crypto.ocsp.GeneralName, None] = None,
             certs: Union[List[str], None] = None,
             extra_extensions: Union[asn1crypto.ocsp.TBSRequestExtensions, None] = None,
-            key_type: str = "ed25519",
-            ) -> bytes`
+            key_type: Union[str, None] = None,
+            ) -> bytes:`
 
 - `response(key_label: str,
 	    responder_id: Dict[str,str],
@@ -484,8 +487,8 @@ Our [ocsp](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509
 	    extra_extensions: Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None,
 	    produced_at: Union[datetime.datetime, None] = None,
 	    extra_certs: Union[List[str], None] = None,
-            key_type: str = "ed25519",
-            ) -> bytes`
+            key_type: Union[str, None] = None,
+            ) -> bytes:`
 
 - `request_nonce(data: bytes) -> Union[bytes, None]`
 
@@ -506,9 +509,8 @@ key_type must be:
 * secp256r1
 * secp384r1
 * secp521r1
-* rsa
-
-
+* rsa_2048
+* rsa_4096
                               
 for example:
 ```python
@@ -564,7 +566,7 @@ https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
 
 key_label is the key label in the PKCS11 device that will sign the response.
 
-responder_id is the Dict with the responders x509 Names.
+responder_id is the dict with the responders x509 Names.
 
 single_responses is the single responses for all certs in the OCSP request for this OCSP response.
 
@@ -587,7 +589,8 @@ key_type must be:
 * secp256r1
 * secp384r1
 * secp521r1
-* rsa
+* rsa_2048
+* rsa_4096
 
 produced_at is what time to write into "produced_at" field.
 It must be in UTC timezone. If None then it will be 2 minutes before UTC now.

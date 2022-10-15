@@ -190,7 +190,10 @@ def _load_crl(crl_pem: str) -> CertificateList:
     return cert_list
 
 
-async def _set_signature(key_label: str, key_type: str, cert_list: CertificateList) -> CertificateList:
+async def _set_signature(key_label: str, key_type: Union[str, None], cert_list: CertificateList) -> CertificateList:
+    if key_type is None:
+        key_type = "ed25519"
+
     cert_list["tbs_cert_list"]["signature"] = signed_digest_algo(key_type)
     cert_list["signature_algorithm"] = cert_list["tbs_cert_list"]["signature"]
     cert_list["signature"] = await PKCS11Session.sign(key_label, cert_list["tbs_cert_list"].dump(), key_type=key_type)
@@ -205,19 +208,19 @@ async def create(  # pylint: disable-msg=too-many-arguments
     reason: Union[int, None] = None,
     this_update: Union[datetime.datetime, None] = None,
     next_update: Union[datetime.datetime, None] = None,
-    key_type: str = "ed25519",
+    key_type: Union[str, None] = None,
 ) -> str:
     """Create a CRL signed by the key with the key_label in the PKCS11 device.
 
     Parameters:
     key_label (str): Keypair label.
-    subject_name (typing.Dict[str, str]): Dict with x509 Names.
+    subject_name (Dict[str, str]): Dict with x509 Names.
     old_crl_pem (Union[str, None] = None]): A pem encoded CRL to append to, skip if None.
     serial_number (Union[int, None] = None]): Serial to the CRL, skip if None.
     reason (Union[int, None] = None]): The reason for revocation, skip if None.
     this_update (Union[datetime.datetime, None] = None): The CRLs timestamp.
     next_update (Union[datetime.datetime, None] = None): The next CRLs timestamp.
-    key_type (str = "ed25519"): Key type.
+    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
 
     Returns:
     str

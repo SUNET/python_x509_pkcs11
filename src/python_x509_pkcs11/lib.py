@@ -12,7 +12,8 @@ key_types: List[str] = [
     "secp256r1",
     "secp384r1",
     "secp521r1",
-    "rsa",
+    "rsa_2048",
+    "rsa_4096",
 ]
 
 key_type_values: Dict[str, int] = {
@@ -21,7 +22,8 @@ key_type_values: Dict[str, int] = {
     "secp256r1": 0x00000003,
     "secp384r1": 0x00000003,
     "secp521r1": 0x00000003,
-    "rsa": 0x00000000,
+    "rsa_2048": 0x00000000,
+    "rsa_4096": 0x00000000,
 }
 
 
@@ -50,9 +52,12 @@ def signed_digest_algo(key_type: str) -> SignedDigestAlgorithm:
     elif key_type == "secp521r1":
         algo = SignedDigestAlgorithm()
         algo["algorithm"] = SignedDigestAlgorithmId("sha512_ecdsa")
-    elif key_type == "rsa":
+    elif key_type == "rsa_2048":
         algo = SignedDigestAlgorithm()
         algo["algorithm"] = SignedDigestAlgorithmId("sha256_rsa")
+    elif key_type == "rsa_4096":
+        algo = SignedDigestAlgorithm()
+        algo["algorithm"] = SignedDigestAlgorithmId("sha512_rsa")
     else:
         raise ValueError(f"key_type must be in {key_types}")
 

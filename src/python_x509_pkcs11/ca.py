@@ -158,7 +158,12 @@ def _create_tbs(
     return tbs
 
 
-async def _set_csr_signature(key_label: str, key_type: str, signed_csr: CertificationRequest) -> CertificationRequest:
+async def _set_csr_signature(
+    key_label: str, key_type: Union[str, None], signed_csr: CertificationRequest
+) -> CertificationRequest:
+    if key_type is None:
+        key_type = "ed25519"
+
     signed_csr["signature_algorithm"] = signed_digest_algo(key_type)
     signed_csr["signature"] = await PKCS11Session().sign(
         key_label, signed_csr["certification_request_info"].dump(), key_type=key_type
@@ -169,14 +174,13 @@ async def _set_csr_signature(key_label: str, key_type: str, signed_csr: Certific
 async def create(  # pylint: disable-msg=too-many-arguments,too-many-locals
     key_label: str,
     subject_name: Dict[str, str],
-    key_size: int = 2048,
     signer_subject_name: Union[Dict[str, str], None] = None,
     signer_key_label: Union[str, None] = None,
-    signer_key_type: str = "ed25519",
+    signer_key_type: Union[str, None] = None,
     not_before: Union[datetime.datetime, None] = None,
     not_after: Union[datetime.datetime, None] = None,
     extra_extensions: Union[Extensions, None] = None,
-    key_type: str = "ed25519",
+    key_type: Union[str, None] = None,
 ) -> Tuple[str, str]:
     """Create and sign a CSR with in the PKCS11 device.
 
@@ -184,22 +188,22 @@ async def create(  # pylint: disable-msg=too-many-arguments,too-many-locals
 
     Parameters:
     key_label (str): Keypair label to create for the new ca
-    subject_name (typing.Dict[str, str]): Dict with x509 subject names
+    subject_name (Dict[str, str]): Dict with x509 subject names
     key_size (int = 2048): Key size, 2048 and 4096 works best.
-    signer_subject_name (Union[typing.Dict[str, str], None] = None):
+    signer_subject_name (Union[Dict[str, str], None] = None):
     Dict with x509 subject names, if None then this will be root a (selfsigned) ca.
     signer_key_label (Union[str, None] = None):
     Keylabel to sign this ca with, if None then this will be root a (selfsigned) ca.
     not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
     not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
     extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca.
-    key_type (str = "ed25519"): Key type.
+    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
 
     Returns:
-    typing.Tuple[str, str]
+    Tuple[str, str]
     """
 
-    pk_info, _ = await PKCS11Session().create_keypair(key_label, key_size, key_type=key_type)
+    pk_info, _ = await PKCS11Session().create_keypair(key_label, key_type=key_type)
     data = pk_info.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)

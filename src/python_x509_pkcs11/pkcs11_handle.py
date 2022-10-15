@@ -83,20 +83,19 @@ def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> byte
     s_data = signature[r_length:]
 
     # Remove leading zeros, since integers cant start with a 0
-    if len(signature) % 8 != 0:
-        while r_data[0] == 0:
-            r_data = r_data[1:]
-            r_length -= 1
-        while s_data[0] == 0:
-            s_data = s_data[1:]
-            s_length -= 1
+    while r_data[0] == 0:
+        r_data = r_data[1:]
+        r_length -= 1
+    while s_data[0] == 0:
+        s_data = s_data[1:]
+        s_length -= 1
 
     # Ensure the integers are postive numbers
-    if not r_data[0] < 128:
+    if r_data[0] >= 128:
         r_data = bytearray([0]) + r_data[:]
         r_length += 1
 
-    if not s_data[0] < 128:
+    if s_data[0] >= 128:
         s_data = bytearray([0]) + s_data[:]
         s_length += 1
 
@@ -287,7 +286,7 @@ class PKCS11Session:
         public_key (bytes): Public RSA key in DER form.
         private_key (bytes): Private RSA key in DER form.
         key_label (str): Keypair label.
-        key_type (str = "ed25519"): Key type.
+        key_type (str): Key type.
 
         Returns:
         None
@@ -310,7 +309,7 @@ class PKCS11Session:
             except NoSuchKey:
                 pass
 
-            if key_type == "rsa":
+            if key_type in ["rsa_2048", "rsa_4096"]:
                 key_pub = decode_rsa_public_key(public_key)
                 key_priv = decode_rsa_private_key(private_key)
 
@@ -330,21 +329,25 @@ class PKCS11Session:
             cls.session.create_object(key_priv)
 
     @classmethod
-    async def create_keypair(cls, key_label: str, key_size: int = 2048, key_type: str = "ed25519") -> Tuple[str, bytes]:
+    async def create_keypair(cls, key_label: str, key_type: Union[str, None] = None) -> Tuple[str, bytes]:
         """Create a RSA keypair in the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
         Returns the data for the x509 'Subject Public Key Info'
         and x509 extension 'Subject Key Identifier' valid for this keypair.
 
+        ed25519 is default key_type.
+
         Parameters:
         key_label (str): Keypair label.
-        key_size (int = 2048): Size of the key.
-        key_type (str = "ed25519"): Key type.
+        key_type (str = None): Key type.
 
 
         Returns:
-        typing.Tuple[str, bytes]
+        Tuple[str, bytes]
         """
+
+        if key_type is None:
+            key_type = "ed25519"
 
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
@@ -353,6 +356,7 @@ class PKCS11Session:
             # Ensure we get a healthy pkcs11 session
             await cls._healthy_session()
 
+            # Try get the key, if not exist then create it
             try:
                 key_pub = cls.session.get_key(
                     key_type=key_type_values[key_type],
@@ -364,29 +368,27 @@ class PKCS11Session:
                 if DEBUG:
                     print(exc)
                     print("Generating a key since " + "no key with that label was found")
+
                 # Generate the rsa keypair
-                if key_type == "rsa":
-                    key_pub, _ = cls.session.generate_keypair(KeyType.RSA, key_size, store=True, label=key_label)
+                if key_type in ["rsa_2048", "rsa_4096"]:
+                    key_pub, _ = cls.session.generate_keypair(
+                        KeyType.RSA, int(key_type.split("_")[1]), store=True, label=key_label
+                    )
 
-                elif key_type == "ed25519":
+                elif key_type in ["ed25519", "ed448"]:
                     parameters = cls.session.create_domain_parameters(
                         KeyType.EC_EDWARDS,
-                        {Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.112")},
+                        {
+                            Attribute.EC_PARAMS: encode_named_curve_parameters(
+                                SignedDigestAlgorithmId(key_type).dotted
+                            ),
+                        },
                         local=True,
                     )
                     key_pub, _ = parameters.generate_keypair(
                         mechanism=Mechanism.EC_EDWARDS_KEY_PAIR_GEN, store=True, label=key_label
                     )
 
-                elif key_type == "ed448":
-                    parameters = cls.session.create_domain_parameters(
-                        KeyType.EC_EDWARDS,
-                        {Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.113")},
-                        local=True,
-                    )
-                    key_pub, _ = parameters.generate_keypair(
-                        mechanism=Mechanism.EC_EDWARDS_KEY_PAIR_GEN, store=True, label=key_label
-                    )
                 elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
                     parameters = cls.session.create_domain_parameters(
                         KeyType.EC,
@@ -398,7 +400,7 @@ class PKCS11Session:
                         label=key_label,
                     )
 
-            if key_type == "rsa":
+            if key_type in ["rsa_2048", "rsa_4096"]:
                 # Create the PublicKeyInfo object
                 rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
                 pki = PublicKeyInfo()
@@ -421,7 +423,7 @@ class PKCS11Session:
         """Return a dict of key labels as keys and key type as values in the PKCS11 device.
 
         Returns:
-        typing.Dict[str, str]
+        Dict[str, str]
         """
 
         async with async_lock(cls._lock):
@@ -434,10 +436,15 @@ class PKCS11Session:
             for obj in cls.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                    Attribute.KEY_TYPE: key_type_values["rsa"],
+                    Attribute.KEY_TYPE: key_type_values["rsa_2048"],
                 }
             ):
-                key_labels[obj.label] = "rsa"
+                if obj.key_length == 2048:
+                    key_labels[obj.label] = "rsa_2048"
+                elif obj.key_length == 4096:
+                    key_labels[obj.label] = "rsa_4096"
+                else:
+                    key_labels[obj.label] = "rsa_512"
 
             # For ed25519
             for obj in cls.session.get_objects(
@@ -477,7 +484,7 @@ class PKCS11Session:
         cls,
         key_label: str,
         data: bytes,
-        verify_signature: bool,
+        verify_signature: Union[bool, None],
         mechanism: Mechanism,
         key_type: str,
     ) -> bytes:
@@ -512,13 +519,12 @@ class PKCS11Session:
             return signature
 
     @classmethod
-    async def sign(  # pylint: disable-msg=too-many-arguments
+    async def sign(
         cls,
         key_label: str,
         data: bytes,
-        verify_signature: bool = False,
-        mechanism: Union[Mechanism, None] = None,
-        key_type: str = "ed25519",
+        verify_signature: Union[bool, None] = None,
+        key_type: Union[str, None] = None,
     ) -> bytes:
         """Sign the data: bytes using the private key
         with the label in the PKCS11 device.
@@ -529,45 +535,42 @@ class PKCS11Session:
         Parameters:
         key_label (str): Keypair label.
         data (bytes): Bytes to be signed.
-        verify_signature (bool = True): If is should verify the signature. PKCS11 operations can be expensive
-        mechanism (Union[pkcs11.Mechanism, None] = None]): Which signature mechanism to use
-        key_type (str = "ed25519"): Key type.
+        verify_signature (Union[bool, None] = None):
+        If we should verify the signature. PKCS11 operations can be expensive, default None (False)
+        key_type (Union[str, None] = None): Key type.
 
         Returns:
         bytes
         """
 
+        if key_type is None:
+            key_type = "ed25519"
+
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
         if key_type in ["ed25519", "ed448"]:
-            if mechanism is not None and mechanism != Mechanism.EDDSA:
-                raise ValueError("mechanism for key_type 'ed25519' must be None or pkcs11.Mechanism.EDDSA")
             mech = Mechanism.EDDSA
 
         elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
-            if mechanism is not None and mechanism != Mechanism.ECDSA:
-                raise ValueError(
-                    "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or pkcs11.Mechanism.ECDSA"
-                )
             mech = Mechanism.ECDSA
 
             # Set hash alg
             if key_type == "secp256r1":
                 hash_obj = sha256()
-            if key_type == "secp384r1":
+            elif key_type == "secp384r1":
                 hash_obj = sha384()
-            if key_type == "secp521r1":
+            else:
                 hash_obj = sha512()
 
             hash_obj.update(data)
             data = hash_obj.digest()
 
-        else:  # rsa
-            if mechanism is None:
+        else:
+            if key_type == "rsa_2048":
                 mech = Mechanism.SHA256_RSA_PKCS
             else:
-                mech = mechanism
+                mech = Mechanism.SHA512_RSA_PKCS
 
         signature = await cls._sign(key_label, data, verify_signature, mech, key_type)
 
@@ -583,8 +586,7 @@ class PKCS11Session:
         key_label: str,
         data: bytes,
         signature: bytes,
-        mechanism: Union[Mechanism, None] = None,
-        key_type: str = "ed25519",
+        key_type: Union[str, None] = None,
     ) -> bool:
         """Verify a signature with its data using the private key
         with the label in the PKCS11 device.
@@ -595,12 +597,14 @@ class PKCS11Session:
         key_label (str): Keypair label.
         data (bytes): Bytes to be signed.
         signature (bytes): The signature.
-        mechanism (Union[pkcs11.Mechanism, None] = None): Which signature mechanism to use
-        key_type (str = "ed25519"): Key type.
+        key_type (Union[str, None] = None): Key type.
 
         Returns:
         bool
         """
+
+        if key_type is None:
+            key_type = "ed25519"
 
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
@@ -617,49 +621,47 @@ class PKCS11Session:
             )
 
             if key_type in ["ed25519", "ed448"]:
-                if mechanism is not None and mechanism != Mechanism.EDDSA:
-                    raise ValueError("mechanism for key_type 'ed25519' must be None or pkcs11.Mechanism.EDDSA")
                 mech = Mechanism.EDDSA
+
             elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
-                if mechanism is not None and mechanism != Mechanism.ECDSA:
-                    raise ValueError(
-                        "mechanism for key_types secp256r1, secp384r1, secp521r1 must be None or pkcs11.Mechanism.ECDSA"
-                    )
                 mech = Mechanism.ECDSA
 
                 # Set hash alg
                 if key_type == "secp256r1":
                     hash_obj = sha256()
-                if key_type == "secp384r1":
+                elif key_type == "secp384r1":
                     hash_obj = sha384()
-                if key_type == "secp521r1":
+                else:
                     hash_obj = sha512()
 
                 hash_obj.update(data)
                 data = hash_obj.digest()
 
             else:  # rsa
-                if mechanism is None:
+                if key_type == "rsa_2048":
                     mech = Mechanism.SHA256_RSA_PKCS
                 else:
-                    mech = mechanism
+                    mech = Mechanism.SHA512_RSA_PKCS
 
             if key_pub.verify(data, signature, mechanism=mech):
                 return True
             return False
 
     @classmethod
-    async def public_key_data(cls, key_label: str, key_type: str = "ed25519") -> Tuple[str, bytes]:
+    async def public_key_data(cls, key_label: str, key_type: Union[str, None] = None) -> Tuple[str, bytes]:
         """Returns the public key in PEM form
         and 'Key Identifier' valid for this keypair.
 
         Parameters:
         key_label (str): Keypair label.
-        key_type (str = "ed25519"): Key type.
+        key_type (Union[str, None] = None): Key type.
 
         Returns:
-        typing.Tuple[str, bytes]
+        Tuple[str, bytes]
         """
+
+        if key_type is None:
+            key_type = "ed25519"
 
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
@@ -674,7 +676,7 @@ class PKCS11Session:
                 label=key_label,
             )
 
-            if key_type == "rsa":
+            if key_type in ["rsa_2048", "rsa_4096"]:
                 # Create the PublicKeyInfo object
                 rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
 

@@ -115,8 +115,14 @@ def _set_response_data(
 
 
 async def _set_response_signature(
-    key_label: str, key_type: str, extra_certs: Union[List[str], None], basic_ocsp_response: BasicOCSPResponse
+    key_label: str,
+    key_type: Union[str, None],
+    extra_certs: Union[List[str], None],
+    basic_ocsp_response: BasicOCSPResponse,
 ) -> BasicOCSPResponse:
+    if key_type is None:
+        key_type = "ed25519"
+
     basic_ocsp_response["signature_algorithm"] = signed_digest_algo(key_type)
     basic_ocsp_response["signature"] = await PKCS11Session().sign(
         key_label,
@@ -138,11 +144,14 @@ async def _set_response_signature(
 
 async def _set_request_signature(
     key_label: str,
-    key_type: str,
+    key_type: Union[str, None],
     signature: Signature,
     data: TBSRequest,
     certs: Union[List[str], None],
 ) -> Signature:
+    if key_type is None:
+        key_type = "ed25519"
+
     signature["signature_algorithm"] = signed_digest_algo(key_type)
     signature["signature"] = await PKCS11Session().sign(key_label, data.dump(), key_type=key_type)
 
@@ -242,7 +251,7 @@ async def request(  # pylint: disable-msg=too-many-arguments
     requestor_name: Union[GeneralName, None] = None,
     certs: Union[List[str], None] = None,
     extra_extensions: Union[TBSRequestExtensions, None] = None,
-    key_type: str = "ed25519",
+    key_type: Union[str, None] = None,
 ) -> bytes:
     """Create an OCSP request.
     See https://www.rfc-editor.org/rfc/rfc6960#section-4.1.1
@@ -257,7 +266,7 @@ async def request(  # pylint: disable-msg=too-many-arguments
     certs (Union[List[str], None] = None):
     Certificates in PEM form to help the OCSP server to validate the OCSP request signature.
     extra_extensions (Union[asn1crypto.ocsp.TBSRequestExtensions, None] = None): Extra extensions.
-    key_type (str = "ed25519"): Key type.
+    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
 
     Returns:
     bytes
@@ -305,7 +314,7 @@ async def response(  # pylint: disable-msg=too-many-arguments
     extra_extensions: Union[ResponseDataExtensions, None] = None,
     produced_at: Union[datetime.datetime, None] = None,
     extra_certs: Union[List[str], None] = None,
-    key_type: str = "ed25519",
+    key_type: Union[str, None] = None,
 ) -> bytes:
     """Create an OCSP response with the key_label key in the PKCS11 device.
     See https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
@@ -321,7 +330,7 @@ async def response(  # pylint: disable-msg=too-many-arguments
     It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
     extra_certs (Union[List[str], None] = None): List of PEM encoded certs
     for the client the verify the signature chain.
-    key_type (str = "ed25519"): Key type.
+    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
 
     Returns:
     bytes
