@@ -58,7 +58,7 @@ pool = ThreadPoolExecutor()
 
 
 def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> bytes:
-    """Convert a R&S ECDSA signature into the default openssl format.
+    """Convert an R&S ECDSA signature into the default openssl format.
 
     https://stackoverflow.com/questions/66101825/asn-1-structure-of-ecdsa-signature-in-x-509-certificate
 
@@ -121,13 +121,14 @@ def decode_eddsa_public_key(der: bytes, encode_eddsa_point: bool = True) -> Dict
         specification says implementations MUST accept a raw `EC_POINT` for
         ECDH (False), however not all implementations follow this yet.
     :param bytes der: DER-encoded key
-    :param encode_ec_point: See text.
+    :param encode_eddsa_point: See text.
     :rtype: dict(Attribute,*)
     """
 
     asn1 = PublicKeyInfo.load(der)
 
-    assert asn1.algorithm in ["ed25519", "ed448"], "Wrong algorithm, not an eddsa key!"
+    if asn1.algorithm not in ["ed25519", "ed448"]:
+        raise ValueError("Wrong algorithm, not an eddsa key!")
 
     ecpoint = bytes(asn1["public_key"])
 
@@ -196,8 +197,8 @@ class PKCS11Session:
     _session_status: int = 9
     _lock = Lock()
 
-    session: Session = None
-    token: Token = None
+    session: Union[Session, None] = None
+    token: Union[Token, None] = None
 
     # def __del__(cls) -> None:
     # print("removing")
@@ -230,8 +231,11 @@ class PKCS11Session:
                 label="test_pkcs11_device_do_not_use",
             )
             cls._session_status = 0
-        except NoSuchKey:
+        except NoSuchKey as exc:
             try:
+                if cls.session is None:
+                    raise PKCS11UnknownErrorException from exc
+
                 _, _ = cls.session.generate_keypair(KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True)
                 cls._session_status = 0
             except GeneralError:
@@ -299,6 +303,9 @@ class PKCS11Session:
             # Ensure we get a healthy pkcs11 session
             await cls._healthy_session()
 
+            if cls.session is None:
+                raise PKCS11UnknownErrorException
+
             try:
                 key_pub = cls.session.get_key(
                     key_type=key_type_values[key_type],
@@ -330,7 +337,7 @@ class PKCS11Session:
 
     @classmethod
     async def create_keypair(cls, key_label: str, key_type: Union[str, None] = None) -> Tuple[str, bytes]:
-        """Create a RSA keypair in the PKCS11 device with this label.
+        """Create an RSA keypair in the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
         Returns the data for the x509 'Subject Public Key Info'
         and x509 extension 'Subject Key Identifier' valid for this keypair.
@@ -356,7 +363,10 @@ class PKCS11Session:
             # Ensure we get a healthy pkcs11 session
             await cls._healthy_session()
 
-            # Try get the key, if not exist then create it
+            if cls.session is None:
+                raise PKCS11UnknownErrorException
+
+            # Try to get the key, if not exist then create it
             try:
                 key_pub = cls.session.get_key(
                     key_type=key_type_values[key_type],
@@ -430,6 +440,9 @@ class PKCS11Session:
             # Ensure we get a healthy pkcs11 session
             await cls._healthy_session()
 
+            if cls.session is None:
+                raise PKCS11UnknownErrorException
+
             key_labels: Dict[str, str] = {}
 
             # For rsa
@@ -492,6 +505,9 @@ class PKCS11Session:
         async with async_lock(cls._lock):
             # Ensure we get a healthy pkcs11 session
             await cls._healthy_session()
+
+            if cls.session is None:
+                raise PKCS11UnknownErrorException
 
             # Get private key to sign the data with
             key_priv = cls.session.get_key(
@@ -613,6 +629,9 @@ class PKCS11Session:
             # Ensure we get a healthy pkcs11 session
             await cls._healthy_session()
 
+            if cls.session is None:
+                raise PKCS11UnknownErrorException
+
             # Get public key to sign the data with
             key_pub = cls.session.get_key(
                 key_type=key_type_values[key_type],
@@ -669,6 +688,9 @@ class PKCS11Session:
         async with async_lock(cls._lock):
             # Ensure we get a healthy pkcs11 session
             await cls._healthy_session()
+
+            if cls.session is None:
+                raise PKCS11UnknownErrorException
 
             key_pub = cls.session.get_key(
                 key_type=key_type_values[key_type],

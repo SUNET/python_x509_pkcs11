@@ -40,7 +40,7 @@ from .error import OCSPMissingExtensionException, DuplicateExtensionException
 from .lib import signed_digest_algo
 
 
-def _create_ocsp_request(issuer_name_hash: bytes, issuer_key_hash: bytes, serial_number: int) -> TBSRequest:
+def _create_ocsp_request(issuer_name_hash: bytes, issuer_key_hash: bytes, serial_number: int) -> Request:
     cert_id = CertId()
     cert_id["issuer_name_hash"] = issuer_name_hash
     cert_id["issuer_key_hash"] = issuer_key_hash
@@ -222,12 +222,11 @@ def certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]:
     issuer_name_hash = cert["tbs_certificate"]["issuer"].sha1
 
     # Issuer key hash
-    found = False
     for _, extension in enumerate(cert["tbs_certificate"]["extensions"]):
         if extension["extn_id"].dotted == "2.5.29.35":
             issuer_key_hash = extension["extn_value"].native["key_identifier"]
-            found = True
-    if not found:
+            break
+    else:
         raise OCSPMissingExtensionException(
             "AKI extension with key_identifier method was not found in certificate " + pem
         )
@@ -329,7 +328,7 @@ async def response(  # pylint: disable-msg=too-many-arguments
     produced_at (Union[datetime.datetime, None] = None): What time to write into produced_at.
     It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
     extra_certs (Union[List[str], None] = None): List of PEM encoded certs
-    for the client the verify the signature chain.
+    for the client to verify the signature chain.
     key_type (Union[str, None] = None): Key type to use, ed25519 is default.
 
     Returns:

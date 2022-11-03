@@ -1,6 +1,6 @@
 # Setup your PKCS11 device
 
-First we need to setup a PKCS11 device.
+First we need to set up a PKCS11 device.
 We will use softhsm for easy testing but any PKCS11 device should work.
 
 ```bash
@@ -419,7 +419,7 @@ Our [crl](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_
 The `create()` function generate a CRL and then signs it with the
 key from the key_label in the pkcs11 device.
 
-If old_crl_pem, an pem encoded CRL, is not None then this function
+If old_crl_pem, a pem encoded CRL, is not None then this function
 will take that CRLs with its revoked serial numbers and extensions
 and simply overwrite its version, timestamps and signature related fields.
 
@@ -435,7 +435,7 @@ key_type must be:
 If serial_number and [reason](https://github.com/wbond/asn1crypto/blob/b5f03e6f9797c691a3b812a5bb1acade3a1f4eeb/asn1crypto/crl.py#L97) is not None then this serial number
 with its reason will be added to the revocation list in the CRL.
                               
-The this_update and next_update parameters must be in UTC timezone, for example:
+this_update and next_update parameters must be in UTC timezone, for example:
 ```python
 import datetime
 datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
@@ -596,7 +596,7 @@ key_type must be:
 produced_at is what time to write into "produced_at" field.
 It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
 
-extra_certs is a list of PEM encoded certs for the client the verify the signature chain.
+extra_certs is a list of PEM encoded certs for the client to verify the signature chain.
 Default value is None.
 
 ### Example usage for response():
@@ -653,7 +653,7 @@ asyncio.run(my_func())
 ## request_nonce()
 
 The `request_nonce()` function extract the nonce or None from a OCSP request.
-Input is the bytes of a OCSP request. If you have a asn1crypto.ocsp.OCSPRequest then call dump() on it to get the bytes.
+Input is the bytes of a OCSP request. If you have an asn1crypto.ocsp.OCSPRequest then call dump() on it to get the bytes.
 
 ### Example usage for request_nonce():
 ```python

@@ -233,7 +233,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
     else:
         tbs = TbsCertList()
 
-    # If appending serial number to exisiting crl or creating a new empty crl
+    # If appending serial number to existing crl or creating a new empty crl
     if serial_number is not None and reason is not None:
         tbs = _set_tbs_revoke_serial_numer(tbs, serial_number, reason)
 
