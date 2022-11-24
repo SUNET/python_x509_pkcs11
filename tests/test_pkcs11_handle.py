@@ -7,6 +7,7 @@ import asyncio
 
 from pkcs11.exceptions import NoSuchKey, MultipleObjectsReturned
 
+from src.python_x509_pkcs11.lib import key_types
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
@@ -385,19 +386,32 @@ class TestPKCS11Handle(unittest.TestCase):
         self.assertTrue(pk_info3 == pk_info3_1)
         self.assertTrue(identifier3 == identifier3_1)
 
+    def test_delete_keypair(self) -> None:
+        """
+        Delete keypair with key_label in the PKCS11 device.
+        """
+
+        for key_type in key_types:
+            new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+            asyncio.run(PKCS11Session.create_keypair(new_key_label, key_type=key_type))
+            asyncio.run(PKCS11Session.delete_keypair(new_key_label, key_type=key_type))
+            with self.assertRaises(NoSuchKey):
+                _, _ = asyncio.run(PKCS11Session.public_key_data(new_key_label, key_type=key_type))
+
     def test_get_public_key_data(self) -> None:
         """
         Get key identifier from public key with key_label in the PKCS11 device.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
-        pk_info, identifier = asyncio.run(PKCS11Session.public_key_data(new_key_label))
-        self.assertTrue(isinstance(identifier, bytes))
-        self.assertTrue(isinstance(pk_info, str))
+        for key_type in key_types:
+            new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+            asyncio.run(PKCS11Session.create_keypair(new_key_label, key_type=key_type))
+            pk_info, identifier = asyncio.run(PKCS11Session.public_key_data(new_key_label, key_type=key_type))
+            self.assertTrue(isinstance(identifier, bytes))
+            self.assertTrue(isinstance(pk_info, str))
 
-        with self.assertRaises(NoSuchKey):
-            pk_info, identifier = asyncio.run(PKCS11Session.public_key_data(new_key_label[:-2]))
+            with self.assertRaises(NoSuchKey):
+                _, _ = asyncio.run(PKCS11Session.public_key_data(new_key_label[:-2], key_type=key_type))
 
     def test_sign_and_verify_data_rsa(self) -> None:
         """

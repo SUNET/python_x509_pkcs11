@@ -2,6 +2,7 @@
 
 from typing import Dict, List
 from asn1crypto.algos import SignedDigestAlgorithm, SignedDigestAlgorithmId
+from pkcs11 import KeyType
 
 DEBUG = False
 
@@ -16,14 +17,14 @@ key_types: List[str] = [
     "rsa_4096",
 ]
 
-key_type_values: Dict[str, int] = {
-    "ed25519": 0x00000040,
-    "ed448": 0x00000040,
-    "secp256r1": 0x00000003,
-    "secp384r1": 0x00000003,
-    "secp521r1": 0x00000003,
-    "rsa_2048": 0x00000000,
-    "rsa_4096": 0x00000000,
+key_type_values: Dict[str, KeyType] = {
+    "ed25519": KeyType.EC_EDWARDS,
+    "ed448": KeyType.EC_EDWARDS,
+    "secp256r1": KeyType.EC,
+    "secp384r1": KeyType.EC,
+    "secp521r1": KeyType.EC,
+    "rsa_2048": KeyType.RSA,
+    "rsa_4096": KeyType.RSA,
 }
 
 

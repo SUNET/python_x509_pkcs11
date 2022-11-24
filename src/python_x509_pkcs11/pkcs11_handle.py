@@ -10,6 +10,7 @@ Exposes the functions:
 - key_labels()
 - sign()
 - verify()
+- delete_keypair()
 - public_key_data()
 """
 
@@ -21,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 from asyncio import get_event_loop, sleep
 from contextlib import asynccontextmanager
 
+import pkcs11
 from asn1crypto import pem as asn1_pem
 from asn1crypto.keys import (
     OctetString,
@@ -37,7 +39,6 @@ from pkcs11 import (
     lib,
     Mechanism,
     ObjectClass,
-    PublicKey,
     Session,
     Token,
 )
@@ -62,7 +63,7 @@ def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> byte
 
     https://stackoverflow.com/questions/66101825/asn-1-structure-of-ecdsa-signature-in-x-509-certificate
 
-    Paramters:
+    Parameters:
     signature (bytes): The signature.
     key_type (str): Key type.
 
@@ -90,7 +91,7 @@ def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> byte
         s_data = s_data[1:]
         s_length -= 1
 
-    # Ensure the integers are postive numbers
+    # Ensure the integers are positive numbers
     if r_data[0] >= 128:
         r_data = bytearray([0]) + r_data[:]
         r_length += 1
@@ -163,7 +164,7 @@ def decode_eddsa_private_key(der: bytes) -> Dict[int, Union[str, int, bytes]]:
     }
 
 
-def encode_eddsa_public_key(key: PublicKey) -> bytes:
+def encode_eddsa_public_key(key: pkcs11.Key) -> bytes:
     """
     Encode a DER-encoded EdDSA public key as stored by OpenSSL.
     :param PublicKey key: EdDSA public key
@@ -200,15 +201,8 @@ class PKCS11Session:
     session: Union[Session, None] = None
     token: Union[Token, None] = None
 
-    # def __del__(cls) -> None:
-    # print("removing")
-    # cls.session.close()
-
     @classmethod
     def _close_session(cls) -> None:
-        # print("closing")
-        # pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
-        # cls.token = pkcs11_lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
         if cls.session is not None:
             cls.session.close()
             cls.session = None
@@ -219,7 +213,6 @@ class PKCS11Session:
         try:
             # if force or cls.session is None:
             if force or cls.session is None:
-                # print("gg1")
                 pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
                 pkcs11_lib.reinitialize()
                 cls.token = pkcs11_lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
@@ -244,7 +237,6 @@ class PKCS11Session:
             if DEBUG:
                 print("Token failed")
                 print(exc)
-            # raise exc
 
     @classmethod
     async def _healthy_session(cls) -> None:
@@ -254,8 +246,7 @@ class PKCS11Session:
 
         if thread.is_alive() or cls._session_status != 0:
             if DEBUG:
-                # print(cls._session_status)
-                # print(thread.is_alive())
+
                 print("Current PKCS11 session is unhealthy, opening a new session")
 
             thread2 = Thread(target=cls._close_session, args=())
@@ -665,6 +656,43 @@ class PKCS11Session:
             if key_pub.verify(data, signature, mechanism=mech):
                 return True
             return False
+
+    @classmethod
+    async def delete_keypair(cls, key_label: str, key_type: Union[str, None] = None) -> None:
+        """Delete the keypair from the PKCS11 device.
+
+        Parameters:
+        key_label (str): Keypair label.
+        key_type (Union[str, None] = None): Key type.
+
+        Returns:
+        None
+        """
+
+        if key_type is None:
+            key_type = "ed25519"
+
+        if key_type not in key_types:
+            raise ValueError(f"key_type must be in {key_types}")
+
+        async with async_lock(cls._lock):
+            # Ensure we get a healthy pkcs11 session
+            await cls._healthy_session()
+
+            if cls.session is None:
+                raise PKCS11UnknownErrorException
+
+            cls.session.get_key(
+                key_type=key_type_values[key_type],
+                object_class=ObjectClass.PUBLIC_KEY,
+                label=key_label,
+            ).destroy()
+
+            cls.session.get_key(
+                key_type=key_type_values[key_type],
+                object_class=ObjectClass.PRIVATE_KEY,
+                label=key_label,
+            ).destroy()
 
     @classmethod
     async def public_key_data(cls, key_label: str, key_type: Union[str, None] = None) -> Tuple[str, bytes]:

@@ -66,6 +66,10 @@ Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/py
 	  key_type: Union[str, None] = None,
 	  ) -> bool:`
 
+- `delete_keypair(key_label: str,
+		  key_type: Union[str, None] = None,
+		  ) -> None:`
+
 - `public_key_data(key_label: str,
   		   key_type: Union[str, None] = None,
 		   ) -> Tuple[str, bytes]:`
@@ -215,6 +219,23 @@ async def my_func() -> None:
     else:
         print("BAD sig")
 
+
+asyncio.run(my_func())
+```
+
+## delete_keypair()
+
+The `delete_keypair()` function deletes a keypair in the PKCS11 device with this label.
+
+### Example usage for delete_keypair():
+```python
+import asyncio
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+
+async def my_func() -> None:
+    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
+    await PKCS11Session.delete_keypair("my_ed25519_key")
 
 asyncio.run(my_func())
 ```

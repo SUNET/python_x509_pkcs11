@@ -57,7 +57,7 @@ class TestCa(unittest.TestCase):
 
     def test_create_ca(self) -> None:
         """
-        Create and selfsign a CSR with the key_label in the pkcs11 device.
+        Create and self sign a CSR with the key_label in the pkcs11 device.
         """
 
         for key_type in key_types:
@@ -71,7 +71,7 @@ class TestCa(unittest.TestCase):
             test_cert = asn1_x509.Certificate.load(data)
             self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
 
-            # Ensure subject name and issuer name is the same signce this is root ca
+            # Ensure subject name and issuer name is the same since this is root ca
             cert_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["subject"].native
             cert_issuer_name_dict: Dict[str, str] = test_cert["tbs_certificate"]["issuer"].native
             self.assertTrue(cert_name_dict["common_name"] == cert_issuer_name_dict["common_name"])
