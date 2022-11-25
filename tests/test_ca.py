@@ -15,6 +15,7 @@ from asn1crypto import pem as asn1_pem
 
 from src.python_x509_pkcs11.ca import create
 from src.python_x509_pkcs11.lib import key_types
+from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
 # from python_x509_pkcs11.ca import create
@@ -111,6 +112,10 @@ class TestCa(unittest.TestCase):
             # + authority and subject key identifier = 4
             self.assertTrue(len(test_cert["tbs_certificate"]["extensions"]) == 4)
 
+            # Delete the test keys
+            asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-1], key_type=key_type))
+            asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-2]))
+
     def test_create_ca_not_before_not_after(self) -> None:
         """
         Create and selfsign a CSR with the key_label in the pkcs11 device
@@ -123,7 +128,7 @@ class TestCa(unittest.TestCase):
         not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
         _, root_cert_pem = asyncio.run(
             create(
-                new_key_label[:-3],
+                new_key_label[:-1],
                 name_dict,
                 not_before=not_before,
             )
@@ -139,7 +144,7 @@ class TestCa(unittest.TestCase):
         not_after = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
         _, root_cert_pem = asyncio.run(
             create(
-                new_key_label[:-4],
+                new_key_label[:-2],
                 name_dict,
                 not_after=not_after,
             )
@@ -150,6 +155,10 @@ class TestCa(unittest.TestCase):
         test_c = asn1_x509.Certificate.load(data)
         self.assertTrue(isinstance(test_c, asn1_x509.Certificate))
         self.assertTrue(test_c["tbs_certificate"]["validity"]["not_after"].native == not_after)
+
+        # Delete the test keys
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-1]))
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-2]))
 
     def test_create_ca_with_extensions(self) -> None:
         """
@@ -187,10 +196,14 @@ class TestCa(unittest.TestCase):
         # + authority and subject key identifier = 5
         self.assertTrue(len(cert_exts) == 5)
 
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+
     def test_create_intermediate_ca(self) -> None:
         """
         Create an intermediate CA in the pkcs11 device.
         """
+
         for key_type in key_types:
             new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
             _, root_ca_pem = asyncio.run(create(new_key_label, signer_name_dict, key_type=key_type))
@@ -258,6 +271,10 @@ class TestCa(unittest.TestCase):
                     aki = extension["extn_value"].native["key_identifier"]
             self.assertTrue(ski != aki)
 
+            # Delete the test keys
+            asyncio.run(PKCS11Session.delete_keypair(new_key_label, key_type=key_type))
+            asyncio.run(PKCS11Session.delete_keypair(new_key_label2, key_type=key_type))
+
     def test_create_intermediate_diff_key_type_ca(self) -> None:
         """
         Create an intermediate CA with different key label in the pkcs11 device.
@@ -312,3 +329,7 @@ class TestCa(unittest.TestCase):
             im_cert_pem_asn1["tbs_certificate"]["subject"].native["common_name"]
             != im_cert_pem_asn1["tbs_certificate"]["issuer"].native["common_name"]
         )
+
+        # Delete the test keys
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label, key_type="ed25519"))
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label2, key_type="secp256r1"))

@@ -116,6 +116,9 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
         self.assertTrue(test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after)
 
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+
     def test_sign_csr_keep_extensions(self) -> None:
         """
         Sign a CSR with the key with the key_label in the pkcs11 device.
@@ -141,6 +144,9 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         # Assert its correct value
         self.assertTrue(exts[0]["extn_value"].native[0] == "foo.example.org")
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
 
     def test_sign_csr_no_keep_extensions(self) -> None:
         """
@@ -172,6 +178,9 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         self.assertTrue(isinstance(exts[1]["extn_value"].native["key_identifier"], bytes))
         self.assertTrue(isinstance(exts[1]["extn_id"].native, str))
         self.assertTrue(exts[1]["extn_id"].native == "authority_key_identifier")
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
 
     def test_sign_csr_new_extensions(self) -> None:
         """
@@ -231,6 +240,9 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         self.assertTrue(isinstance(exts[1]["extn_value"].native["ca"], bool))
         self.assertTrue(exts[1]["extn_value"].native["ca"])
 
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+
     def test_sign_csr_duplicate_extensions(self) -> None:
         """
         Sign a CSR with the key with the key_label in the pkcs11 device.
@@ -258,3 +270,6 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
                     extra_extensions=exts,
                 )
             )
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))

@@ -51,63 +51,12 @@ from pkcs11.util.ec import (
     decode_ec_private_key,
 )
 
+from .crypto import convert_asn1_ec_signature, convert_rs_ec_signature
 from .error import PKCS11TimeoutException, PKCS11UnknownErrorException
 from .lib import DEBUG, key_types, key_type_values
 
 TIMEOUT = 3  # Seconds
 pool = ThreadPoolExecutor()
-
-
-def convert_ec_signature_openssl_format(signature: bytes, key_type: str) -> bytes:
-    """Convert an R&S ECDSA signature into the default openssl format.
-
-    https://stackoverflow.com/questions/66101825/asn-1-structure-of-ecdsa-signature-in-x-509-certificate
-
-    Parameters:
-    signature (bytes): The signature.
-    key_type (str): Key type.
-
-    Returns:
-    bytes
-    """
-
-    asn1_integer_code = 2
-    asn1_init = bytearray([48])
-
-    if key_type in ["secp521r1"]:
-        asn1_init.append(129)
-
-    r_length = int(len(signature) / 2)
-    s_length = int(len(signature) / 2)
-
-    r_data = signature[:r_length]
-    s_data = signature[r_length:]
-
-    # Remove leading zeros, since integers cant start with a 0
-    while r_data[0] == 0:
-        r_data = r_data[1:]
-        r_length -= 1
-    while s_data[0] == 0:
-        s_data = s_data[1:]
-        s_length -= 1
-
-    # Ensure the integers are positive numbers
-    if r_data[0] >= 128:
-        r_data = bytearray([0]) + r_data[:]
-        r_length += 1
-
-    if s_data[0] >= 128:
-        s_data = bytearray([0]) + s_data[:]
-        s_length += 1
-
-    return bytes(
-        asn1_init
-        + bytearray([r_length + s_length + 4])
-        + bytearray([asn1_integer_code, r_length])
-        + r_data
-        + bytearray([asn1_integer_code, s_length])
-        + s_data
-    )
 
 
 # Taken from https://github.com/danni/python-pkcs11/blob/master/pkcs11/util/ec.py
@@ -216,6 +165,7 @@ class PKCS11Session:
                 pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
                 pkcs11_lib.reinitialize()
                 cls.token = pkcs11_lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
+                # user_pin need to be a string, not bytes
                 cls.session = cls.token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
 
             _ = cls.session.get_key(
@@ -583,7 +533,7 @@ class PKCS11Session:
 
         # PKCS11 specific stuff for EC curves, sig is in R&S format, convert it to openssl format
         if key_type in ["secp256r1", "secp384r1", "secp521r1"]:
-            signature = convert_ec_signature_openssl_format(signature, key_type)
+            signature = convert_rs_ec_signature(signature, key_type)
 
         return signature
 
@@ -647,6 +597,12 @@ class PKCS11Session:
                 hash_obj.update(data)
                 data = hash_obj.digest()
 
+                try:
+                    signature = convert_asn1_ec_signature(signature, key_type)
+                except (IndexError, ValueError):
+                    # Signature was not in ASN1 format, signature verification will probably fail.
+                    pass
+
             else:  # rsa
                 if key_type == "rsa_2048":
                     mech = Mechanism.SHA256_RSA_PKCS
@@ -682,17 +638,18 @@ class PKCS11Session:
             if cls.session is None:
                 raise PKCS11UnknownErrorException
 
-            cls.session.get_key(
-                key_type=key_type_values[key_type],
-                object_class=ObjectClass.PUBLIC_KEY,
-                label=key_label,
-            ).destroy()
-
-            cls.session.get_key(
-                key_type=key_type_values[key_type],
-                object_class=ObjectClass.PRIVATE_KEY,
-                label=key_label,
-            ).destroy()
+            try:
+                cls.session.get_key(
+                    key_type=key_type_values[key_type],
+                    object_class=ObjectClass.PUBLIC_KEY,
+                    label=key_label,
+                ).destroy()
+            finally:
+                cls.session.get_key(
+                    key_type=key_type_values[key_type],
+                    object_class=ObjectClass.PRIVATE_KEY,
+                    label=key_label,
+                ).destroy()
 
     @classmethod
     async def public_key_data(cls, key_label: str, key_type: Union[str, None] = None) -> Tuple[str, bytes]:

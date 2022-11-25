@@ -271,7 +271,7 @@ async def request(  # pylint: disable-msg=too-many-arguments
     bytes
     """
 
-    # Ensure input data has atleast one cert data tuple
+    # Ensure input data has least one cert data tuple
     if not request_certs_data:
         raise ValueError("request_certs_data must NOT be empty")
 

@@ -247,6 +247,9 @@ class TestOCSP(unittest.TestCase):
         self.assertTrue(isinstance(test_ocsp, asn1_ocsp.OCSPRequest))
         self.assertTrue(len(test_ocsp["optional_signature"]["certs"]) == 2)
 
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+
     def test_ocsp_response(self) -> None:
         """
         Create an ocsp response.
@@ -285,6 +288,9 @@ class TestOCSP(unittest.TestCase):
         self.assertTrue(
             test_response["response_bytes"]["response"].native["tbs_response_data"]["produced_at"] == produced_at
         )
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
 
     def test_ocsp_response_cert_status(self) -> None:
         """
@@ -344,6 +350,9 @@ class TestOCSP(unittest.TestCase):
             == "unknown"
         )
 
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+
     def test_ocsp_response_fail(self) -> None:
         """
         Create an unsuccessful ocsp response.
@@ -380,6 +389,9 @@ class TestOCSP(unittest.TestCase):
         with self.assertRaises(ValueError):
             data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 99))
             test_response = asn1_ocsp.OCSPResponse.load(data)
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
 
     def test_ocsp_response_extensions(self) -> None:
         """
@@ -439,6 +451,9 @@ class TestOCSP(unittest.TestCase):
             test_response["response_bytes"]["response"].native["tbs_response_data"]["response_extensions"][1]["extn_id"]
             == "extended_revoke"
         )
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
 
     def test_request_nonce(self) -> None:
         """
@@ -683,3 +698,6 @@ FvdQ0EEx2Pssrry0iD5AieGyK2nKW94UA0gQenvtMS9mxQ==
             test_response["response_bytes"]["response"].native["certs"][1]
             == asn1_ocsp.Certificate.load(cert_data).native
         )
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))

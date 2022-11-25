@@ -191,9 +191,9 @@ async def create(  # pylint: disable-msg=too-many-arguments,too-many-locals
     subject_name (Dict[str, str]): Dict with x509 subject names
     key_size (int = 2048): Key size, 2048 and 4096 works best.
     signer_subject_name (Union[Dict[str, str], None] = None):
-    Dict with x509 subject names, if None then this will be root a (selfsigned) ca.
+    Dict with x509 subject names, if None then this will be root a (self-signed) ca.
     signer_key_label (Union[str, None] = None):
-    Keylabel to sign this ca with, if None then this will be root a (selfsigned) ca.
+    Key label to sign this ca with, if None then this will be root a (self-signed) ca.
     not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
     not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
     extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca.

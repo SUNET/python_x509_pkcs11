@@ -107,7 +107,7 @@ async def my_func() -> None:
 
     csr_pem, root_cert_pem = await create("my_ed25519_key", root_ca_name_dict, key_type="ed25519")
 
-    print("CSR which was selfsigned into root CA")
+    print("CSR which was self-signed into root CA")
     print(csr_pem)
 
     print("root CA")

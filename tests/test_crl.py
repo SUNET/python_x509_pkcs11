@@ -88,6 +88,9 @@ class TestCrl(unittest.TestCase):
                 self.assertTrue(extension["extn_value"].native == 2)
         self.assertTrue(len(tbs["revoked_certificates"]) == 1)
 
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+
     def test_add_serial_crl(self) -> None:
         """
         Create and sign a CRL with the key_label in the pkcs11 device.
@@ -138,6 +141,9 @@ class TestCrl(unittest.TestCase):
         self.assertTrue(isinstance(test_crl, asn1_crl.CertificateList))
         self.assertTrue(len(test_crl["tbs_cert_list"]["revoked_certificates"]) == 3)
 
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+
     def test_aki(self) -> None:
         """
         Create and sign a CRL with AKI.
@@ -162,6 +168,9 @@ class TestCrl(unittest.TestCase):
                 self.assertTrue(extension["extn_value"].native["key_identifier"] == identifier)
                 found = True
         self.assertTrue(found)
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
 
     def test_next_update_this_update(self) -> None:
         """
@@ -204,3 +213,6 @@ class TestCrl(unittest.TestCase):
         self.assertTrue(tbs["next_update"].native != next_update)
         self.assertTrue(tbs["this_update"].native == this_update)
         self.assertTrue(tbs["next_update"].native != tbs["this_update"].native)
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
