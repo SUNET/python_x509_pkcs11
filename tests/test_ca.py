@@ -1,17 +1,17 @@
 """
 Test to create a new root CA
 """
-from typing import Dict
-import unittest
+import asyncio
 import datetime
 import os
-import asyncio
 import subprocess
+import unittest
+from typing import Dict
 
-from asn1crypto.core import GeneralizedTime
-from asn1crypto import x509 as asn1_x509
 from asn1crypto import csr as asn1_csr
 from asn1crypto import pem as asn1_pem
+from asn1crypto import x509 as asn1_x509
+from asn1crypto.core import GeneralizedTime
 
 from src.python_x509_pkcs11.ca import create
 from src.python_x509_pkcs11.lib import key_types
@@ -82,9 +82,17 @@ class TestCa(unittest.TestCase):
             for _, extension in enumerate(tbs["extensions"]):
                 if extension["extn_id"].dotted == "2.5.29.14":
                     ski = extension["extn_value"].native
+                    break
+            else:
+                raise ValueError("Could not find SKI")
+
             for _, extension in enumerate(tbs["extensions"]):
                 if extension["extn_id"].dotted == "2.5.29.35":
                     aki = extension["extn_value"].native["key_identifier"]
+                    break
+            else:
+                raise ValueError("Could not find AKI")
+
             self.assertTrue(aki == ski)
 
             # Test default values
@@ -177,6 +185,19 @@ class TestCa(unittest.TestCase):
         )
 
         ext = asn1_x509.Extension()
+        _, root_cert_pem = asyncio.run(create(new_key_label[:-1], name_dict, extra_extensions=exts))
+        data = root_cert_pem.encode("utf-8")
+        if asn1_pem.detect(data):
+            _, _, data = asn1_pem.unarmor(data)
+
+        test_cert = asn1_x509.Certificate.load(data)
+        self.assertTrue(isinstance(test_cert, asn1_x509.Certificate))
+
+        cert_exts = test_cert["tbs_certificate"]["extensions"]
+        # test pkup ext + CSR exts (key usage and basic constraints
+        # + authority and subject key identifier = 5
+        self.assertTrue(len(cert_exts) == 4)
+
         ext["extn_id"] = asn1_x509.ExtensionId("2.5.29.16")
         ext["critical"] = False
         ext["extn_value"] = pkup
@@ -198,6 +219,7 @@ class TestCa(unittest.TestCase):
 
         # Delete the test key
         asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-1]))
 
     def test_create_intermediate_ca(self) -> None:
         """

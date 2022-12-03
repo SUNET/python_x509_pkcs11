@@ -4,10 +4,13 @@ Exposes the functions:
 - sign_csr()
 """
 
-from typing import Union, Dict
 import datetime
 import os
+from typing import Dict, Optional
 
+from asn1crypto import pem as asn1_pem
+from asn1crypto.core import OctetString
+from asn1crypto.csr import CertificationRequest
 from asn1crypto.x509 import (
     AuthorityKeyIdentifier,
     Certificate,
@@ -20,16 +23,12 @@ from asn1crypto.x509 import (
     Validity,
 )
 
-from asn1crypto.csr import CertificationRequest
-from asn1crypto import pem as asn1_pem
-from asn1crypto.core import OctetString
-
-from .pkcs11_handle import PKCS11Session
 from .error import DuplicateExtensionException
 from .lib import signed_digest_algo
+from .pkcs11_handle import PKCS11Session
 
 
-def _request_to_tbs_certificate(csr_pem: str, keep_csr_extensions: Union[bool, None]) -> TbsCertificate:
+def _request_to_tbs_certificate(csr_pem: str, keep_csr_extensions: Optional[bool]) -> TbsCertificate:
     data = csr_pem.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
@@ -62,7 +61,7 @@ def _check_tbs_duplicate_extensions(tbs: TbsCertificate) -> None:
     https://www.rfc-editor.org/rfc/rfc5280#section-4.2
 
     Parameters:
-    tbs (TbsCertificate): The 'To be signed' certificate
+    tbs (TbsCertificate): The 'To be signed' certificate.
 
     Returns:
     None
@@ -93,8 +92,8 @@ def _set_tbs_serial(tbs: TbsCertificate) -> TbsCertificate:
 
 def _set_tbs_validity(
     tbs: TbsCertificate,
-    not_before: Union[datetime.datetime, None],
-    not_after: Union[datetime.datetime, None],
+    not_before: Optional[datetime.datetime],
+    not_after: Optional[datetime.datetime],
 ) -> TbsCertificate:
     val = Validity()
 
@@ -184,8 +183,8 @@ def _set_tbs_extra_extensions(tbs: TbsCertificate, extra_extensions: Extensions)
     return tbs
 
 
-def _set_tbs_extensions(tbs: TbsCertificate, aki: bytes, extra_extensions: Extensions) -> TbsCertificate:
-    if extra_extensions is not None:
+def _set_tbs_extensions(tbs: TbsCertificate, aki: bytes, extra_extensions: Optional[Extensions]) -> TbsCertificate:
+    if extra_extensions is not None and len(extra_extensions) > 0:
         tbs = _set_tbs_extra_extensions(tbs, extra_extensions)
 
     tbs = _set_tbs_ski(tbs)
@@ -194,13 +193,25 @@ def _set_tbs_extensions(tbs: TbsCertificate, aki: bytes, extra_extensions: Exten
     return tbs
 
 
+async def _set_signature(key_label: str, key_type: Optional[str], signed_cert: Certificate) -> Certificate:
+    if key_type is None:
+        key_type = "ed25519"
+
+    signed_cert["tbs_certificate"]["signature"] = signed_digest_algo(key_type)
+    signed_cert["signature_algorithm"] = signed_cert["tbs_certificate"]["signature"]
+    signed_cert["signature_value"] = await PKCS11Session().sign(
+        key_label, signed_cert["tbs_certificate"].dump(), key_type=key_type
+    )
+    return signed_cert
+
+
 def _create_tbs_certificate(  # pylint: disable-msg=too-many-arguments
     tbs: TbsCertificate,
     issuer_name: Dict[str, str],
     aki: bytes,
-    not_before: Union[datetime.datetime, None],
-    not_after: Union[datetime.datetime, None],
-    extra_extensions: Extensions,
+    not_before: Optional[datetime.datetime],
+    not_after: Optional[datetime.datetime],
+    extra_extensions: Optional[Extensions],
 ) -> TbsCertificate:
 
     # Set all extensions
@@ -214,39 +225,27 @@ def _create_tbs_certificate(  # pylint: disable-msg=too-many-arguments
     return tbs
 
 
-async def _set_signature(key_label: str, key_type: Union[str, None], signed_cert: Certificate) -> Certificate:
-    if key_type is None:
-        key_type = "ed25519"
-
-    signed_cert["tbs_certificate"]["signature"] = signed_digest_algo(key_type)
-    signed_cert["signature_algorithm"] = signed_cert["tbs_certificate"]["signature"]
-    signed_cert["signature_value"] = await PKCS11Session().sign(
-        key_label, signed_cert["tbs_certificate"].dump(), key_type=key_type
-    )
-    return signed_cert
-
-
 async def sign_csr(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     issuer_name: Dict[str, str],
     csr_pem: str,
-    not_before: Union[datetime.datetime, None] = None,
-    not_after: Union[datetime.datetime, None] = None,
-    keep_csr_extensions: Union[bool, None] = None,
-    extra_extensions: Union[Extensions, None] = None,
-    key_type: Union[str, None] = None,
+    not_before: Optional[datetime.datetime] = None,
+    not_after: Optional[datetime.datetime] = None,
+    keep_csr_extensions: Optional[bool] = None,
+    extra_extensions: Optional[Extensions] = None,
+    key_type: Optional[str] = None,
 ) -> str:
     """Sign a CSR by the key with the key_label in the PKCS11 device.
 
     Parameters:
     key_label (str): Keypair label.
     issuer_name (Dict[str, str]): Dict with the signers x509 Names.
-    csr_pem (Union[str, None] = None]): A CSR to sign.
-    not_before (Union[datetime.datetime, None] = None): The certificate is not valid before this time.
-    not_after (Union[datetime.datetime, None] = None): The certificate is not valid after this time.
-    keep_csr_extensions (bool = True]): If we should keep or remove the x509 extensions in the CSR.
-    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the certificate.
-    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
+    csr_pem (Optional[str] = None]): A CSR to sign.
+    not_before (Optional[datetime.datetime] = None): The certificate is not valid before this time.
+    not_after (Optional[datetime.datetime] = None): The certificate is not valid after this time.
+    keep_csr_extensions (Optional[bool] = None]): Should we keep or remove the x509 extensions in the CSR. Default true.
+    extra_extensions (Optional[asn1crypto.x509.Extensions] = None]): x509 extensions to write into the certificate.
+    key_type (Optional[str] = None): Key type to use, ed25519 is default.
 
     Returns:
     str

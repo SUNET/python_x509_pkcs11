@@ -1,6 +1,7 @@
 """Module which have common functions and constants"""
 
 from typing import Dict, List
+
 from asn1crypto.algos import SignedDigestAlgorithm, SignedDigestAlgorithmId
 from pkcs11 import KeyType
 

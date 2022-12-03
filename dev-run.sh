@@ -23,6 +23,9 @@ mypy --strict --namespace-packages --ignore-missing-imports --cache-dir=/dev/nul
 echo "Running tests"
 python3 -m unittest || exit 1
 
+isort src/python_x509_pkcs11
+isort tests
+
 black --line-length 120 src/python_x509_pkcs11/*.py || exit 1
 black --line-length 120 tests/*.py || exit 1
 

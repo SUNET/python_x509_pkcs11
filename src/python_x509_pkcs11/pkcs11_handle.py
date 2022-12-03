@@ -13,128 +13,63 @@ Exposes the functions:
 - delete_keypair()
 - public_key_data()
 """
-
-from typing import Tuple, AsyncIterator, Dict, Union
-from threading import Lock, Thread
 import os
-from hashlib import sha256, sha384, sha512
-from concurrent.futures import ThreadPoolExecutor
+import time
 from asyncio import get_event_loop, sleep
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from hashlib import sha256, sha384, sha512
+from threading import Lock, Thread
+from typing import AsyncIterator, Dict, Optional, Tuple
 
-import pkcs11
 from asn1crypto import pem as asn1_pem
+from asn1crypto.algos import SignedDigestAlgorithmId
 from asn1crypto.keys import (
-    OctetString,
-    PrivateKeyInfo,
     PublicKeyAlgorithm,
     PublicKeyAlgorithmId,
     PublicKeyInfo,
     RSAPublicKey,
 )
-from asn1crypto.algos import SignedDigestAlgorithmId
-from pkcs11 import (
-    Attribute,
-    KeyType,
-    lib,
-    Mechanism,
-    ObjectClass,
-    Session,
-    Token,
+from pkcs11 import Attribute, KeyType, Mechanism, ObjectClass, Session, Token, lib
+from pkcs11.exceptions import (
+    GeneralError,
+    MultipleObjectsReturned,
+    NoSuchKey,
+    SignatureInvalid,
 )
-from pkcs11.exceptions import NoSuchKey, SignatureInvalid, MultipleObjectsReturned, GeneralError
-from pkcs11.util.rsa import encode_rsa_public_key, decode_rsa_public_key, decode_rsa_private_key
 from pkcs11.util.ec import (
-    encode_named_curve_parameters,
-    encode_ec_public_key,
-    decode_ec_public_key,
     decode_ec_private_key,
+    decode_ec_public_key,
+    encode_ec_public_key,
+    encode_named_curve_parameters,
+)
+from pkcs11.util.rsa import (
+    decode_rsa_private_key,
+    decode_rsa_public_key,
+    encode_rsa_public_key,
 )
 
-from .crypto import convert_asn1_ec_signature, convert_rs_ec_signature
-from .error import PKCS11TimeoutException, PKCS11UnknownErrorException
-from .lib import DEBUG, key_types, key_type_values
+from .crypto import (
+    convert_asn1_ec_signature,
+    convert_rs_ec_signature,
+    decode_eddsa_private_key,
+    decode_eddsa_public_key,
+    encode_eddsa_public_key,
+)
+from .error import PKCS11UnknownErrorException
+from .lib import DEBUG, key_type_values, key_types
 
 TIMEOUT = 3  # Seconds
 pool = ThreadPoolExecutor()
 
 
-# Taken from https://github.com/danni/python-pkcs11/blob/master/pkcs11/util/ec.py
-# Will submit merge request soon
-def decode_eddsa_public_key(der: bytes, encode_eddsa_point: bool = True) -> Dict[int, Union[str, int, bytes]]:
-    """
-    Decode a DER-encoded EdDSA public key as stored by OpenSSL into a dictionary
-    of attributes able to be passed to :meth:`pkcs11.Session.create_object`.
-    .. note:: **encode_eddsa_point**
-        For use as an attribute `EC_POINT` should be DER-encoded (True).
-        For key derivation implementations can vary.  Since v2.30 the
-        specification says implementations MUST accept a raw `EC_POINT` for
-        ECDH (False), however not all implementations follow this yet.
-    :param bytes der: DER-encoded key
-    :param encode_eddsa_point: See text.
-    :rtype: dict(Attribute,*)
-    """
-
-    asn1 = PublicKeyInfo.load(der)
-
-    if asn1.algorithm not in ["ed25519", "ed448"]:
-        raise ValueError("Wrong algorithm, not an eddsa key!")
-
-    ecpoint = bytes(asn1["public_key"])
-
-    if encode_eddsa_point:
-        ecpoint = OctetString(ecpoint).dump()
-
-    return {
-        Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
-        Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-        Attribute.EC_PARAMS: encode_named_curve_parameters(SignedDigestAlgorithmId(asn1.algorithm).dotted),
-        Attribute.EC_POINT: ecpoint,
-    }
-
-
-def decode_eddsa_private_key(der: bytes) -> Dict[int, Union[str, int, bytes]]:
-    """
-    Decode a DER-encoded EdDSA private key as stored by OpenSSL into a dictionary
-    of attributes able to be passed to :meth:`pkcs11.Session.create_object`.
-    :param bytes der: DER-encoded key
-    :rtype: dict(Attribute,*)
-    """
-
-    asn1 = PrivateKeyInfo.load(der)
-    return {
-        Attribute.KEY_TYPE: KeyType.EC_EDWARDS,
-        Attribute.CLASS: ObjectClass.PRIVATE_KEY,
-        Attribute.EC_PARAMS: encode_named_curve_parameters(SignedDigestAlgorithmId(asn1.algorithm).dotted),
-        # Only the last 32/57 bytes is the private key values
-        Attribute.VALUE: asn1["private_key"].contents[-32:]
-        if asn1.algorithm == "ed25519"
-        else asn1["private_key"].contents[-57:],
-    }
-
-
-def encode_eddsa_public_key(key: pkcs11.Key) -> bytes:
-    """
-    Encode a DER-encoded EdDSA public key as stored by OpenSSL.
-    :param PublicKey key: EdDSA public key
-    :rtype: bytes
-    """
-
-    ecpoint = bytes(OctetString.load(key[Attribute.EC_POINT]))
-    ret: bytes = PublicKeyInfo(
-        {
-            "algorithm": {"algorithm": "ed25519" if len(ecpoint) == 32 else "ed448"},
-            "public_key": ecpoint,
-        }
-    ).dump()
-    return ret
-
-
 @asynccontextmanager
 async def async_lock(lock: Lock) -> AsyncIterator[None]:
     """Used as a simple async lock"""
+
     loop = get_event_loop()
     await loop.run_in_executor(pool, lock.acquire)
+
     try:
         yield  # the lock is held
     finally:
@@ -145,76 +80,75 @@ class PKCS11Session:
     """Persistent PKCS11 session wrapper."""
 
     _session_status: int = 9
-    _lock = Lock()
+    _token: Token
+    _lib: lib
 
-    session: Union[Session, None] = None
-    token: Union[Token, None] = None
-
-    @classmethod
-    def _close_session(cls) -> None:
-        if cls.session is not None:
-            cls.session.close()
-            cls.session = None
+    lock = Lock()
+    session: Session
 
     @classmethod
-    def _open_session(cls, force: bool = False) -> None:
+    def _open_session(cls, force: Optional[bool] = None, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
+        if simulate_pkcs11_timeout:
+            time.sleep(TIMEOUT + 1)
+
+        if "PKCS11_MODULE" not in os.environ:
+            print("ERROR: PKCS11_MODULE was not an env variable")
+        if "PKCS11_TOKEN" not in os.environ:
+            print("ERROR: PKCS11_TOKEN was not an env variable")
+        if "PKCS11_PIN" not in os.environ:
+            print("ERROR: PKCS11_PIN was not an env variable")
+
         cls._session_status = 9
         try:
             # if force or cls.session is None:
-            if force or cls.session is None:
-                pkcs11_lib = lib(os.environ["PKCS11_MODULE"])
-                pkcs11_lib.reinitialize()
-                cls.token = pkcs11_lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
-                # user_pin need to be a string, not bytes
-                cls.session = cls.token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
+            if force or not hasattr(cls, "session"):
+                # Reload the PKCS11 lib
+                cls._lib = lib(os.environ["PKCS11_MODULE"])
+                cls._lib.reinitialize()
 
+                # Open the PKCS11 session
+                cls._token = cls._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
+                # user_pin need to be a string, not bytes
+                cls.session = cls._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
+
+            # Test get a public key from the PKCS11 device
             _ = cls.session.get_key(
                 key_type=KeyType.RSA,
                 object_class=ObjectClass.PUBLIC_KEY,
                 label="test_pkcs11_device_do_not_use",
             )
             cls._session_status = 0
-        except NoSuchKey as exc:
-            try:
-                if cls.session is None:
-                    raise PKCS11UnknownErrorException from exc
 
+        except NoSuchKey:
+            try:
                 _, _ = cls.session.generate_keypair(KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True)
                 cls._session_status = 0
             except GeneralError:
                 pass
+
         except GeneralError as exc:
             if DEBUG:
-                print("Token failed")
+                print("Failed to open PKCS11 session")
                 print(exc)
 
     @classmethod
-    async def _healthy_session(cls) -> None:
-        thread = Thread(target=cls._open_session, args=([False]))
+    async def healthy_session(cls, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
+        """Run the PKCS11 test command in a thread to easy handle PKCS11 timeouts."""
+
+        thread = Thread(target=cls._open_session, args=([False, simulate_pkcs11_timeout]))
         thread.start()
+        await sleep(0)
         thread.join(timeout=TIMEOUT)
 
         if thread.is_alive() or cls._session_status != 0:
-            if DEBUG:
-
-                print("Current PKCS11 session is unhealthy, opening a new session")
-
-            thread2 = Thread(target=cls._close_session, args=())
+            thread2 = Thread(target=cls._open_session, args=([True, simulate_pkcs11_timeout]))
             thread2.start()
             # yield to other coroutines while we wait for thread2 to join
             await sleep(0)
             thread2.join(timeout=TIMEOUT)
 
-            thread3 = Thread(target=cls._open_session, args=([True]))
-            thread3.start()
-            # yield to other coroutines while we wait for thread3 to join
-            await sleep(0)
-            thread3.join(timeout=TIMEOUT)
-
-            if thread3.is_alive():
-                raise PKCS11TimeoutException("ERROR: Could not get a healthy PKCS11 connection in time")
-        if cls._session_status != 0:
-            raise PKCS11UnknownErrorException("ERROR: Could not get a healthy PKCS11 connection")
+            if thread2.is_alive() or cls._session_status != 0:
+                raise PKCS11UnknownErrorException("ERROR: Could not get a healthy PKCS11 connection in time")
 
     @classmethod
     async def import_keypair(cls, public_key: bytes, private_key: bytes, key_label: str, key_type: str) -> None:
@@ -240,12 +174,9 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        async with async_lock(cls._lock):
+        async with async_lock(cls.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls._healthy_session()
-
-            if cls.session is None:
-                raise PKCS11UnknownErrorException
+            await cls.healthy_session()
 
             try:
                 key_pub = cls.session.get_key(
@@ -273,11 +204,12 @@ class PKCS11Session:
             key_pub[Attribute.LABEL] = key_label
             key_priv[Attribute.TOKEN] = True
             key_priv[Attribute.LABEL] = key_label
+
             cls.session.create_object(key_pub)
             cls.session.create_object(key_priv)
 
     @classmethod
-    async def create_keypair(cls, key_label: str, key_type: Union[str, None] = None) -> Tuple[str, bytes]:
+    async def create_keypair(cls, key_label: str, key_type: Optional[str] = None) -> Tuple[str, bytes]:
         """Create an RSA keypair in the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
         Returns the data for the x509 'Subject Public Key Info'
@@ -300,12 +232,9 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        async with async_lock(cls._lock):
+        async with async_lock(cls.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls._healthy_session()
-
-            if cls.session is None:
-                raise PKCS11UnknownErrorException
+            await cls.healthy_session()
 
             # Try to get the key, if not exist then create it
             try:
@@ -315,11 +244,7 @@ class PKCS11Session:
                     label=key_label,
                 )
                 raise MultipleObjectsReturned
-            except NoSuchKey as exc:
-                if DEBUG:
-                    print(exc)
-                    print("Generating a key since " + "no key with that label was found")
-
+            except NoSuchKey:
                 # Generate the rsa keypair
                 if key_type in ["rsa_2048", "rsa_4096"]:
                     key_pub, _ = cls.session.generate_keypair(
@@ -377,12 +302,9 @@ class PKCS11Session:
         Dict[str, str]
         """
 
-        async with async_lock(cls._lock):
+        async with async_lock(cls.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls._healthy_session()
-
-            if cls.session is None:
-                raise PKCS11UnknownErrorException
+            await cls.healthy_session()
 
             key_labels: Dict[str, str] = {}
 
@@ -438,17 +360,14 @@ class PKCS11Session:
         cls,
         key_label: str,
         data: bytes,
-        verify_signature: Union[bool, None],
+        verify_signature: Optional[bool],
         mechanism: Mechanism,
         key_type: str,
     ) -> bytes:
 
-        async with async_lock(cls._lock):
+        async with async_lock(cls.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls._healthy_session()
-
-            if cls.session is None:
-                raise PKCS11UnknownErrorException
+            await cls.healthy_session()
 
             # Get private key to sign the data with
             key_priv = cls.session.get_key(
@@ -480,8 +399,8 @@ class PKCS11Session:
         cls,
         key_label: str,
         data: bytes,
-        verify_signature: Union[bool, None] = None,
-        key_type: Union[str, None] = None,
+        verify_signature: Optional[bool] = None,
+        key_type: Optional[str] = None,
     ) -> bytes:
         """Sign the data: bytes using the private key
         with the label in the PKCS11 device.
@@ -543,7 +462,7 @@ class PKCS11Session:
         key_label: str,
         data: bytes,
         signature: bytes,
-        key_type: Union[str, None] = None,
+        key_type: Optional[str] = None,
     ) -> bool:
         """Verify a signature with its data using the private key
         with the label in the PKCS11 device.
@@ -566,12 +485,9 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        async with async_lock(cls._lock):
+        async with async_lock(cls.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls._healthy_session()
-
-            if cls.session is None:
-                raise PKCS11UnknownErrorException
+            await cls.healthy_session()
 
             # Get public key to sign the data with
             key_pub = cls.session.get_key(
@@ -614,7 +530,7 @@ class PKCS11Session:
             return False
 
     @classmethod
-    async def delete_keypair(cls, key_label: str, key_type: Union[str, None] = None) -> None:
+    async def delete_keypair(cls, key_label: str, key_type: Optional[str] = None) -> None:
         """Delete the keypair from the PKCS11 device.
 
         Parameters:
@@ -631,12 +547,9 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        async with async_lock(cls._lock):
+        async with async_lock(cls.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls._healthy_session()
-
-            if cls.session is None:
-                raise PKCS11UnknownErrorException
+            await cls.healthy_session()
 
             try:
                 cls.session.get_key(
@@ -652,7 +565,7 @@ class PKCS11Session:
                 ).destroy()
 
     @classmethod
-    async def public_key_data(cls, key_label: str, key_type: Union[str, None] = None) -> Tuple[str, bytes]:
+    async def public_key_data(cls, key_label: str, key_type: Optional[str] = None) -> Tuple[str, bytes]:
         """Returns the public key in PEM form
         and 'Key Identifier' valid for this keypair.
 
@@ -670,12 +583,9 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        async with async_lock(cls._lock):
+        async with async_lock(cls.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls._healthy_session()
-
-            if cls.session is None:
-                raise PKCS11UnknownErrorException
+            await cls.healthy_session()
 
             key_pub = cls.session.get_key(
                 key_type=key_type_values[key_type],

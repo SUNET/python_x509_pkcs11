@@ -1,21 +1,28 @@
 """
 Test our OCSP
 """
-from typing import List
-import unittest
+import asyncio
 import datetime
 import os
-import asyncio
+import unittest
 from secrets import token_bytes
+from typing import List
 
-from asn1crypto import x509 as asn1_x509
-from asn1crypto import pem as asn1_pem
 from asn1crypto import ocsp as asn1_ocsp
+from asn1crypto import pem as asn1_pem
+from asn1crypto import x509 as asn1_x509
 
-
+from src.python_x509_pkcs11.error import (
+    DuplicateExtensionException,
+    OCSPMissingExtensionException,
+)
+from src.python_x509_pkcs11.ocsp import (
+    certificate_ocsp_data,
+    request,
+    request_nonce,
+    response,
+)
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
-from src.python_x509_pkcs11.ocsp import certificate_ocsp_data, request, response, request_nonce
-from src.python_x509_pkcs11.error import DuplicateExtensionException, OCSPMissingExtensionException
 
 # Replace the above with this should you use this code
 # from python_x509_pkcs11.ca import create
@@ -220,8 +227,6 @@ class TestOCSP(unittest.TestCase):
         # Test signed but no requestor name
         with self.assertRaises(ValueError):
             data = asyncio.run(request([(i_name_h, i_key_h, serial)], key_label=new_key_label))
-            test_ocsp = asn1_ocsp.OCSPRequest.load(data)
-            self.assertTrue(isinstance(test_ocsp, asn1_ocsp.OCSPRequest))
 
         data = asyncio.run(request([(i_name_h, i_key_h, serial)], key_label=new_key_label, requestor_name=g_n))
         test_ocsp = asn1_ocsp.OCSPRequest.load(data)

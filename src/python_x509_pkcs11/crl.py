@@ -5,9 +5,10 @@ Exposes the functions:
 - create()
 """
 
-from typing import Union, Dict
 import datetime
+from typing import Dict, Optional
 
+from asn1crypto import pem as asn1_pem
 from asn1crypto.crl import (
     AuthorityKeyIdentifier,
     CertificateList,
@@ -18,16 +19,15 @@ from asn1crypto.crl import (
     RevokedCertificate,
     RevokedCertificates,
     TbsCertList,
-    TBSCertListExtensions,
     TBSCertListExtension,
     TBSCertListExtensionId,
+    TBSCertListExtensions,
     Time,
 )
-from asn1crypto import pem as asn1_pem
 
-from .pkcs11_handle import PKCS11Session
 from .error import DuplicateExtensionException
 from .lib import signed_digest_algo
+from .pkcs11_handle import PKCS11Session
 
 
 def _check_tbs_duplicate_extensions(tbs: TbsCertList) -> None:
@@ -46,7 +46,7 @@ def _check_tbs_duplicate_extensions(tbs: TbsCertList) -> None:
     extensions = []
     for _, ext in enumerate(tbs["crl_extensions"]):
         if ext["extn_id"].dotted in extensions:
-            raise DuplicateExtensionException("Found duplicate extension " + ext["extn_id"].dotted)
+            raise DuplicateExtensionException(f"Found duplicate extension {ext['extn_id'].dotted}")
         extensions.append(ext["extn_id"].dotted)
 
 
@@ -60,7 +60,7 @@ def _set_tbs_issuer(tbs: TbsCertList, subject_name: Dict[str, str]) -> TbsCertLi
     return tbs
 
 
-def _set_tbs_next_update(tbs: TbsCertList, next_update: Union[datetime.datetime, None]) -> TbsCertList:
+def _set_tbs_next_update(tbs: TbsCertList, next_update: Optional[datetime.datetime]) -> TbsCertList:
     if next_update is None:
         tbs["next_update"] = Time(
             name="utc_time",
@@ -71,7 +71,7 @@ def _set_tbs_next_update(tbs: TbsCertList, next_update: Union[datetime.datetime,
     return tbs
 
 
-def _set_tbs_this_update(tbs: TbsCertList, this_update: Union[datetime.datetime, None]) -> TbsCertList:
+def _set_tbs_this_update(tbs: TbsCertList, this_update: Optional[datetime.datetime]) -> TbsCertList:
     if this_update is None:
         # -2 minutes to protect from the certificate readers time skew
         tbs["this_update"] = Time(
@@ -105,9 +105,7 @@ def _set_tbs_aki(tbs: TbsCertList, identifier: bytes) -> TbsCertList:
     return tbs
 
 
-def _set_tbs_update_crl_number(
-    tbs: TbsCertList,
-) -> TbsCertList:
+def _set_tbs_update_crl_number(tbs: TbsCertList) -> TbsCertList:
     for _, extension in enumerate(tbs["crl_extensions"]):
         if extension["extn_id"].dotted == "2.5.29.20":
             extension["extn_value"] = extension["extn_value"].native + 1
@@ -167,8 +165,8 @@ def _create_tbs_cert_list(
     tbs: TbsCertList,
     subject_name: Dict[str, str],
     aki: bytes,
-    this_update: Union[datetime.datetime, None],
-    next_update: Union[datetime.datetime, None],
+    this_update: Optional[datetime.datetime],
+    next_update: Optional[datetime.datetime],
 ) -> TbsCertList:
     # Set extensions
     tbs = _set_tbs_extensions(tbs, aki)
@@ -190,7 +188,7 @@ def _load_crl(crl_pem: str) -> CertificateList:
     return cert_list
 
 
-async def _set_signature(key_label: str, key_type: Union[str, None], cert_list: CertificateList) -> CertificateList:
+async def _set_signature(key_label: str, key_type: Optional[str], cert_list: CertificateList) -> CertificateList:
     if key_type is None:
         key_type = "ed25519"
 
@@ -203,24 +201,24 @@ async def _set_signature(key_label: str, key_type: Union[str, None], cert_list: 
 async def create(  # pylint: disable-msg=too-many-arguments
     key_label: str,
     subject_name: Dict[str, str],
-    old_crl_pem: Union[str, None] = None,
-    serial_number: Union[int, None] = None,
-    reason: Union[int, None] = None,
-    this_update: Union[datetime.datetime, None] = None,
-    next_update: Union[datetime.datetime, None] = None,
-    key_type: Union[str, None] = None,
+    old_crl_pem: Optional[str] = None,
+    serial_number: Optional[int] = None,
+    reason: Optional[int] = None,
+    this_update: Optional[datetime.datetime] = None,
+    next_update: Optional[datetime.datetime] = None,
+    key_type: Optional[str] = None,
 ) -> str:
     """Create a CRL signed by the key with the key_label in the PKCS11 device.
 
     Parameters:
     key_label (str): Keypair label.
     subject_name (Dict[str, str]): Dict with x509 Names.
-    old_crl_pem (Union[str, None] = None]): A pem encoded CRL to append to, skip if None.
-    serial_number (Union[int, None] = None]): Serial to the CRL, skip if None.
-    reason (Union[int, None] = None]): The reason for revocation, skip if None.
-    this_update (Union[datetime.datetime, None] = None): The CRLs timestamp.
-    next_update (Union[datetime.datetime, None] = None): The next CRLs timestamp.
-    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
+    old_crl_pem (Optional[str] = None]): A pem encoded CRL to append to, skip if None.
+    serial_number (Optional[int] = None]): Serial to the CRL, skip if None.
+    reason (Optional[int] = None]): The reason for revocation, skip if None.
+    this_update (Optional[datetime.datetime] = None): The CRLs timestamp.
+    next_update (Optional[datetime.datetime] = None): The next CRLs timestamp.
+    key_type (Optional[str] = None): Key type to use, ed25519 is default.
 
     Returns:
     str

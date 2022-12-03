@@ -1,10 +1,10 @@
 """
 Test to create and sign a crl
 """
-import unittest
-import os
 import asyncio
 import datetime
+import os
+import unittest
 
 from asn1crypto import crl as asn1_crl
 from asn1crypto import pem as asn1_pem

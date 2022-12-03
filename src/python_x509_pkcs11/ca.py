@@ -4,17 +4,10 @@ Exposes the functions:
 - create()
 """
 
-from typing import Union, Dict, Tuple
 import datetime
+from typing import Dict, Optional, Tuple
 
-from asn1crypto.x509 import (
-    BasicConstraints,
-    Extension,
-    Extensions,
-    ExtensionId,
-    KeyUsage,
-    Name,
-)
+from asn1crypto import pem as asn1_pem
 from asn1crypto.csr import (
     CertificationRequest,
     CertificationRequestInfo,
@@ -23,12 +16,19 @@ from asn1crypto.csr import (
     CSRAttributeType,
     SetOfExtensions,
 )
-from asn1crypto import pem as asn1_pem
 from asn1crypto.keys import PublicKeyInfo
+from asn1crypto.x509 import (
+    BasicConstraints,
+    Extension,
+    ExtensionId,
+    Extensions,
+    KeyUsage,
+    Name,
+)
 
-from .pkcs11_handle import PKCS11Session
 from .csr import sign_csr
 from .lib import signed_digest_algo
+from .pkcs11_handle import PKCS11Session
 
 
 def _set_tbs_version(
@@ -108,11 +108,11 @@ def _set_tbs_key_usage(
         tbs["attributes"] = crias
     else:
         tbs["attributes"].append(cria)
+
     return tbs
 
 
 def _set_tbs_extra_extensions(tbs: CertificationRequestInfo, extra_extensions: Extensions) -> CertificationRequestInfo:
-
     ses = SetOfExtensions()
     ses.append(extra_extensions)
 
@@ -133,7 +133,7 @@ def _set_tbs_extra_extensions(tbs: CertificationRequestInfo, extra_extensions: E
 def _set_tbs_extensions(tbs: CertificationRequestInfo, extra_extensions: Extensions) -> CertificationRequestInfo:
     """Set all x509 extensions"""
 
-    if extra_extensions is not None:
+    if extra_extensions is not None and len(extra_extensions) > 0:
         tbs = _set_tbs_extra_extensions(tbs, extra_extensions)
 
     tbs = _set_tbs_basic_constraints(tbs)
@@ -159,7 +159,7 @@ def _create_tbs(
 
 
 async def _set_csr_signature(
-    key_label: str, key_type: Union[str, None], signed_csr: CertificationRequest
+    key_label: str, key_type: Optional[str], signed_csr: CertificationRequest
 ) -> CertificationRequest:
     if key_type is None:
         key_type = "ed25519"
@@ -174,13 +174,13 @@ async def _set_csr_signature(
 async def create(  # pylint: disable-msg=too-many-arguments,too-many-locals
     key_label: str,
     subject_name: Dict[str, str],
-    signer_subject_name: Union[Dict[str, str], None] = None,
-    signer_key_label: Union[str, None] = None,
-    signer_key_type: Union[str, None] = None,
-    not_before: Union[datetime.datetime, None] = None,
-    not_after: Union[datetime.datetime, None] = None,
-    extra_extensions: Union[Extensions, None] = None,
-    key_type: Union[str, None] = None,
+    signer_subject_name: Optional[Dict[str, str]] = None,
+    signer_key_label: Optional[str] = None,
+    signer_key_type: Optional[str] = None,
+    not_before: Optional[datetime.datetime] = None,
+    not_after: Optional[datetime.datetime] = None,
+    extra_extensions: Optional[Extensions] = None,
+    key_type: Optional[str] = None,
 ) -> Tuple[str, str]:
     """Create and sign a CSR with in the PKCS11 device.
 
@@ -189,15 +189,14 @@ async def create(  # pylint: disable-msg=too-many-arguments,too-many-locals
     Parameters:
     key_label (str): Keypair label to create for the new ca
     subject_name (Dict[str, str]): Dict with x509 subject names
-    key_size (int = 2048): Key size, 2048 and 4096 works best.
-    signer_subject_name (Union[Dict[str, str], None] = None):
+    signer_subject_name (Optional[Dict[str, str]] = None):
     Dict with x509 subject names, if None then this will be root a (self-signed) ca.
-    signer_key_label (Union[str, None] = None):
+    signer_key_label (Optional[str] = None):
     Key label to sign this ca with, if None then this will be root a (self-signed) ca.
-    not_before (Union[datetime.datetime, None] = None): The ca is not valid before this time.
-    not_after (Union[datetime.datetime, None] = None): The ca is not valid after this time.
-    extra_extensions (Union[asn1crypto.x509.Extensions, None] = None]): x509 extensions to write into the ca.
-    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
+    not_before (Optional[datetime.datetime] = None): The ca is not valid before this time.
+    not_after (Optional[datetime.datetime] = None): The ca is not valid after this time.
+    extra_extensions (Optional[asn1crypto.x509.Extensions] = None]): x509 extensions to write into the ca.
+    key_type (Optional[str] = None): Key type to use, ed25519 is default.
 
     Returns:
     Tuple[str, str]

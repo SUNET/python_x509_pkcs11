@@ -1,18 +1,18 @@
 """
 Test to sign a csr
 """
-import unittest
+import asyncio
 import datetime
 import os
-import asyncio
+import unittest
 
-from asn1crypto import x509 as asn1_x509
 from asn1crypto import csr as asn1_csr
 from asn1crypto import pem as asn1_pem
+from asn1crypto import x509 as asn1_x509
 
 from src.python_x509_pkcs11 import csr
-from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 from src.python_x509_pkcs11.error import DuplicateExtensionException
+from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
 # from python_x509_pkcs11 import csr

@@ -7,9 +7,11 @@ Exposes the functions:
 - certificate_ocsp_data() - Quickly extract the OCSP data from a certificate
 """
 
-from typing import Union, List, Tuple, Dict
 import datetime
+from typing import Dict, List, Optional, Tuple
 
+from asn1crypto import pem as asn1_pem
+from asn1crypto.algos import DigestAlgorithm, DigestAlgorithmId
 from asn1crypto.ocsp import (
     BasicOCSPResponse,
     CertId,
@@ -17,27 +19,25 @@ from asn1crypto.ocsp import (
     Certificates,
     GeneralName,
     Name,
+    OCSPRequest,
     OCSPResponse,
     OCSPResponseStatus,
-    OCSPRequest,
+    Request,
+    Requests,
     ResponderId,
     ResponseBytes,
     ResponseData,
     ResponseDataExtensions,
     Responses,
     ResponseType,
-    Request,
-    Requests,
     Signature,
     TBSRequest,
     TBSRequestExtensions,
 )
-from asn1crypto import pem as asn1_pem
-from asn1crypto.algos import DigestAlgorithm, DigestAlgorithmId
 
-from .pkcs11_handle import PKCS11Session
-from .error import OCSPMissingExtensionException, DuplicateExtensionException
+from .error import DuplicateExtensionException, OCSPMissingExtensionException
 from .lib import signed_digest_algo
+from .pkcs11_handle import PKCS11Session
 
 
 def _create_ocsp_request(issuer_name_hash: bytes, issuer_key_hash: bytes, serial_number: int) -> Request:
@@ -58,8 +58,8 @@ def _create_ocsp_request(issuer_name_hash: bytes, issuer_key_hash: bytes, serial
 def _set_response_data(
     single_responses: Responses,
     responder_id: Dict[str, str],
-    produced_at: Union[datetime.datetime, None],
-    extra_extensions: Union[ResponseDataExtensions, None],
+    produced_at: Optional[datetime.datetime],
+    extra_extensions: Optional[ResponseDataExtensions],
 ) -> ResponseData:
     response_data = ResponseData()
 
@@ -89,7 +89,7 @@ def _set_response_data(
     response_data["responses"] = single_responses
 
     # Set extra extensions if exists
-    if extra_extensions is not None:
+    if extra_extensions is not None and len(extra_extensions) > 0:
         exts = ResponseDataExtensions()
 
         for _, ext in enumerate(extra_extensions):
@@ -116,8 +116,8 @@ def _set_response_data(
 
 async def _set_response_signature(
     key_label: str,
-    key_type: Union[str, None],
-    extra_certs: Union[List[str], None],
+    key_type: Optional[str],
+    extra_certs: Optional[List[str]],
     basic_ocsp_response: BasicOCSPResponse,
 ) -> BasicOCSPResponse:
     if key_type is None:
@@ -130,7 +130,7 @@ async def _set_response_signature(
         key_type=key_type,
     )
 
-    if extra_certs:
+    if extra_certs is not None and extra_certs:
         resp_certs = Certificates()
         for cert in extra_certs:
             cert_data = cert.encode("utf-8")
@@ -144,10 +144,10 @@ async def _set_response_signature(
 
 async def _set_request_signature(
     key_label: str,
-    key_type: Union[str, None],
+    key_type: Optional[str],
     signature: Signature,
     data: TBSRequest,
-    certs: Union[List[str], None],
+    certs: Optional[List[str]],
 ) -> Signature:
     if key_type is None:
         key_type = "ed25519"
@@ -155,7 +155,7 @@ async def _set_request_signature(
     signature["signature_algorithm"] = signed_digest_algo(key_type)
     signature["signature"] = await PKCS11Session().sign(key_label, data.dump(), key_type=key_type)
 
-    if certs:
+    if certs is not None and certs:
         req_certs = Certificates()
         for cert in certs:
             cert_data = cert.encode("utf-8")
@@ -167,7 +167,7 @@ async def _set_request_signature(
     return signature
 
 
-def request_nonce(data: bytes) -> Union[bytes, None]:
+def request_nonce(data: bytes) -> Optional[bytes]:
     """Get nonce from OCSP request.
     None if the request has no nonce.
 
@@ -175,7 +175,7 @@ def request_nonce(data: bytes) -> Union[bytes, None]:
     data (bytes): OCSP request bytes.
 
     Returns:
-    Union[bytes, None]
+    Optional[bytes]
     """
 
     ocsp_request = OCSPRequest.load(data)
@@ -246,11 +246,11 @@ def certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]:
 
 async def request(  # pylint: disable-msg=too-many-arguments
     request_certs_data: List[Tuple[bytes, bytes, int]],
-    key_label: Union[str, None] = None,
-    requestor_name: Union[GeneralName, None] = None,
-    certs: Union[List[str], None] = None,
-    extra_extensions: Union[TBSRequestExtensions, None] = None,
-    key_type: Union[str, None] = None,
+    key_label: Optional[str] = None,
+    requestor_name: Optional[GeneralName] = None,
+    certs: Optional[List[str]] = None,
+    extra_extensions: Optional[TBSRequestExtensions] = None,
+    key_type: Optional[str] = None,
 ) -> bytes:
     """Create an OCSP request.
     See https://www.rfc-editor.org/rfc/rfc6960#section-4.1.1
@@ -261,11 +261,11 @@ async def request(  # pylint: disable-msg=too-many-arguments
     Parameters:
     request_certs_data (List[Tuple[bytes, bytes, int]]):
     List of tuples (SHA1 hash of issuer Name, SHA1 hash of issuer public key, certificate serial number)
-    key_label (Union[str, None] = None): Keypair label in the PKCS11 device to sign with.
-    certs (Union[List[str], None] = None):
+    key_label (Optional[str] = None): Keypair label in the PKCS11 device to sign with.
+    certs (Optional[List[str]] = None):
     Certificates in PEM form to help the OCSP server to validate the OCSP request signature.
-    extra_extensions (Union[asn1crypto.ocsp.TBSRequestExtensions, None] = None): Extra extensions.
-    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
+    extra_extensions (Optional[asn1crypto.ocsp.TBSRequestExtensions] = None): Extra extensions.
+    key_type (Optional[str] = None): Key type to use, ed25519 is default.
 
     Returns:
     bytes
@@ -287,7 +287,7 @@ async def request(  # pylint: disable-msg=too-many-arguments
     if requestor_name is not None:
         tbs_request["requestor_name"] = requestor_name
 
-    if extra_extensions is not None:
+    if extra_extensions is not None and len(extra_extensions) > 0:
         tbs_request["request_extensions"] = extra_extensions
 
     ocsp_request = OCSPRequest()
@@ -310,10 +310,10 @@ async def response(  # pylint: disable-msg=too-many-arguments
     responder_id: Dict[str, str],
     single_responses: Responses,
     response_status: int,
-    extra_extensions: Union[ResponseDataExtensions, None] = None,
-    produced_at: Union[datetime.datetime, None] = None,
-    extra_certs: Union[List[str], None] = None,
-    key_type: Union[str, None] = None,
+    extra_extensions: Optional[ResponseDataExtensions] = None,
+    produced_at: Optional[datetime.datetime] = None,
+    extra_certs: Optional[List[str]] = None,
+    key_type: Optional[str] = None,
 ) -> bytes:
     """Create an OCSP response with the key_label key in the PKCS11 device.
     See https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
@@ -323,13 +323,13 @@ async def response(  # pylint: disable-msg=too-many-arguments
     responder_id (Dict[str, str]): Dict with the responders x509 Names.
     single_responses (Responses): Responses for all certs in request.
     response_status (int): Status code for the OCSP response.
-    extra_extensions (Union[asn1crypto.ocsp.ResponseDataExtensions, None] = None):
+    extra_extensions (Optional[asn1crypto.ocsp.ResponseDataExtensions] = None):
     Extra extensions to be written into the response, for example the nonce extension.
-    produced_at (Union[datetime.datetime, None] = None): What time to write into produced_at.
+    produced_at (Optional[datetime.datetime] = None): What time to write into produced_at.
     It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
-    extra_certs (Union[List[str], None] = None): List of PEM encoded certs
+    extra_certs (Optional[List[str]] = None): List of PEM encoded certs
     for the client to verify the signature chain.
-    key_type (Union[str, None] = None): Key type to use, ed25519 is default.
+    key_type (Optional[str] = None): Key type to use, ed25519 is default.
 
     Returns:
     bytes

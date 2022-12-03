@@ -10,9 +10,10 @@ Currently supports
 * Creating root CAs and generating their keys in the PKCS11 device.
 * Using the keys in the PKCS11 device to sign certificates or Intermediate CAs.
 * Creating certificates, CSRs, CRLs, OCSPs  with the PKCS11 device keys enabling a full PKI infrastructure.
-* 'Advanced' handling of fragile persistent PKCS11 sessions, including recreating the session if PKCS11 operation timeout
+* 'Advanced' handling of fragile persistent PKCS11 sessions, including recreating the session if PKCS11 operation timeout.
 * This package is heavily uses python-pkcs11 and asn1crypto.
-* Package is async but python-pkcs11 is unfortunately still sync, probably due to the fragile nature of PKCS11
+* Package is async but python-pkcs11 is unfortunately still sync, probably due to the fragile nature of PKCS11.
+* Tested with SoftHSM and LUNAHSM.
 
 
 ## Setup
