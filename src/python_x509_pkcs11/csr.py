@@ -28,7 +28,9 @@ from .lib import signed_digest_algo
 from .pkcs11_handle import PKCS11Session
 
 
-def _request_to_tbs_certificate(csr_pem: str, keep_csr_extensions: Optional[bool]) -> TbsCertificate:
+def _request_to_tbs_certificate(
+    csr_pem: str, keep_csr_extensions: Optional[bool], ignore_auth_exts: Optional[bool]
+) -> TbsCertificate:
     data = csr_pem.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
@@ -47,6 +49,15 @@ def _request_to_tbs_certificate(csr_pem: str, keep_csr_extensions: Optional[bool
     for _, attr in enumerate(attrs):
         for _, extensions in enumerate(attr["values"]):
             for _, extension in enumerate(extensions):
+                if ignore_auth_exts is not None and ignore_auth_exts is True:
+                    if (
+                        extension["extn_id"] == "2.5.29.35"
+                        or extension["extn_id"] == "2.5.29.14"
+                        or extension["extn_id"] == "1.3.6.1.5.5.7.1.1"
+                        or extension["extn_id"] == "2.5.29.31"
+                    ):
+                        continue
+
                 exts.append(extension)
 
     if len(exts) > 0:
@@ -233,6 +244,7 @@ async def sign_csr(  # pylint: disable-msg=too-many-arguments
     not_after: Optional[datetime.datetime] = None,
     keep_csr_extensions: Optional[bool] = None,
     extra_extensions: Optional[Extensions] = None,
+    ignore_auth_exts: Optional[bool] = None,
     key_type: Optional[str] = None,
 ) -> str:
     """Sign a CSR by the key with the key_label in the PKCS11 device.
@@ -253,7 +265,7 @@ async def sign_csr(  # pylint: disable-msg=too-many-arguments
 
     _, aki = await PKCS11Session().public_key_data(key_label, key_type)
 
-    tbs = _request_to_tbs_certificate(csr_pem, keep_csr_extensions)
+    tbs = _request_to_tbs_certificate(csr_pem, keep_csr_extensions, ignore_auth_exts)
     tbs = _create_tbs_certificate(tbs, issuer_name, aki, not_before, not_after, extra_extensions)
 
     signed_cert = Certificate()
