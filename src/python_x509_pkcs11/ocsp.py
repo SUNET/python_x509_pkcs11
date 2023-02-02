@@ -8,7 +8,7 @@ Exposes the functions:
 """
 
 import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from asn1crypto import pem as asn1_pem
 from asn1crypto.algos import DigestAlgorithm, DigestAlgorithmId
@@ -55,9 +55,9 @@ def _create_ocsp_request(issuer_name_hash: bytes, issuer_key_hash: bytes, serial
     return req
 
 
-def _set_response_data(
+def _set_response_data(  # pylint: disable-msg=too-many-branches
     single_responses: Responses,
-    responder_id: Dict[str, str],
+    responder_id: Union[Dict[str, str], bytes],
     produced_at: Optional[datetime.datetime],
     extra_extensions: Optional[ResponseDataExtensions],
 ) -> ResponseData:
@@ -67,7 +67,10 @@ def _set_response_data(
     response_data["version"] = 0
 
     # Set the responder id
-    response_data["responder_id"] = ResponderId({"by_name": Name().build(responder_id)})
+    if isinstance(responder_id, bytes):
+        response_data["responder_id"] = ResponderId({"by_key": responder_id})
+    else:
+        response_data["responder_id"] = ResponderId({"by_name": Name().build(responder_id)})
 
     # Set the produced at
     if produced_at is None:
@@ -307,7 +310,7 @@ async def request(  # pylint: disable-msg=too-many-arguments
 
 async def response(  # pylint: disable-msg=too-many-arguments
     key_label: str,
-    responder_id: Dict[str, str],
+    responder_id: Union[Dict[str, str], bytes],
     single_responses: Responses,
     response_status: int,
     extra_extensions: Optional[ResponseDataExtensions] = None,
