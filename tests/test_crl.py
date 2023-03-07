@@ -144,6 +144,20 @@ class TestCrl(unittest.TestCase):
         # Delete the test key
         asyncio.run(PKCS11Session.delete_keypair(new_key_label))
 
+    def test_invalid_reason(self) -> None:
+        """
+        Try to create and sign a CRL with invalid reason
+        """
+
+        # Revoke first
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        with self.assertRaises(ValueError):
+            asyncio.run(crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=33))
+
+        # Delete the test key
+        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+
     def test_aki(self) -> None:
         """
         Create and sign a CRL with AKI.

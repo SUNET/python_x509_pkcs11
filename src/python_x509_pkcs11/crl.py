@@ -125,6 +125,9 @@ def _set_tbs_update_crl_number(tbs: TbsCertList) -> TbsCertList:
 
 
 def _set_tbs_revoke_serial_numer(tbs: TbsCertList, serial_number: int, reason: int) -> TbsCertList:
+    if reason not in [0, 1, 2, 3, 4, 5, 6, 8, 9, 10]:
+        raise ValueError(f"ERROR: CRL reason must be in {[0, 1, 2, 3, 4, 5, 6, 8, 9, 10]}")
+
     r_cert = RevokedCertificate()
     r_cert["user_certificate"] = serial_number
     r_cert["revocation_date"] = Time(

@@ -364,7 +364,6 @@ class PKCS11Session:
         mechanism: Mechanism,
         key_type: str,
     ) -> bytes:
-
         async with async_lock(cls.lock):
             # Ensure we get a healthy pkcs11 session
             await cls.healthy_session()

@@ -49,7 +49,6 @@ def _request_to_tbs_certificate(
     for _, attr in enumerate(attrs):
         for _, extensions in enumerate(attr["values"]):
             for _, extension in enumerate(extensions):
-
                 # Ignore auth exts, should be set by CA not bby the requester anyway
                 if ignore_auth_exts is not None and ignore_auth_exts is True:
                     if extension["extn_id"].dotted in ["2.5.29.35", "2.5.29.14", "1.3.6.1.5.5.7.1.1", "2.5.29.31"]:
@@ -221,7 +220,6 @@ def _create_tbs_certificate(  # pylint: disable-msg=too-many-arguments
     not_after: Optional[datetime.datetime],
     extra_extensions: Optional[Extensions],
 ) -> TbsCertificate:
-
     # Set all extensions
     tbs = _set_tbs_extensions(tbs, aki, extra_extensions)
 
