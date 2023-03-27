@@ -226,7 +226,7 @@ class TestOCSP(unittest.TestCase):
 
         # Test signed but no requestor name
         with self.assertRaises(ValueError):
-            data = asyncio.run(request([(i_name_h, i_key_h, serial)], key_label=new_key_label))
+            _ = asyncio.run(request([(i_name_h, i_key_h, serial)], key_label=new_key_label))
 
         data = asyncio.run(request([(i_name_h, i_key_h, serial)], key_label=new_key_label, requestor_name=g_n))
         test_ocsp = asn1_ocsp.OCSPRequest.load(data)
@@ -390,10 +390,10 @@ class TestOCSP(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 4))
-            test_response = asn1_ocsp.OCSPResponse.load(data)
+            _ = asn1_ocsp.OCSPResponse.load(data)
         with self.assertRaises(ValueError):
             data = asyncio.run(response(new_key_label, name_dict, _good_response(test_request), 99))
-            test_response = asn1_ocsp.OCSPResponse.load(data)
+            _ = asn1_ocsp.OCSPResponse.load(data)
 
         # Delete the test key
         asyncio.run(PKCS11Session.delete_keypair(new_key_label))
@@ -417,7 +417,7 @@ class TestOCSP(unittest.TestCase):
         extra_extensions = asn1_ocsp.ResponseDataExtensions()
         extra_extensions.append(nonce_ext)
         with self.assertRaises(ValueError):
-            data = asyncio.run(
+            _ = asyncio.run(
                 response(
                     new_key_label, name_dict, _revoked_response(test_request), 0, extra_extensions=extra_extensions
                 )
@@ -428,7 +428,7 @@ class TestOCSP(unittest.TestCase):
         extra_extensions.append(nonce_ext)
         extra_extensions.append(nonce_ext)
         with self.assertRaises(DuplicateExtensionException):
-            data = asyncio.run(
+            _ = asyncio.run(
                 response(
                     new_key_label, name_dict, _revoked_response(test_request), 0, extra_extensions=extra_extensions
                 )

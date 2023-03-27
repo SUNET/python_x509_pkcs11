@@ -27,7 +27,6 @@ name_dict = {
     "organization_name": "SUNET",
     "organizational_unit_name": "SUNET Infrastructure",
     "common_name": "ca-test.sunet.se",
-    "email_address": "soc@sunet.se",
 }
 
 signer_name_dict = {
@@ -37,7 +36,6 @@ signer_name_dict = {
     "organization_name": "SUNET",
     "organizational_unit_name": "SUNET Infrastructure",
     "common_name": "ca-test-15.sunet.se",
-    "email_address": "soc@sunet.se",
 }
 
 signed_name_dict = {
@@ -47,7 +45,6 @@ signed_name_dict = {
     "organization_name": "SUNET",
     "organizational_unit_name": "SUNET Infrastructure",
     "common_name": "ca-test-16.sunet.se",
-    "email_address": "soc@sunet.se",
 }
 
 
