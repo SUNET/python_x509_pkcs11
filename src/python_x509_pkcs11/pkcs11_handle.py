@@ -95,6 +95,29 @@ class PKCS11Session:
         )
 
     @classmethod
+    def _public_key_data(cls, key_pub: Key, key_type: str) -> Tuple[str, bytes]:
+        if key_type in ["rsa_2048", "rsa_4096"]:
+            # Create the PublicKeyInfo object
+            rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
+
+            pki = PublicKeyInfo()
+            pka = PublicKeyAlgorithm()
+            pka["algorithm"] = PublicKeyAlgorithmId("rsa")
+            pki["algorithm"] = pka
+            pki["public_key"] = rsa_pub
+
+        elif key_type in ["ed25519", "ed448"]:
+            pki = PublicKeyInfo.load(encode_eddsa_public_key(key_pub))
+
+        elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+            pki = PublicKeyInfo.load(encode_ec_public_key(key_pub))
+        else:
+            raise ValueError(f"key_type must be in {key_types}")
+
+        key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
+        return key_pub_pem.decode("utf-8"), pki.sha1
+
+    @classmethod
     def _open_session(cls, force: Optional[bool] = None, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
         if simulate_pkcs11_timeout:
             time.sleep(TIMEOUT + 1)
@@ -276,23 +299,7 @@ class PKCS11Session:
                         label=key_label,
                     )
 
-            if key_type in ["rsa_2048", "rsa_4096"]:
-                # Create the PublicKeyInfo object
-                rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
-                pki = PublicKeyInfo()
-                pka = PublicKeyAlgorithm()
-                pka["algorithm"] = PublicKeyAlgorithmId("rsa")
-                pki["algorithm"] = pka
-                pki["public_key"] = rsa_pub
-
-            elif key_type in ["ed25519", "ed448"]:
-                pki = PublicKeyInfo.load(encode_eddsa_public_key(key_pub))
-
-            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
-                pki = PublicKeyInfo.load(encode_ec_public_key(key_pub))
-
-            key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
-            return key_pub_pem.decode("utf-8"), pki.sha1
+            return cls._public_key_data(key_pub, key_type)
 
     @classmethod
     async def key_labels(cls) -> Dict[str, str]:
@@ -579,22 +586,4 @@ class PKCS11Session:
             await cls.healthy_session()
 
             key_pub = cls._get_pub_key(key_label, key_type)
-
-            if key_type in ["rsa_2048", "rsa_4096"]:
-                # Create the PublicKeyInfo object
-                rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
-
-                pki = PublicKeyInfo()
-                pka = PublicKeyAlgorithm()
-                pka["algorithm"] = PublicKeyAlgorithmId("rsa")
-                pki["algorithm"] = pka
-                pki["public_key"] = rsa_pub
-
-            elif key_type in ["ed25519", "ed448"]:
-                pki = PublicKeyInfo.load(encode_eddsa_public_key(key_pub))
-
-            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
-                pki = PublicKeyInfo.load(encode_ec_public_key(key_pub))
-
-            key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
-            return key_pub_pem.decode("utf-8"), pki.sha1
+            return cls._public_key_data(key_pub, key_type)
