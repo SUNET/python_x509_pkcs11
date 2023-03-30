@@ -20,7 +20,7 @@ jobs:
           git clone https://github.com/SUNET/python_x509_pkcs11.git && \
           cd python_x509_pkcs11 && \
           python3 -m pip install -r requirements.txt && \
-          python3 -m pip install --upgrade mypy \
+          python3 -m pip install --upgrade mypy && \
           bash deploy.sh && \
           flit build  && \
           pip3 install dist/python_x509_pkcs11*.whl'
