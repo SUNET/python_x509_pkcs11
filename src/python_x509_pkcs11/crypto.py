@@ -1,5 +1,5 @@
 """Our crypto module"""
-from typing import Dict, Union
+from typing import Dict, Tuple, Union
 
 from asn1crypto.algos import SignedDigestAlgorithmId
 from asn1crypto.keys import OctetString, PrivateKeyInfo, PublicKeyInfo
@@ -9,6 +9,35 @@ from pkcs11.util.ec import encode_named_curve_parameters
 ASN1_INTEGER_CODE = 2
 ASN1_INIT = 48
 ASN1_SECP521R1_CODE = 129
+
+
+def _signature_key_type(signature: bytes, key_type: str) -> Tuple[int, int]:
+    """Returns init_size and key_size for that key type.
+
+    Parameters:
+    signature (bytes): The signature.
+    key_type (str): Key type.
+
+    Returns:
+    Tuple[int, int]
+    """
+
+    if key_type == "secp521r1":
+        if signature[0] != ASN1_INIT or signature[1] != ASN1_SECP521R1_CODE or signature[3] != ASN1_INTEGER_CODE:
+            raise ValueError("ERROR: Signature was not in ASN1 format")
+        return 2, 66
+
+    # For secp256r1 and secp384r1
+    if signature[0] != ASN1_INIT or signature[2] != ASN1_INTEGER_CODE:
+        raise ValueError("ERROR: Signature was not in ASN1 format")
+
+    if key_type == "secp256r1":
+        return 1, 32
+
+    if key_type == "secp384r1":
+        return 1, 48
+
+    raise ValueError(f"key_type must be in {['secp256r1', 'secp384r1', 'secp521r1']}")
 
 
 def convert_asn1_ec_signature(signature: bytes, key_type: str) -> bytes:
@@ -24,22 +53,7 @@ def convert_asn1_ec_signature(signature: bytes, key_type: str) -> bytes:
     bytes
     """
 
-    if key_type not in ["secp256r1", "secp384r1", "secp521r1"]:
-        raise ValueError(f"key_type must be in {['secp256r1', 'secp384r1', 'secp521r1']}")
-
-    if key_type == "secp521r1":
-        if signature[0] != ASN1_INIT or signature[1] != ASN1_SECP521R1_CODE or signature[3] != ASN1_INTEGER_CODE:
-            raise ValueError("ERROR: Signature was not in ASN1 format")
-        init_size = 2
-        key_size = 66
-    else:
-        if signature[0] != ASN1_INIT or signature[2] != ASN1_INTEGER_CODE:
-            raise ValueError("ERROR: Signature was not in ASN1 format")
-        init_size = 1
-        if key_type == "secp256r1":
-            key_size = 32
-        else:
-            key_size = 48
+    init_size, key_size = _signature_key_type(signature, key_type)
 
     # Get R
     r_data_start = init_size + 3
