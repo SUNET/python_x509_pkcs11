@@ -30,7 +30,7 @@ from asn1crypto.keys import (
     PublicKeyInfo,
     RSAPublicKey,
 )
-from pkcs11 import Attribute, KeyType, Mechanism, ObjectClass, Session, Token, lib
+from pkcs11 import Attribute, Key, KeyType, Mechanism, ObjectClass, Session, Token, lib
 from pkcs11.exceptions import (
     GeneralError,
     MultipleObjectsReturned,
@@ -85,6 +85,14 @@ class PKCS11Session:
 
     lock = Lock()
     session: Session
+
+    @classmethod
+    def _get_pub_key(cls, key_label: str, key_type: str) -> Key:
+        return cls.session.get_key(
+            key_type=key_type_values[key_type],
+            object_class=ObjectClass.PUBLIC_KEY,
+            label=key_label,
+        )
 
     @classmethod
     def _open_session(cls, force: Optional[bool] = None, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
@@ -179,11 +187,7 @@ class PKCS11Session:
             await cls.healthy_session()
 
             try:
-                key_pub = cls.session.get_key(
-                    key_type=key_type_values[key_type],
-                    object_class=ObjectClass.PUBLIC_KEY,
-                    label=key_label,
-                )
+                key_pub = cls._get_pub_key(key_label, key_type)
                 raise MultipleObjectsReturned
             except NoSuchKey:
                 pass
@@ -238,11 +242,7 @@ class PKCS11Session:
 
             # Try to get the key, if not exist then create it
             try:
-                key_pub = cls.session.get_key(
-                    key_type=key_type_values[key_type],
-                    object_class=ObjectClass.PUBLIC_KEY,
-                    label=key_label,
-                )
+                key_pub = cls._get_pub_key(key_label, key_type)
                 raise MultipleObjectsReturned
             except NoSuchKey:
                 # Generate the rsa keypair
@@ -375,11 +375,7 @@ class PKCS11Session:
                 label=key_label,
             )
             if verify_signature:
-                key_pub = cls.session.get_key(
-                    key_type=key_type_values[key_type],
-                    object_class=ObjectClass.PUBLIC_KEY,
-                    label=key_label,
-                )
+                key_pub = cls._get_pub_key(key_label, key_type)
 
             # Sign the data
             signature = key_priv.sign(data, mechanism=mechanism)
@@ -489,11 +485,7 @@ class PKCS11Session:
             await cls.healthy_session()
 
             # Get public key to sign the data with
-            key_pub = cls.session.get_key(
-                key_type=key_type_values[key_type],
-                object_class=ObjectClass.PUBLIC_KEY,
-                label=key_label,
-            )
+            key_pub = cls._get_pub_key(key_label, key_type)
 
             if key_type in ["ed25519", "ed448"]:
                 mech = Mechanism.EDDSA
@@ -586,11 +578,7 @@ class PKCS11Session:
             # Ensure we get a healthy pkcs11 session
             await cls.healthy_session()
 
-            key_pub = cls.session.get_key(
-                key_type=key_type_values[key_type],
-                object_class=ObjectClass.PUBLIC_KEY,
-                label=key_label,
-            )
+            key_pub = cls._get_pub_key(key_label, key_type)
 
             if key_type in ["rsa_2048", "rsa_4096"]:
                 # Create the PublicKeyInfo object
