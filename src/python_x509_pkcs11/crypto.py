@@ -31,10 +31,15 @@ def convert_asn1_ec_signature(signature: bytes, key_type: str) -> bytes:
         if signature[0] != ASN1_INIT or signature[1] != ASN1_SECP521R1_CODE or signature[3] != ASN1_INTEGER_CODE:
             raise ValueError("ERROR: Signature was not in ASN1 format")
         init_size = 2
+        key_size = 66
     else:
         if signature[0] != ASN1_INIT or signature[2] != ASN1_INTEGER_CODE:
             raise ValueError("ERROR: Signature was not in ASN1 format")
         init_size = 1
+        if key_type == "secp256r1":
+            key_size = 32
+        else:
+            key_size = 48
 
     # Get R
     r_data_start = init_size + 3
@@ -45,14 +50,6 @@ def convert_asn1_ec_signature(signature: bytes, key_type: str) -> bytes:
     s_data_start = r_data_start + r_length + 2
     s_length = signature[s_data_start - 1]
     s_data = signature[s_data_start : s_data_start + s_length + 1]
-
-    # Get key size for current curve
-    if key_type == "secp256r1":
-        key_size = 32
-    elif key_type == "secp384r1":
-        key_size = 48
-    else:
-        key_size = 66
 
     # Add missing leading zeros
     while len(r_data) < key_size:

@@ -191,7 +191,7 @@ class TestOCSP(unittest.TestCase):
 
         # Test no certs in request
         with self.assertRaises(ValueError):
-            data = asyncio.run(request([]))
+            asyncio.run(request([]))
 
         # Test multiple certs in request
         data = asyncio.run(request([(i_name_h, i_key_h, serial), (i_name_h, i_key_h, serial)]))

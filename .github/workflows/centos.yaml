@@ -20,6 +20,6 @@ jobs:
           cd python_x509_pkcs11 && \
           pip3 install mypy black pylint flit && \
           python3 -m pip install -r requirements.txt && \
-          bash dev-run.sh && \
+          bash deploy.sh && \
           flit build && \
           pip3 install dist/python_x509_pkcs11*.whl'

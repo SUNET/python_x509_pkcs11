@@ -55,6 +55,30 @@ def _create_ocsp_request(issuer_name_hash: bytes, issuer_key_hash: bytes, serial
     return req
 
 
+def _set_extra_response_extensions(
+    response_data: ResponseData, extra_extensions: Optional[ResponseDataExtensions]
+) -> ResponseData:
+    # Set extra extensions if exists
+    if extra_extensions is None or len(extra_extensions) == 0:
+        return response_data
+
+    exts = ResponseDataExtensions()
+
+    for _, ext in enumerate(extra_extensions):
+        if ext["extn_id"].dotted == "1.3.6.1.5.5.7.48.1.2":
+            if len(ext["extn_value"].native) < 1 or len(ext["extn_value"].native) > 32:
+                raise ValueError("Nonce length error, https://datatracker.ietf.org/doc/html/rfc8954")
+            if len(ext["extn_value"].native) < 16:
+                print("Warning: Ignoring nonce since its smaller than 16 bytes")
+                print("https://datatracker.ietf.org/doc/html/rfc8954")
+                continue
+
+        exts.append(ext)
+    response_data["response_extensions"] = exts
+
+    return response_data
+
+
 def _set_response_data(  # pylint: disable-msg=too-many-branches
     single_responses: Responses,
     responder_id: Union[Dict[str, str], bytes],
@@ -91,21 +115,8 @@ def _set_response_data(  # pylint: disable-msg=too-many-branches
     # Set the single responses
     response_data["responses"] = single_responses
 
-    # Set extra extensions if exists
-    if extra_extensions is not None and len(extra_extensions) > 0:
-        exts = ResponseDataExtensions()
-
-        for _, ext in enumerate(extra_extensions):
-            if ext["extn_id"].dotted == "1.3.6.1.5.5.7.48.1.2":
-                if len(ext["extn_value"].native) < 1 or len(ext["extn_value"].native) > 32:
-                    raise ValueError("Nonce length error, https://datatracker.ietf.org/doc/html/rfc8954")
-                if len(ext["extn_value"].native) < 16:
-                    print("Warning: Ignoring nonce since its smaller than 16 bytes")
-                    print("https://datatracker.ietf.org/doc/html/rfc8954")
-                    continue
-
-            exts.append(ext)
-        response_data["response_extensions"] = exts
+    # Set extra extensions
+    _set_extra_response_extensions(response_data, extra_extensions)
 
     # Check for duplicate extensions
     exts = []
@@ -192,6 +203,27 @@ def request_nonce(data: bytes) -> Optional[bytes]:
     return None
 
 
+def ocsp_url(pem: str, cert: Certificate) -> str:
+    """Get OCSP URL from cert AIA extension OCSP field
+
+    Parameters:
+    pem (str): PEM encoded certificate.
+    cert (asn1crypto.x509.Certificate): The certificate with DER fields accessible.
+
+    Returns:
+    str
+    """
+
+    for _, extension in enumerate(cert["tbs_certificate"]["extensions"]):
+        if extension["extn_id"].dotted == "1.3.6.1.5.5.7.1.1":
+            for _, descr in enumerate(extension["extn_value"].native):
+                if descr["access_method"] == "ocsp" and "/ocsp/" in descr["access_location"]:
+                    url: str = descr["access_location"]
+                    return url
+
+    raise OCSPMissingExtensionException("AIA extension with ocsp method was not found in certificate/ " + pem)
+
+
 def certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]:
     """Get OCSP request data from a certificate.
     Returns a tuple of:
@@ -214,7 +246,6 @@ def certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]:
     issuer_name_hash: bytes
     issuer_key_hash: bytes
     serial_number: int
-    ocsp_url: str
 
     data = pem.encode("utf-8")
     if asn1_pem.detect(data):
@@ -238,13 +269,7 @@ def certificate_ocsp_data(pem: str) -> Tuple[bytes, bytes, int, str]:
     serial_number = cert["tbs_certificate"]["serial_number"].native
 
     # OCSP URL
-    for _, extension in enumerate(cert["tbs_certificate"]["extensions"]):
-        if extension["extn_id"].dotted == "1.3.6.1.5.5.7.1.1":
-            for _, descr in enumerate(extension["extn_value"].native):
-                if descr["access_method"] == "ocsp" and "/ocsp/" in descr["access_location"]:
-                    ocsp_url = descr["access_location"]
-                    return issuer_name_hash, issuer_key_hash, serial_number, ocsp_url
-    raise OCSPMissingExtensionException("AIA extension with ocsp method was not found in certificate/ " + pem)
+    return issuer_name_hash, issuer_key_hash, serial_number, ocsp_url(pem, cert)
 
 
 async def request(  # pylint: disable-msg=too-many-arguments

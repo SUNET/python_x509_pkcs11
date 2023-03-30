@@ -135,7 +135,7 @@ fi
 
 # Make your code changes
 # Then in the root folder, where this README is
-bash dev-run.sh
+bash deploy.sh
 
 # Build the package with flit
 flit build

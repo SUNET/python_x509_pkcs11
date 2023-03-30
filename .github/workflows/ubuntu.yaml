@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
     steps:
       - uses: actions/checkout@v3
@@ -23,10 +23,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install mypy black pylint flit
           pip install -r requirements.txt
-      - name: Run dev-run.sh
+      - name: Run deploy.sh
         run: |
           sudo -u $USER bash -c 'export PATH="$PATH:$HOME/.local/bin" && \
           exec sudo su -l $USER && \
-          bash dev-run.sh && \
+          bash deploy.sh && \
           flit build && \
           pip3 install dist/python_x509_pkcs11*.whl'

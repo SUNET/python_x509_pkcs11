@@ -1,22 +1,19 @@
 description = "Python async library for signing x509 using keys in an pkcs11 device such as a HSM"
-version = "0.6.31"
+version = "0.6.32"
 
 [build-system]
 requires = [
     "flit_core >=2.0",
 ]
 
-[tool.isort]
-profile = "black"
-
 [tool.flit.metadata]
 module = "python_x509_pkcs11"
 
 
 description-file = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 
-keywords = "x509,OCSP,ed25519,pkcs11,HSM"
+keywords = "x509,pkcs11,HSM"
 license = "MIT"
 author = "Victor Näslund"
 author-email = "victor@sunet.se"
@@ -26,3 +23,35 @@ requires = [
     "asn1crypto>=1.5.1",
     "python-pkcs11>=0.7.0"
 ]
+
+[tool.mypy]
+strict = true
+mypy_path = "src"
+packages = "python_x509_pkcs11"
+
+[[tool.mypy.overrides]]
+module = [
+    "asn1crypto",
+    "asn1crypto.keys",
+    "asn1crypto.algos",
+    "asn1crypto.ocsp",
+    "asn1crypto.core",
+    "asn1crypto.x509",
+    "asn1crypto.csr",
+    "asn1crypto.crl",
+    "pkcs11",
+    "pkcs11.util.ec",
+    "pkcs11.util.rsa",
+    "pkcs11.exceptions",
+]
+ignore_missing_imports = true
+
+[tool.isort]
+profile = "black"
+src_paths = ["src", "tests"]
+
+[tool.black]
+line-length = 120
+
+[tool.pylint.'FORMAT']
+max-line-length = 120

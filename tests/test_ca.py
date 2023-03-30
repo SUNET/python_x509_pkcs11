@@ -25,7 +25,7 @@ name_dict = {
     "state_or_province_name": "Stockholm",
     "locality_name": "Stockholm",
     "organization_name": "SUNET",
-    "organizational_unit_name": "SUNET Infrastructure",
+    "organizational_unit_name": "SUNETInfrastructure",
     "common_name": "ca-test.sunet.se",
 }
 
@@ -34,7 +34,7 @@ signer_name_dict = {
     "state_or_province_name": "StockholmTEST",
     "locality_name": "StockholmTEST",
     "organization_name": "SUNET",
-    "organizational_unit_name": "SUNET Infrastructure",
+    "organizational_unit_name": "SUNETInfrastructure",
     "common_name": "ca-test-15.sunet.se",
 }
 
@@ -43,7 +43,7 @@ signed_name_dict = {
     "state_or_province_name": "StockholmTEST",
     "locality_name": "StockholmTEST",
     "organization_name": "SUNET",
-    "organizational_unit_name": "SUNET Infrastructure",
+    "organizational_unit_name": "SUNETInfrastructure",
     "common_name": "ca-test-16.sunet.se",
 }
 
@@ -52,6 +52,26 @@ class TestCa(unittest.TestCase):
     """
     Test our root ca module.
     """
+
+    def check_aki_and_ski_eq(self, test_cert: asn1_x509.Certificate) -> None:
+        """Check AKI and SKI exists and is equal"""
+
+        tbs = test_cert["tbs_certificate"]
+        for _, extension in enumerate(tbs["extensions"]):
+            if extension["extn_id"].dotted == "2.5.29.14":
+                ski = extension["extn_value"].native
+                break
+        else:
+            raise ValueError("Could not find SKI")
+
+        for _, extension in enumerate(tbs["extensions"]):
+            if extension["extn_id"].dotted == "2.5.29.35":
+                aki = extension["extn_value"].native["key_identifier"]
+                break
+        else:
+            raise ValueError("Could not find AKI")
+
+        self.assertTrue(aki == ski)
 
     def test_create_ca(self) -> None:
         """
@@ -75,22 +95,7 @@ class TestCa(unittest.TestCase):
             self.assertTrue(cert_name_dict["common_name"] == cert_issuer_name_dict["common_name"])
 
             # Ensure AKI and SKI is the same as this is a root CA
-            tbs = test_cert["tbs_certificate"]
-            for _, extension in enumerate(tbs["extensions"]):
-                if extension["extn_id"].dotted == "2.5.29.14":
-                    ski = extension["extn_value"].native
-                    break
-            else:
-                raise ValueError("Could not find SKI")
-
-            for _, extension in enumerate(tbs["extensions"]):
-                if extension["extn_id"].dotted == "2.5.29.35":
-                    aki = extension["extn_value"].native["key_identifier"]
-                    break
-            else:
-                raise ValueError("Could not find AKI")
-
-            self.assertTrue(aki == ski)
+            self.check_aki_and_ski_eq(test_cert)
 
             # Test default values
             csr_pem, root_cert_pem = asyncio.run(create(new_key_label[:-2], name_dict))
