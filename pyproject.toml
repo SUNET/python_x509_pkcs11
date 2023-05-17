@@ -1,5 +1,5 @@
 description = "Python async library for signing x509 using keys in an pkcs11 device such as a HSM"
-version = "0.6.37"
+version = "0.7.0"
 
 [build-system]
 requires = [
@@ -42,6 +42,7 @@ module = [
     "pkcs11",
     "pkcs11.util.ec",
     "pkcs11.util.rsa",
+    "pkcs11.util.x509",
     "pkcs11.exceptions",
 ]
 ignore_missing_imports = true

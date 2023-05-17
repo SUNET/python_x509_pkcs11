@@ -5,6 +5,7 @@ import asyncio
 import os
 import unittest
 
+# import asn1crypto.x509 as asn1_x509
 from pkcs11.exceptions import MultipleObjectsReturned, NoSuchKey
 
 from src.python_x509_pkcs11.error import PKCS11UnknownErrorException
@@ -548,3 +549,45 @@ class TestPKCS11Handle(unittest.TestCase):
 
         # Delete the test key
         asyncio.run(PKCS11Session.delete_keypair(new_key_label, key_type="rsa_2048"))
+
+    def test_import_export_delete_cert(self) -> None:
+        """
+        Import, export and delete cert to and from the PKCS11 device.
+        """
+
+        cert_pem = """-----BEGIN CERTIFICATE-----
+MIIDYzCCAkugAwIBAgIUN+IOJqkvZDa5clXCnrZi+jFxoG4wDQYJKoZIhvcNAQEL
+BQAwQTELMAkGA1UEBhMCU0UxEjAQBgNVBAcMCVN0b2NraG9sbTEOMAwGA1UECgwF
+U1VORVQxDjAMBgNVBAMMBVNVTkVUMB4XDTIzMDUwNTA5MTIyMFoXDTI0MDUwNDA5
+MTIyMFowQTELMAkGA1UEBhMCU0UxEjAQBgNVBAcMCVN0b2NraG9sbTEOMAwGA1UE
+CgwFU1VORVQxDjAMBgNVBAMMBVNVTkVUMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+MIIBCgKCAQEA+NZi3Ipp67cEf5M8A7Lr94vS4Cg74huGymEfuAGbF5TiUuusOUJd
+mdVfKrKLL8zHK42tyUfhTx0tBUrHWIu3/aeEtGEYh5VgmLk2y/K8p09cUTd4l5SA
+hzIf76PC7Ux0rCIZ3IFbHQ/eWLoAxvjAIMMZd4+Rby3iCw7Ula6ruEIBoLWpBn+c
+NOpq4XvOsudSz8VJuLYP6gAbJLo2V+BXQaC5R/HUtEeuS4iC66LfrwEG7Aj/n/9o
+OIUmSZby5LFnPz/D2YbIsozWJkFIt8Z2PZRngQrQ1K3LfuVkfbVlRUSlFrQhgFg4
+yKsGLm3eByZR6o28EdAU0wIZTrbSBmCyKwIDAQABo1MwUTAdBgNVHQ4EFgQU69PY
+JB3mcLLsDKjzi/esyq4X/UYwHwYDVR0jBBgwFoAU69PYJB3mcLLsDKjzi/esyq4X
+/UYwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAryGICswCRVeO
+lotVftUXIPRUVDFwvovfpQi407GfchWW6qfi8QMtD8SP/I+lySTUFE1Tm9gb7OHT
+3FPtYatzsqUQN0W2sf9EDjkQDHuMKGtBi7ZWYpKUllyCdBUKEukWNKPeVUwOYxOW
+mV72a3xICxRafOrsOyfYY/3xpdocJynYr5TBvXDWDmGRKz+9vlUUCazHMlLxxK9W
+owuSqWzudPixJNEFnjUXloAafbP1NU+HnVOG2daJqyVpSaiCTyjsK1iJ6hWWMu+g
+Z0C3qdoke9EvHCcwjbvJ8U5Bq5obD8D7nxSKIt/eEjSpqfhdOU3xC98uFxl6709v
+tnmQdMO1DA==
+-----END CERTIFICATE-----
+"""
+
+        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        asyncio.run(PKCS11Session.import_certificate(cert_pem, new_key_label))
+        with self.assertRaises(ValueError):
+            asyncio.run(PKCS11Session.import_certificate(cert_pem, new_key_label))
+
+        cert = asyncio.run(PKCS11Session.export_certificate(new_key_label))
+
+        self.assertTrue(isinstance(cert, str) and len(cert) > 0)
+        self.assertTrue(cert_pem == cert)
+
+        asyncio.run(PKCS11Session.delete_certificate(new_key_label))
+        with self.assertRaises(ValueError):
+            asyncio.run(PKCS11Session.export_certificate(new_key_label))

@@ -5,6 +5,9 @@
 # See PKCS11Session._healthy_session()
 
 Exposes the functions:
+- import_certificate()
+- export_certificate()
+- delete_certificate()
 - import_keypair()
 - create_keypair()
 - key_labels()
@@ -23,6 +26,7 @@ from threading import Lock, Thread
 from typing import AsyncIterator, Dict, Optional, Tuple
 
 from asn1crypto import pem as asn1_pem
+from asn1crypto import x509 as asn1_x509
 from asn1crypto.algos import SignedDigestAlgorithmId
 from asn1crypto.keys import (
     PublicKeyAlgorithm,
@@ -48,6 +52,7 @@ from pkcs11.util.rsa import (
     decode_rsa_public_key,
     encode_rsa_public_key,
 )
+from pkcs11.util.x509 import decode_x509_certificate
 
 from .crypto import (
     convert_asn1_ec_signature,
@@ -180,6 +185,92 @@ class PKCS11Session:
 
             if thread2.is_alive() or cls._session_status != 0:
                 raise PKCS11UnknownErrorException("ERROR: Could not get a healthy PKCS11 connection in time")
+
+    @classmethod
+    async def import_certificate(cls, cert_pem: str, cert_label: str) -> None:
+        """Import a certificate into the PKCS11 device with this label.
+
+        Parameters:
+        cert_pem (str): Certificate in PEM form.
+        cert_label (str): Certificate label in the PKCS11 device.
+
+        Returns:
+        None
+        """
+
+        async with async_lock(cls.lock):
+            # Ensure we get a healthy pkcs11 session
+            await cls.healthy_session()
+
+            for cert in cls.session.get_objects(
+                {
+                    Attribute.CLASS: ObjectClass.CERTIFICATE,
+                    Attribute.LABEL: cert_label,
+                }
+            ):
+                raise ValueError("Certificate with that label already exists in the PKCS11 device")
+
+            data = cert_pem.encode("utf-8")
+            if asn1_pem.detect(data):
+                _, _, data = asn1_pem.unarmor(data)
+
+            cert = decode_x509_certificate(data)
+            cert[Attribute.TOKEN] = True
+            cert[Attribute.LABEL] = cert_label
+            cls.session.create_object(cert)
+
+    @classmethod
+    async def export_certificate(cls, cert_label: str) -> str:
+        """Export a certificate from the PKCS11 device with this label.
+        Returns the PEM encoded cert.
+
+        Parameters:
+        cert_label (str): Certificate label in the PKCS11 device.
+
+        Returns:
+        str
+        """
+
+        async with async_lock(cls.lock):
+            # Ensure we get a healthy pkcs11 session
+            await cls.healthy_session()
+
+            for cert in cls.session.get_objects(
+                {
+                    Attribute.CLASS: ObjectClass.CERTIFICATE,
+                    Attribute.LABEL: cert_label,
+                }
+            ):
+                der_bytes = cert[Attribute.VALUE]
+
+                # Load a certificate object from the DER-encoded value
+                cert_asn1 = asn1_x509.Certificate.load(der_bytes)
+
+                # Write out a PEM encoded value
+                ret: bytes = asn1_pem.armor("CERTIFICATE", cert_asn1.dump())
+                return ret.decode("utf-8")
+
+            raise ValueError("No such certificate in the PKCS11 device")
+
+    @classmethod
+    async def delete_certificate(cls, cert_label: str) -> None:
+        """Delete a certificate from the PKCS11 device with this label.
+
+        Parameters:
+        cert_label (str): Certificate label in the PKCS11 device.
+        """
+
+        async with async_lock(cls.lock):
+            # Ensure we get a healthy pkcs11 session
+            await cls.healthy_session()
+
+            for cert in cls.session.get_objects(
+                {
+                    Attribute.CLASS: ObjectClass.CERTIFICATE,
+                    Attribute.LABEL: cert_label,
+                }
+            ):
+                cert.destroy()
 
     @classmethod
     async def import_keypair(cls, public_key: bytes, private_key: bytes, key_label: str, key_type: str) -> None:
