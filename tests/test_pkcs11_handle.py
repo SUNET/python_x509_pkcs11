@@ -7,7 +7,7 @@ import unittest
 
 # import asn1crypto.x509 as asn1_x509
 from pkcs11.exceptions import MultipleObjectsReturned, NoSuchKey
-from pkcs11.session import Session
+from pkcs11 import Session
 
 from src.python_x509_pkcs11.error import PKCS11UnknownErrorException
 from src.python_x509_pkcs11.lib import key_types
