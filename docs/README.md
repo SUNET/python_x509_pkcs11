@@ -70,7 +70,6 @@ Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/py
 		  key_type: Union[str, None] = None,
 		  ) -> None:`
 
-
 - `public_key_data(key_label: str,
   		   key_type: Union[str, None] = None,
 		   ) -> Tuple[str, bytes]:`

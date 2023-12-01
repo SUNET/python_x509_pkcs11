@@ -7,7 +7,16 @@ jobs:
 
     runs-on: ubuntu-latest
     container: debian:latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.10", "3.11"]
+
     steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
       - name: Install dependencies
         run: |
           apt-get update
@@ -17,8 +26,7 @@ jobs:
           sudo -u python_x509_pkcs11 bash -c 'export PATH="$PATH:$HOME/.local/bin" && \
           id && \
           cd && \
-          git clone https://github.com/SUNET/python_x509_pkcs11.git && \
-          cd python_x509_pkcs11 && \
+	  python3 -m venv .venv && . .venv/bin/activate && \
           python3 -m pip install -r requirements.txt && \
           python3 -m pip install --upgrade mypy pylint && \
           bash deploy.sh && \
