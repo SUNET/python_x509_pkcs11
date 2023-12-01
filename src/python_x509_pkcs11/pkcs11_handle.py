@@ -88,6 +88,7 @@ class PKCS11Session:
     _token: Token
     _lib: lib
 
+
     lock = Lock()
     session: Session
 
@@ -166,6 +167,16 @@ class PKCS11Session:
             if DEBUG:
                 print("Failed to open PKCS11 session")
                 print(exc)
+
+    @classmethod
+    async def get_session(cls) -> Session:
+        """Return the PKCS11 session."""
+
+        async with async_lock(cls.lock):
+            # Ensure we get a healthy pkcs11 session
+            await cls.healthy_session()
+            return cls.session
+
 
     @classmethod
     async def healthy_session(cls, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
