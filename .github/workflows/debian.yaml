@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update
-          apt-get install git python3-dev python3-pip softhsm2 sudo isort black flit -y
+          apt-get install git python3-dev python3-pip python3-venv softhsm2 sudo isort black flit -y
           useradd python_x509_pkcs11 -m
           usermod -a -G softhsm python_x509_pkcs11
           sudo -u python_x509_pkcs11 bash -c 'export PATH="$PATH:$HOME/.local/bin" && \
