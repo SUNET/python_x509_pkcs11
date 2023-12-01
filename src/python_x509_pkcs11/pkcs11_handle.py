@@ -5,9 +5,6 @@
 # See PKCS11Session._healthy_session()
 
 Exposes the functions:
-- import_certificate()
-- export_certificate()
-- delete_certificate()
 - import_keypair()
 - create_keypair()
 - key_labels()
@@ -15,6 +12,9 @@ Exposes the functions:
 - verify()
 - delete_keypair()
 - public_key_data()
+- import_certificate()
+- export_certificate()
+- delete_certificate()
 - get_session()
 """
 import os
@@ -167,15 +167,6 @@ class PKCS11Session:
             if DEBUG:
                 print("Failed to open PKCS11 session")
                 print(exc)
-
-    @classmethod
-    async def get_session(cls) -> Session:
-        """Return the PKCS11 session."""
-
-        async with async_lock(cls.lock):
-            # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
-            return cls.session
 
     @classmethod
     async def healthy_session(cls, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
