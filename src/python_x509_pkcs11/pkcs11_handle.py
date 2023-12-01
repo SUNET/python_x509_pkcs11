@@ -15,6 +15,7 @@ Exposes the functions:
 - verify()
 - delete_keypair()
 - public_key_data()
+- get_session()
 """
 import os
 import time

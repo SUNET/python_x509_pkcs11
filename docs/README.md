@@ -146,6 +146,10 @@ key_type must be:
 If a keypair with label already exists in the PKCS11 device
 then pkcs11.MultipleObjectsReturned will be raised.
 
+## get_session()
+
+`get_session()` method return a python-pkcs11 Session which is initiated from PKCS11Session class.
+
 ### Example usage for create_keypair():
 ```python
 import asyncio
