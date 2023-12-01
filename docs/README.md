@@ -40,7 +40,7 @@ softhsm2-util --init-token --slot 0 --label $PKCS11_TOKEN --pin $PKCS11_PIN --so
 
 # PKCS11 device usage
 This is basically a wrapper around the [python-pkcs11](https://python-pkcs11.readthedocs.io/en/stable/) package.
-Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/pkcs11_handle.py) module currently exposes 6 functions:
+Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/python_x509_pkcs11/pkcs11_handle.py) module currently exposes 9 functions:
 
 - `import_keypair(public_key: bytes,
          	  private_key: bytes,
@@ -73,6 +73,16 @@ Our [pkcs11_handle](https://github.com/SUNET/python_x509_pkcs11/blob/main/src/py
 - `public_key_data(key_label: str,
   		   key_type: Union[str, None] = None,
 		   ) -> Tuple[str, bytes]:`
+
+- `import_certificate(cert_pem: str,
+                   cert_label: str,
+		   ) -> None:`
+
+- `export_certificate(cert_label: str,
+		   ) -> str:`
+
+- `public_key_data(cert_label: str,
+		   ) -> None:`
 
 ## import_keypair()
 
@@ -263,6 +273,97 @@ async def my_func() -> None:
     print(identifier_created)
     print(identifier_loaded)
 
+
+asyncio.run(my_func())
+```
+
+## import_certificate()
+
+The `import_certificate()` function imports a certificate in the PKCS11 device with this label.
+
+### Example usage for import_certificate():
+```python
+import asyncio
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+cert_pem = """-----BEGIN CERTIFICATE-----
+MIIDjDCCAzOgAwIBAgIUB7D/x3LzbzaWjb61EKc5sQOFWZIwCgYIKoZIzj0EAwIw
+gZExCzAJBgNVBAYTAlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xEjAQBgNVBAcMCVN0
+b2NraG9sbTEOMAwGA1UECgwFU1VORVQxHTAbBgNVBAsMFFNVTkVUIEluZnJhc3Ry
+dWN0dXJlMSswKQYDVQQDDCJjYS10ZXN0LXRpbWVzdGFtcDMtc2lnbmVyLnN1bmV0
+LnNlMB4XDTIzMDUyMjEyMTUwN1oXDTQwMDEwMTAwMDAwMFowgY8xCzAJBgNVBAYT
+AlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xEjAQBgNVBAcMCVN0b2NraG9sbTEOMAwG
+A1UECgwFU1VORVQxHTAbBgNVBAsMFFNVTkVUIEluZnJhc3RydWN0dXJlMSkwJwYD
+VQQDDCBjYS10ZXN0LXRpbWVzdGFtcDMtY2VydC5zdW5ldC5zZTBZMBMGByqGSM49
+AgEGCCqGSM49AwEHA0IABK4tkAnuLY3kG89DtFRKiVuJgoUrObeW7xKu/kcf92FY
+iMrPqzkLzT64/JVnpMogDZ1fohsxKhcRwovQmJRaYYKjggFnMIIBYzAOBgNVHQ8B
+Af8EBAMCBsAwgZIGCCsGAQUFBwEBBIGFMIGCMF4GCCsGAQUFBzAChlJodHRwOi8v
+Y2E6ODAwNS9jYS9iOThiZmFmZGIwNzVmOWY2MzA4NjhkZTMwMTAyMmUyZGExOWQ0
+MjM0OGVmYWFkNjVhN2U1ODRmYmNlYzAxMDIwMCAGCCsGAQUFBzABhhRodHRwOi8v
+Y2E6ODAwNS9vY3NwLzBkBgNVHR8EXTBbMFmgV6BVhlNodHRwOi8vY2E6ODAwNS9j
+cmwvYjk4YmZhZmRiMDc1ZjlmNjMwODY4ZGUzMDEwMjJlMmRhMTlkNDIzNDhlZmFh
+ZDY1YTdlNTg0ZmJjZWMwMTAyMDAWBgNVHSUBAf8EDDAKBggrBgEFBQcDCDAdBgNV
+HQ4EFgQURbRp9puwNsIbOCEcZWzcz3UkK0UwHwYDVR0jBBgwFoAUhtCxna0AdOe6
+J23GIJ4PENiOV6EwCgYIKoZIzj0EAwIDRwAwRAIgCm8D1+Cfwej2pfrPHNV3myIy
+OsgGSmMGs3uYjac7+j4CIHisanLIGlny5Kgnrmk5yNiN3ZFimdhSd+ovaqjy3O4x
+-----END CERTIFICATE-----"""
+
+async def my_func() -> None:
+    await PKCS11Session.import_certificate(cert_pem, "my_cert")
+
+asyncio.run(my_func())
+```
+
+## export_certificate()
+
+The `export_certificate()` function export a certificate from the PKCS11 device with this label.
+
+### Example usage for export_certificate():
+```python
+import asyncio
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+cert_pem = """-----BEGIN CERTIFICATE-----
+MIIDjDCCAzOgAwIBAgIUB7D/x3LzbzaWjb61EKc5sQOFWZIwCgYIKoZIzj0EAwIw
+gZExCzAJBgNVBAYTAlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xEjAQBgNVBAcMCVN0
+b2NraG9sbTEOMAwGA1UECgwFU1VORVQxHTAbBgNVBAsMFFNVTkVUIEluZnJhc3Ry
+dWN0dXJlMSswKQYDVQQDDCJjYS10ZXN0LXRpbWVzdGFtcDMtc2lnbmVyLnN1bmV0
+LnNlMB4XDTIzMDUyMjEyMTUwN1oXDTQwMDEwMTAwMDAwMFowgY8xCzAJBgNVBAYT
+AlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xEjAQBgNVBAcMCVN0b2NraG9sbTEOMAwG
+A1UECgwFU1VORVQxHTAbBgNVBAsMFFNVTkVUIEluZnJhc3RydWN0dXJlMSkwJwYD
+VQQDDCBjYS10ZXN0LXRpbWVzdGFtcDMtY2VydC5zdW5ldC5zZTBZMBMGByqGSM49
+AgEGCCqGSM49AwEHA0IABK4tkAnuLY3kG89DtFRKiVuJgoUrObeW7xKu/kcf92FY
+iMrPqzkLzT64/JVnpMogDZ1fohsxKhcRwovQmJRaYYKjggFnMIIBYzAOBgNVHQ8B
+Af8EBAMCBsAwgZIGCCsGAQUFBwEBBIGFMIGCMF4GCCsGAQUFBzAChlJodHRwOi8v
+Y2E6ODAwNS9jYS9iOThiZmFmZGIwNzVmOWY2MzA4NjhkZTMwMTAyMmUyZGExOWQ0
+MjM0OGVmYWFkNjVhN2U1ODRmYmNlYzAxMDIwMCAGCCsGAQUFBzABhhRodHRwOi8v
+Y2E6ODAwNS9vY3NwLzBkBgNVHR8EXTBbMFmgV6BVhlNodHRwOi8vY2E6ODAwNS9j
+cmwvYjk4YmZhZmRiMDc1ZjlmNjMwODY4ZGUzMDEwMjJlMmRhMTlkNDIzNDhlZmFh
+ZDY1YTdlNTg0ZmJjZWMwMTAyMDAWBgNVHSUBAf8EDDAKBggrBgEFBQcDCDAdBgNV
+HQ4EFgQURbRp9puwNsIbOCEcZWzcz3UkK0UwHwYDVR0jBBgwFoAUhtCxna0AdOe6
+J23GIJ4PENiOV6EwCgYIKoZIzj0EAwIDRwAwRAIgCm8D1+Cfwej2pfrPHNV3myIy
+OsgGSmMGs3uYjac7+j4CIHisanLIGlny5Kgnrmk5yNiN3ZFimdhSd+ovaqjy3O4x
+-----END CERTIFICATE-----"""
+
+async def my_func() -> None:
+    await PKCS11Session.import_certificate(cert_pem, "my_cert")
+    cert = await PKCS11Session.export_certificate("my_cert")
+    print(cert)
+
+asyncio.run(my_func())
+```
+
+## delete_certificate()
+
+The `delete_certificate()` function deletes a certificate in the PKCS11 device with this label.
+
+### Example usage for delete_certificate():
+```python
+import asyncio
+from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+async def my_func() -> None:
+    await PKCS11Session.delete_certificate(cert_pem)
 
 asyncio.run(my_func())
 ```
