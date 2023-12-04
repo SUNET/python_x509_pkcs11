@@ -34,7 +34,7 @@ jobs:
 
       - name: Add user to group
         run: |
-          usermod -a -G softhsm runner && \
+          sduo usermod -a -G softhsm runner
 
       - name: Setup softhsm2
         run: |
