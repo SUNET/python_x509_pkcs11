@@ -3,7 +3,6 @@ name: python_x509_pkcs11-debian
 on: [push]
 
 env:
-  RUNNER_ALLOW_RUNASROOT: 1
   PKCS11_MODULE: /usr/lib/softhsm/libsofthsm2.so
   PKCS11_TOKEN: my_test_token_1
   PKCS11_PIN: 1234
@@ -36,7 +35,7 @@ jobs:
 
       - name: mura
         run: |
-          echo $SOFTHSM2_CONF
+          echo "${{ SOFTHSM2_CONF }} ${{ GITHUB_WORKSPACE }}
 
       #- name: Add user to group
       #  run: |
