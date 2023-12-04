@@ -27,7 +27,7 @@ jobs:
       - name: Install packages
         run: |
           apt-get update
-          apt-get install softhsm2
+          apt-get install -y softhsm2
 
       - name: Install python dependencies
         run: |
