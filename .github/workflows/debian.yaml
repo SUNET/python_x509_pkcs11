@@ -12,7 +12,9 @@ jobs:
   container-test-job:
 
     runs-on: ubuntu-latest
-    container: debian:latest
+    container:
+      image: debian:latest
+      options: --user root
     strategy:
       matrix:
         python: ["3.11"]
