@@ -26,7 +26,7 @@ jobs:
       - name: Install packages
         run: |
           apt-get update
-          apt-get install git python3-dev python3-pip python3-venv softhsm2 sudo isort black flit -y
+          apt-get install python3-dev python3-pip python3-venv softhsm2
 
       - name: Install python dependencies
         run: |
