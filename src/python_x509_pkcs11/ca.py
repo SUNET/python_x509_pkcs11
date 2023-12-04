@@ -17,7 +17,14 @@ from asn1crypto.csr import (
     SetOfExtensions,
 )
 from asn1crypto.keys import PublicKeyInfo
-from asn1crypto.x509 import BasicConstraints, Extension, ExtensionId, Extensions, KeyUsage, Name
+from asn1crypto.x509 import (
+    BasicConstraints,
+    Extension,
+    ExtensionId,
+    Extensions,
+    KeyUsage,
+    Name,
+)
 
 from .csr import sign_csr
 from .lib import signed_digest_algo

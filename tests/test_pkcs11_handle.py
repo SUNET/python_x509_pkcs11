@@ -11,7 +11,7 @@ from pkcs11 import Session
 from pkcs11.exceptions import MultipleObjectsReturned, NoSuchKey
 
 from src.python_x509_pkcs11.error import PKCS11UnknownErrorException
-from src.python_x509_pkcs11.lib import key_types, key_type_values
+from src.python_x509_pkcs11.lib import key_type_values, key_types
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
@@ -37,7 +37,6 @@ class TestPKCS11Handle(unittest.TestCase):
         assert isinstance(sess, Session)
         with self.assertRaises(NoSuchKey):
             sess.get_key(label="test_not_exist", key_type=key_type_values["rsa_2048"])
-
 
     def test_import_keypair_rsa(self) -> None:
         """Import keypair with key_label in the PKCS11 device.

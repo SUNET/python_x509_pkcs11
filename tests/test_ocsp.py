@@ -12,8 +12,16 @@ from asn1crypto import ocsp as asn1_ocsp
 from asn1crypto import pem as asn1_pem
 from asn1crypto import x509 as asn1_x509
 
-from src.python_x509_pkcs11.error import DuplicateExtensionException, OCSPMissingExtensionException
-from src.python_x509_pkcs11.ocsp import certificate_ocsp_data, request, request_nonce, response
+from src.python_x509_pkcs11.error import (
+    DuplicateExtensionException,
+    OCSPMissingExtensionException,
+)
+from src.python_x509_pkcs11.ocsp import (
+    certificate_ocsp_data,
+    request,
+    request_nonce,
+    response,
+)
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code

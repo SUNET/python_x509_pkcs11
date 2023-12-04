@@ -1,4 +1,4 @@
-.PHONY: docker-build-pdfsign docker-build-ca docker-push ci vscode_venv vscode_pip vscode_packages vscode
+.PHONY: test reformat typecheck clean_softhsm new_softhsm vscode_venv vscode_pip vscode_packages vscode
 
 TOPDIR:=		$(abspath .)
 SRCDIR=			$(TOPDIR)/src

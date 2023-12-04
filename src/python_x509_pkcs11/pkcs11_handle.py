@@ -29,16 +29,30 @@ from typing import AsyncIterator, Dict, Optional, Tuple
 from asn1crypto import pem as asn1_pem
 from asn1crypto import x509 as asn1_x509
 from asn1crypto.algos import SignedDigestAlgorithmId
-from asn1crypto.keys import PublicKeyAlgorithm, PublicKeyAlgorithmId, PublicKeyInfo, RSAPublicKey
+from asn1crypto.keys import (
+    PublicKeyAlgorithm,
+    PublicKeyAlgorithmId,
+    PublicKeyInfo,
+    RSAPublicKey,
+)
 from pkcs11 import Attribute, Key, KeyType, Mechanism, ObjectClass, Session, Token, lib
-from pkcs11.exceptions import GeneralError, MultipleObjectsReturned, NoSuchKey, SignatureInvalid
+from pkcs11.exceptions import (
+    GeneralError,
+    MultipleObjectsReturned,
+    NoSuchKey,
+    SignatureInvalid,
+)
 from pkcs11.util.ec import (
     decode_ec_private_key,
     decode_ec_public_key,
     encode_ec_public_key,
     encode_named_curve_parameters,
 )
-from pkcs11.util.rsa import decode_rsa_private_key, decode_rsa_public_key, encode_rsa_public_key
+from pkcs11.util.rsa import (
+    decode_rsa_private_key,
+    decode_rsa_public_key,
+    encode_rsa_public_key,
+)
 from pkcs11.util.x509 import decode_x509_certificate
 
 from .crypto import (
