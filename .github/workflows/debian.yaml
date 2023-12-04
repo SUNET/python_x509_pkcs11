@@ -6,7 +6,7 @@ env:
   PKCS11_MODULE: /usr/lib/softhsm/libsofthsm2.so
   PKCS11_TOKEN: my_test_token_1
   PKCS11_PIN: 1234
-  SOFTHSM2_CONF: $GITHUB_WORKSPACE
+  SOFTHSM2_CONF: ${{ GITHUB_WORKSPACE }}
 
 jobs:
   container-test-job:
