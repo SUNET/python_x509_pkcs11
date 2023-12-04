@@ -33,6 +33,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Setup softhsm2
+        run: |
+          make new_softhsm
+
       - name: Unit-tests
         run: |
           make test
