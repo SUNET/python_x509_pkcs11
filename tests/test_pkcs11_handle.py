@@ -5,12 +5,13 @@ import asyncio
 import os
 import unittest
 
-# import asn1crypto.x509 as asn1_x509
-from pkcs11.exceptions import MultipleObjectsReturned, NoSuchKey
 from pkcs11 import Session
 
+# import asn1crypto.x509 as asn1_x509
+from pkcs11.exceptions import MultipleObjectsReturned, NoSuchKey
+
 from src.python_x509_pkcs11.error import PKCS11UnknownErrorException
-from src.python_x509_pkcs11.lib import key_types
+from src.python_x509_pkcs11.lib import key_types, key_type_values
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
@@ -31,8 +32,12 @@ class TestPKCS11Handle(unittest.TestCase):
     def test_get_session(self) -> None:
         """Test PKCS11 session"""
 
-        with self.assertRaises(PKCS11UnknownErrorException):
-            assert isinstance(asyncio.run(PKCS11Session.get_session()), Session)
+        sess = asyncio.run(PKCS11Session.get_session())
+
+        assert isinstance(sess, Session)
+        with self.assertRaises(NoSuchKey):
+            sess.get_key(label="test_not_exist", key_type=key_type_values["rsa_2048"])
+
 
     def test_import_keypair_rsa(self) -> None:
         """Import keypair with key_label in the PKCS11 device.

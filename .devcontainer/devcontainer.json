@@ -16,6 +16,9 @@
 				"python.linting.pycodestylePath": "/usr/local/py-utils/bin/pycodestyle",
 				"python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
 				"python.linting.pylintPath": "/usr/local/py-utils/bin/pylint",
+				"python.autoComplete.extraPaths": [
+					".venv/lib/python3.11/site-packages"
+				],
 				"cSpell.language": "en-GB,en,sv"
 			},
 			"extensions": [
@@ -36,10 +39,10 @@
 		"type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock"
 	],
 	"containerEnv": {
-		"SOFTHSM2_CONF": "/etc/softhsm/softhsm2.conf",
 		"PKCS11_MODULE": "/usr/lib/softhsm/libsofthsm2.so",
 		"PKCS11_PIN": "1234",
-		"PKCS11_TOKEN": "developer-label"
+		"PKCS11_TOKEN": "my_test_token_1"
 	},
-	"remoteUser": "vscode"
+	// can't reload terminal within this devcontainer, softhsm need this privileges to use softhsm2-utils.
+	"remoteUser": "root"
 }
