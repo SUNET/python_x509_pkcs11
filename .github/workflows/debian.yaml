@@ -3,9 +3,11 @@ name: python_x509_pkcs11-debian
 on: [push]
 
 env:
+  RUNNER_ALLOW_RUNASROOT: 1
   PKCS11_MODULE: /usr/lib/softhsm/libsofthsm2.so
   PKCS11_TOKEN: my_test_token_1
   PKCS11_PIN: 1234
+  SOFTHSM2_CONF: $GITHUB_WORKSPACE
 
 jobs:
   container-test-job:
@@ -32,9 +34,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Add user to group
+      - name: mura
         run: |
-          sudo usermod -a -G softhsm runner
+          echo $SOFTHSM2_CONF
+
+      #- name: Add user to group
+      #  run: |
+      #    sudo usermod -a -G softhsm runner
 
       - name: Setup softhsm2
         run: |
