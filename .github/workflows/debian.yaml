@@ -34,12 +34,12 @@ jobs:
 
       - name: Add user to group
         run: |
-          id
+          usermod -a -G softhsm runner && \
 
       - name: Setup softhsm2
         run: |
-          make new_softhsm_in_ci
+          make new_softhsm
 
       - name: Unit-tests
         run: |
-          make test_in_ci
+          make test
