@@ -35,7 +35,7 @@ jobs:
 
       - name: mura
         run: |
-          echo "${{ SOFTHSM2_CONF }} ${{ GITHUB_WORKSPACE }}
+          echo "${{ SOFTHSM2_CONF }} ${{ GITHUB_WORKSPACE }}"
 
       #- name: Add user to group
       #  run: |
