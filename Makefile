@@ -32,6 +32,10 @@ new_softhsm:
 	$(info New SoftHSM)
 	softhsm2-util --init-token --slot 0 --label $(PKCS11_TOKEN) --pin $(PKCS11_PIN) --so-pin $(PKCS11_PIN)
 
+new_softhsm_in_ci:
+	$(info New SoftHSM)
+	sudo softhsm2-util --init-token --slot 0 --label $(PKCS11_TOKEN) --pin $(PKCS11_PIN) --so-pin $(PKCS11_PIN)
+
 vscode_venv:
 	$(info Creating virtualenv in devcontainer)
 	python3 -m venv .venv

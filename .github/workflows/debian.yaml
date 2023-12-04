@@ -35,7 +35,7 @@ jobs:
 
       - name: Setup softhsm2
         run: |
-          sudo make new_softhsm
+          make new_softhsm_in_ci
 
       - name: Unit-tests
         run: |
