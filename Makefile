@@ -14,6 +14,9 @@ sync_deps:
 test:
 	PYTHONPATH=$(SRCDIR) pytest -vvv -ra --log-cli-level DEBUG
 
+test_in_ci:
+	PYTHONPATH=$(SRCDIR) sudo pytest -vvv -ra --log-cli-level DEBUG
+
 reformat:
 	isort --line-width 120 --atomic --project python_x509_pkcs11 $(SOURCE)
 	black --line-length 120 --target-version py39 $(SOURCE)
