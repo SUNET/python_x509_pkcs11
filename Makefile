@@ -12,7 +12,7 @@ sync_deps:
 	$(PIPSYNC) requirements.txt
 
 test:
-	PYTHONPATH=$(SRCDIR) pwd && . .venv/bin/activate && pytest -vvv -ra --log-cli-level DEBUG
+	PYTHONPATH=$(SRCDIR) pytest -vvv -ra --log-cli-level DEBUG
 
 reformat:
 	isort --line-width 120 --atomic --project python_x509_pkcs11 $(SOURCE)

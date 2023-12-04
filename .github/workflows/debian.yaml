@@ -1,6 +1,6 @@
 name: python_x509_pkcs11-debian
 
-on: [push, pull_request]
+on: [push]
 
 env:
   PKCS11_MODULE: /usr/lib/softhsm/libsofthsm2.so
