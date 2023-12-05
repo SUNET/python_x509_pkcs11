@@ -2,33 +2,63 @@ name: python_x509_pkcs11-debian
 
 on: [push]
 
-jobs:
-  container-test-job:
+env:
+  PKCS11_MODULE: /usr/lib/softhsm/libsofthsm2.so
+  PKCS11_TOKEN: my_test_token_1
+  PKCS11_PIN: 1234
 
-    runs-on: ubuntu-latest
-    container: debian:latest
+jobs:
+  test_typecheck_build:
+
     strategy:
       matrix:
-        python: ["3.9", "3.10", "3.11"]
+        target: ["python:3.9-bookworm", "python:3.10-bookworm","python:3.11-bookworm", "python:3.12-bookworm"]
+
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.target }}
+      options: --user root
 
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Install dependencies
+
+      - name: Install packages
         run: |
           apt-get update
-          apt-get install git python3-dev python3-pip python3-venv softhsm2 sudo isort black flit -y
-          useradd python_x509_pkcs11 -m
-          usermod -a -G softhsm python_x509_pkcs11
-          chmod -R 777 .
-          sudo -u python_x509_pkcs11 bash -c 'export PATH="$PATH:$HOME/.local/bin" && \
-          id && \
+          apt-get install -y softhsm2 make
+      
+      - name: Print package versions
+        run: |
+          pip3 --version
+          python3 --version
+
+
+      - name: Install python dependencies
+        run: |
           python3 -m venv .venv && . .venv/bin/activate && \
-          python3 -m pip install -r requirements.txt && \
-          python3 -m pip install --upgrade mypy pylint && \
-          bash deploy.sh && \
-          flit build  && \
-          pip3 install dist/python_x509_pkcs11*.whl'
+          python3 -m pip install --upgrade pip && \
+          pip3 install -r requirements.txt -r test_requirements.txt
+
+      - name: Setup softhsm2
+        run: |
+          make new_softhsm
+
+      - name: Test
+        run: |
+          . .venv/bin/activate && make test
+
+      - name: Mark github workspace as safe
+        run: |
+          git config --global --add safe.directory /__w/python_x509_pkcs11/python_x509_pkcs11
+
+      - name: Typecheck
+        run: |
+          . .venv/bin/activate && mypy --version
+          . .venv/bin/activate && make typecheck
+
+      - name: Build
+        run: |
+          . .venv/bin/activate && make build
+
+
+    

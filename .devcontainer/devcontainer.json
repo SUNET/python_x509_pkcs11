@@ -1,0 +1,48 @@
+{
+	"name": "Python 3",
+	"image": "mcr.microsoft.com/devcontainers/python:0-3.11",
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/local/bin/python",
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": true,
+				"python.formatting.autopep8Path": "/usr/local/py-utils/bin/autopep8",
+				"python.formatting.blackPath": "/usr/local/py-utils/bin/black",
+				"python.formatting.yapfPath": "/usr/local/py-utils/bin/yapf",
+				"python.linting.banditPath": "/usr/local/py-utils/bin/bandit",
+				"python.linting.flake8Path": "/usr/local/py-utils/bin/flake8",
+				"python.linting.mypyPath": "/usr/local/py-utils/bin/mypy",
+				"python.linting.pycodestylePath": "/usr/local/py-utils/bin/pycodestyle",
+				"python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
+				"python.linting.pylintPath": "/usr/local/py-utils/bin/pylint",
+				"python.autoComplete.extraPaths": [
+					".venv/lib/python3.11/site-packages"
+				],
+				"cSpell.language": "en-GB,en,sv"
+			},
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"GitHub.vscode-pull-request-github",
+				"streetsidesoftware.code-spell-checker",
+				"streetsidesoftware.code-spell-checker-swedish",
+				"ms-vscode.makefile-tools",
+				"ms-python.isort",
+				"timonwong.shellcheck",
+				"ms-azuretools.vscode-docker"
+			]
+		}
+	},
+	"postCreateCommand": "make vscode",
+	"mounts": [
+		"type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock"
+	],
+	"containerEnv": {
+		"PKCS11_MODULE": "/usr/lib/softhsm/libsofthsm2.so",
+		"PKCS11_PIN": "1234",
+		"PKCS11_TOKEN": "my_test_token_1"
+	},
+	// can't reload terminal within this devcontainer, softhsm need this privileges to use softhsm2-utils.
+	"remoteUser": "root"
+}
