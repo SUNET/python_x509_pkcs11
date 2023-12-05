@@ -8,7 +8,7 @@ env:
   PKCS11_PIN: 1234
 
 jobs:
-  test_typecheck_format_build:
+  test_typecheck_static-code-analysis_build:
 
     strategy:
       matrix:
@@ -55,7 +55,11 @@ jobs:
         run: |
           . .venv/bin/activate && mypy --version
           . .venv/bin/activate && make typecheck
-      
+
+      - name: Static code analyser 
+        run: |
+          . .venv/bin/activate && make static_code_analyser 
+
       - name: Build
         run: |
           . .venv/bin/activate && make build

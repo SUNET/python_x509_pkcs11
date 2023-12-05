@@ -23,6 +23,10 @@ reformat:
 	isort --line-width 120 --atomic --project python_x509_pkcs11 $(TEST_SOURCE)
 	black --line-length 120 --target-version py39 $(TEST_SOURCE)
 
+static_code_analyser:
+	pylint src || exit 1
+	pylint tests || exit 1
+
 build:
 	flit build  && pip3 install dist/python_x509_pkcs11*.whl
 
