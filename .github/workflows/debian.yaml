@@ -6,14 +6,14 @@ env:
   PKCS11_MODULE: /usr/lib/softhsm/libsofthsm2.so
   PKCS11_TOKEN: my_test_token_1
   PKCS11_PIN: 1234
-  #SOFTHSM2_CONF: "${{ GITHUB_WORKSPACE }}"
 
 jobs:
   container-test-job:
 
     runs-on: ubuntu-latest
     container:
-      image: debian:latest
+      #image: debian:latest
+      image: python:3.9-bookworm
       options: --user root
     strategy:
       matrix:
@@ -29,10 +29,6 @@ jobs:
       
       - name: List packages
         run: |
-          id
-          pwd
-          #mkdir -p /github/home/.cache/pip
-          #ls -hal /github/home/.cache/pip
           pip3 --version
           pip3 list
           python3 --version
