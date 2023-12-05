@@ -34,6 +34,10 @@ typecheck:
 	MYPYPATH=$(SRCDIR) mypy $(MYPY_ARGS) --namespace-packages -p python_x509_pkcs11
 	MYPYPATH=$(TEST_SOURCE) mypy $(MYPY_ARGS) --namespace-packages -p python_x509_pkcs11
 
+upload_pypi: build
+	python3 -m pip install --upgrade twine keyring
+	python3 -m twine upload --repository pypi dist/* --verbose
+
 clean_softhsm:
 	$(info Deleting and reinitialize the PKCS11 token)
 	softhsm2-util --delete-token --token  $(PKCS11_TOKEN)
