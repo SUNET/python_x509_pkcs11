@@ -10,9 +10,13 @@ env:
 jobs:
   container-test-job:
 
+  strategy:
+      matrix:
+        target: [3.9, 3.10, 3.11]
+
     runs-on: ubuntu-latest
     container:
-      image: python:3.9-bookworm
+      image: python:${{ matrix.target }}-bookworm
       options: --user root
 
     steps:
