@@ -12,11 +12,11 @@ jobs:
 
     strategy:
       matrix:
-        target: [3.9, 3.10, 3.11]
+        target: [python:3.11-bookworm]
 
     runs-on: ubuntu-latest
     container:
-      image: python:${{ matrix.target }}-bookworm
+      image: ${{ matrix.target }}
       options: --user root
 
     steps:
