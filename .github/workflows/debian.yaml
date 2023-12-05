@@ -35,7 +35,7 @@ jobs:
           #ls -hal /github/home/.cache/pip
           pip3 --version
           pip3 list
-          python --version
+          python3 --version
 
 
       - name: Install python dependencies
