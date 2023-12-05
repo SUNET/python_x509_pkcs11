@@ -36,6 +36,7 @@ jobs:
         run: |
           id
           pwd
+          mkdir -p /github/home/.cache/pip
           ls -hal /github/home/.cache/pip
 
 
