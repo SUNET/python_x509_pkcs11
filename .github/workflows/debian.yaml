@@ -8,7 +8,7 @@ env:
   PKCS11_PIN: 1234
 
 jobs:
-  test_format_build:
+  test_typecheck_format_build:
 
     strategy:
       matrix:
@@ -37,7 +37,7 @@ jobs:
         run: |
           python3 -m venv .venv && . .venv/bin/activate && \
           python3 -m pip install --upgrade pip && \
-          pip3 install -r requirements.txt
+          pip3 install -r requirements.txt -r test_requirements.txt
 
       - name: Setup softhsm2
         run: |
@@ -50,9 +50,15 @@ jobs:
       - name: Mark github workspace as safe
         run: |
           git config --global --add safe.directory /__w/python_x509_pkcs11/python_x509_pkcs11
+
+      - name: Typecheck
+        run: |
+          mypy --version
+          make typecheck
       
       - name: Build
         run: |
           . .venv/bin/activate && make build
+
 
     
