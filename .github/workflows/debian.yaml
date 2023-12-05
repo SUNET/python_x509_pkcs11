@@ -26,6 +26,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
+          cache: pip
 
       - name: Install packages
         run: |
@@ -35,13 +36,15 @@ jobs:
       - name: List packages
         run: |
           id
-          ls -hal 
+          pwd
+          ls -hal /github/home/.cache/pip
 
 
       - name: Install python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          #venv/bin/python3 -m pip install -r requirements.txt
 
       - name: Setup softhsm2
         run: |
