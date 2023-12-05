@@ -34,8 +34,9 @@ jobs:
       
       - name: List packages
         run: |
-          dpkg -l
           id
+          ls -hal 
+
 
       - name: Install python dependencies
         run: |
