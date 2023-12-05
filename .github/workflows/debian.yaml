@@ -53,8 +53,8 @@ jobs:
 
       - name: Typecheck
         run: |
-          . venv/bin/activate && mypy --version
-          . venv/bin/activate && make typecheck
+          . .venv/bin/activate && mypy --version
+          . .venv/bin/activate && make typecheck
       
       - name: Build
         run: |
