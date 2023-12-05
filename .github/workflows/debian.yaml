@@ -49,6 +49,6 @@ jobs:
       
       - name: Build
         run: |
-          make build
+          . .venv/bin/activate && make build
 
     
