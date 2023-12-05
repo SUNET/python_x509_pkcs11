@@ -40,8 +40,8 @@ jobs:
 
       - name: Install python dependencies
         run: |
-          sudo -H python -m pip install --upgrade pip
-          sudo -H pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Setup softhsm2
         run: |
