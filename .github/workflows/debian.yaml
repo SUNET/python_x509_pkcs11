@@ -46,6 +46,10 @@ jobs:
       - name: Test
         run: |
           . .venv/bin/activate && make test
+
+      - name: Mark github workspace as safe
+        run: |
+          git config --global --add safe.directory /__w/python_x509_pkcs11/python_x509_pkcs11
       
       - name: Build
         run: |
