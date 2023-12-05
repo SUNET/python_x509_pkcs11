@@ -8,7 +8,7 @@ env:
   PKCS11_PIN: 1234
 
 jobs:
-  container-test-job:
+  test_format_build:
 
     strategy:
       matrix:
@@ -43,6 +43,12 @@ jobs:
         run: |
           make new_softhsm
 
-      - name: Unit-tests
+      - name: Test
         run: |
           . .venv/bin/activate && make test
+      
+      - name: Build
+        run: |
+          make build
+
+    

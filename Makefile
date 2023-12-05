@@ -23,6 +23,9 @@ reformat:
 	isort --line-width 120 --atomic --project python_x509_pkcs11 $(TEST_SOURCE)
 	black --line-length 120 --target-version py39 $(TEST_SOURCE)
 
+build:
+	flit build  && pip3 install dist/python_x509_pkcs11*.whl
+
 typecheck:
 	MYPYPATH=$(SRCDIR) mypy $(MYPY_ARGS) --namespace-packages -p python_x509_pkcs11
 	MYPYPATH=$(TEST_SOURCE) mypy $(MYPY_ARGS) --namespace-packages -p python_x509_pkcs11
