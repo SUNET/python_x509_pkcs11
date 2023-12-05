@@ -7,3 +7,4 @@ pylint >= 3.0.2
 mypy >= 1.7.1
 cached_property >= 1.5.2
 pytest >= 7.4.3
+flit >= 3.9.0
