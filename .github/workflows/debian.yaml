@@ -10,7 +10,7 @@ env:
 jobs:
   container-test-job:
 
-  strategy:
+    strategy:
       matrix:
         target: [3.9, 3.10, 3.11]
 
