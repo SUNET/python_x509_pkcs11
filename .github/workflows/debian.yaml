@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        target: ["python:3.11-bookworm"]
+        target: ["python:3.9-bookworm", "python:3.10-bookworm","python:3.11-bookworm"]
 
     runs-on: ubuntu-latest
     container:
