@@ -17,6 +17,7 @@ The classes PKCS11Session and RemotePKCS11 exposes the functions:
 - delete_certificate()
 - get_session()
 """
+import base64
 import os
 import time
 from asyncio import get_event_loop, sleep
@@ -93,7 +94,7 @@ class RemotePKCS11:
         data["cert_label"] = cert_label
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=data, timeout=10) as response:
+            async with session.post(url=url, json=data, timeout=10) as response:
                 response.raise_for_status()
                 # json_body = await response.json()
 
@@ -114,10 +115,10 @@ class RemotePKCS11:
         data["cert_label"] = cert_label
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=data, timeout=10) as response:
+            async with session.post(url=url, json=data, timeout=10) as response:
                 response.raise_for_status()
                 json_body = await response.json()
-                ret = json_body["cert_label"]  # handle errors
+                ret = json_body["certificate"]  # handle errors
                 if isinstance(ret, str):
                     return ret
                 raise ValueError("Problem with cert")
@@ -139,7 +140,7 @@ class RemotePKCS11:
         data["cert_label"] = cert_label
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=data, timeout=10) as response:
+            async with session.post(url=url, json=data, timeout=10) as response:
                 response.raise_for_status()
                 # json_body = await response.json()
                 # return json_body["cert_label"] # handle errors
@@ -164,13 +165,13 @@ class RemotePKCS11:
         if http_data is not None:
             data.update(http_data)
 
-        data["public_key"] = public_key.decode("utf-8")
-        data["private_key"] = private_key.decode("utf-8")
+        data["public_key"] = base64.b64encode(public_key).decode("utf-8")
+        data["private_key"] = base64.b64encode(private_key).decode("utf-8")
         data["key_label"] = key_label
         data["key_type"] = key_type
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=data, timeout=10) as response:
+            async with session.post(url=url, json=data, timeout=10) as response:
                 response.raise_for_status()
                 # json_body = await response.json()
 
@@ -199,14 +200,14 @@ class RemotePKCS11:
         data["key_type"] = key_type
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=data, timeout=10) as response:
+            async with session.post(url=url, json=data, timeout=10) as response:
                 response.raise_for_status()
                 json_body = await response.json()
                 spi = json_body["subjectPublicKeyInfo"]  # handle errors
                 ski = json_body["subjectKeyIdentifier"]
 
-                if isinstance(spi, str) and isinstance(ski, str):
-                    return spi, ski.encode("utf-8")
+                if isinstance(spi, str) and isinstance(ski, str):  # handle errors
+                    return spi, base64.b64decode(ski)
                 raise ValueError("Problem with create keypair")
 
     async def key_labels(
@@ -215,12 +216,12 @@ class RemotePKCS11:
         """Return a dict of key labels as keys and key type as values in the PKCS11 device."""
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=http_data, headers=http_headers, timeout=10) as response:
+            async with session.post(url=url, json=http_data, headers=http_headers, timeout=10) as response:
                 response.raise_for_status()
                 json_body = await response.json()
                 ret = json_body["key_labels"]  # handle errors
 
-                if isinstance(ret, dict):  # handle only
+                if isinstance(ret, dict):  # handle only [str, str]
                     return ret
                 raise ValueError("Problem with key labels")
 
@@ -248,7 +249,7 @@ class RemotePKCS11:
         if http_data is not None:
             http_request_data.update(http_data)
 
-        http_request_data["data"] = data.decode("utf-8")
+        http_request_data["data"] = base64.b64encode(data).decode("utf-8")
         http_request_data["key_label"] = key_label
         http_request_data["key_type"] = key_type
 
@@ -258,13 +259,13 @@ class RemotePKCS11:
             http_request_data["verify_signature"] = True
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=http_request_data, headers=http_headers, timeout=10) as response:
+            async with session.post(url=url, json=http_request_data, headers=http_headers, timeout=10) as response:
                 response.raise_for_status()
                 json_body = await response.json()
                 ret = json_body["signature"]  # handle errors
 
                 if isinstance(ret, str):
-                    return ret.encode("utf-8")
+                    return base64.b64decode(ret)
                 raise ValueError("Problem with signature")
 
     async def verify(  # pylint: disable-msg=too-many-arguments
@@ -291,13 +292,13 @@ class RemotePKCS11:
         if http_data is not None:
             http_request_data.update(http_data)
 
-        http_request_data["data"] = data.decode("utf-8")
-        http_request_data["signature"] = signature.decode("utf-8")
+        http_request_data["data"] = base64.b64encode(data).decode("utf-8")
+        http_request_data["signature"] = base64.b64encode(signature).decode("utf-8")
         http_request_data["key_label"] = key_label
         http_request_data["key_type"] = key_type
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=http_request_data, headers=http_headers, timeout=10) as response:
+            async with session.post(url=url, json=http_request_data, headers=http_headers, timeout=10) as response:
                 response.raise_for_status()
                 json_body = await response.json()
                 ret = json_body["verified"]  # handle errors
@@ -331,7 +332,7 @@ class RemotePKCS11:
         http_request_data["key_label"] = key_label
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=http_request_data, headers=http_headers, timeout=10) as response:
+            async with session.post(url=url, json=http_request_data, headers=http_headers, timeout=10) as response:
                 response.raise_for_status()
                 json_body = await response.json()
                 # ret = json_body["verified"]  # handle errors
@@ -362,14 +363,14 @@ class RemotePKCS11:
         data["key_type"] = key_type
 
         async with aiohttp.ClientSession(headers=http_headers) as session:
-            async with session.post(url=url, data=data, timeout=10) as response:
+            async with session.post(url=url, json=data, timeout=10) as response:
                 response.raise_for_status()
                 json_body = await response.json()
                 spi = json_body["subjectPublicKeyInfo"]  # handle errors
                 ski = json_body["subjectKeyIdentifier"]
 
                 if isinstance(spi, str) and isinstance(ski, str):
-                    return spi, ski.encode("utf-8")
+                    return spi, base64.b64decode(ski)
                 raise ValueError("Problem with create keypair")
 
 
