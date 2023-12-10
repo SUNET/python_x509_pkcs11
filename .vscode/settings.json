@@ -4,6 +4,7 @@
         "mypy",
         "softhsm",
         "typecheck",
-        "venv"
+        "venv",
+        "aiohttp"
     ]
 }

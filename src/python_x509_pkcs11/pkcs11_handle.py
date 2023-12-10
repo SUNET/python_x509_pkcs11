@@ -4,7 +4,7 @@
 # and then when it fails to open a new session for performance
 # See PKCS11Session._healthy_session()
 
-Exposes the functions:
+The classes PKCS11Session and RemotePKCS11 exposes the functions:
 - import_keypair()
 - create_keypair()
 - key_labels()
@@ -22,10 +22,13 @@ import time
 from asyncio import get_event_loop, sleep
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from email import header
 from hashlib import sha256, sha384, sha512
+from socket import timeout
 from threading import Lock, Thread
-from typing import AsyncIterator, Dict, Optional, Tuple
+from typing import AsyncIterator, Dict, Optional, Tuple, Union
 
+import aiohttp
 from asn1crypto import pem as asn1_pem
 from asn1crypto import x509 as asn1_x509
 from asn1crypto.algos import SignedDigestAlgorithmId
@@ -66,6 +69,308 @@ async def async_lock(lock: Lock) -> AsyncIterator[None]:
         yield  # the lock is held
     finally:
         lock.release()
+
+
+class RemotePKCS11:
+    """HTTP REMOTE PKCS11."""
+
+    async def import_certificate(
+        self,
+        url: str,
+        cert_pem: str,
+        cert_label: str,
+        http_data: Optional[Dict[str, str]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """Import a certificate into the PKCS11 device with this label."""
+
+        data: Dict[str, str] = {}
+
+        if http_data is not None:
+            data.update(http_data)
+
+        data["cert_pem"] = cert_pem
+        data["cert_label"] = cert_label
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=data, timeout=10) as response:
+                response.raise_for_status()
+                # json_body = await response.json()
+
+    async def export_certificate(
+        self,
+        url: str,
+        cert_label: str,
+        http_data: Optional[Dict[str, str]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """Export a certificate from the PKCS11 device with this label."""
+
+        data: Dict[str, str] = {}
+
+        if http_data is not None:
+            data.update(http_data)
+
+        data["cert_label"] = cert_label
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=data, timeout=10) as response:
+                response.raise_for_status()
+                json_body = await response.json()
+                ret = json_body["cert_label"]  # handle errors
+                if isinstance(ret, str):
+                    return ret
+                raise ValueError("Problem with cert")
+
+    async def delete_certificate(
+        self,
+        url: str,
+        cert_label: str,
+        http_data: Optional[Dict[str, str]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """Delete a certificate from the PKCS11 device with this label."""
+
+        data: Dict[str, str] = {}
+
+        if http_data is not None:
+            data.update(http_data)
+
+        data["cert_label"] = cert_label
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=data, timeout=10) as response:
+                response.raise_for_status()
+                # json_body = await response.json()
+                # return json_body["cert_label"] # handle errors
+
+    async def import_keypair(
+        self,
+        url: str,
+        public_key: bytes,
+        private_key: bytes,
+        key_label: str,
+        key_type: str,
+        http_data: Optional[Dict[str, str]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """Import a DER encoded keypair into the PKCS11 device with this label."""
+
+        if key_type not in key_types:
+            raise ValueError(f"key_type must be in {key_types}")
+
+        data: Dict[str, str] = {}
+
+        if http_data is not None:
+            data.update(http_data)
+
+        data["public_key"] = public_key.decode("utf-8")
+        data["private_key"] = private_key.decode("utf-8")
+        data["key_label"] = key_label
+        data["key_type"] = key_type
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=data, timeout=10) as response:
+                response.raise_for_status()
+                # json_body = await response.json()
+
+    async def create_keypair(
+        self,
+        url: str,
+        key_label: str,
+        key_type: Optional[str] = None,
+        http_data: Optional[Dict[str, str]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
+    ) -> Tuple[str, bytes]:
+        """Create an RSA keypair in the PKCS11 device with this label."""
+
+        if key_type is None:
+            key_type = "ed25519"
+
+        if key_type not in key_types:
+            raise ValueError(f"key_type must be in {key_types}")
+
+        data: Dict[str, str] = {}
+
+        if http_data is not None:
+            data.update(http_data)
+
+        data["key_label"] = key_label
+        data["key_type"] = key_type
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=data, timeout=10) as response:
+                response.raise_for_status()
+                json_body = await response.json()
+                spi = json_body["subjectPublicKeyInfo"]  # handle errors
+                ski = json_body["subjectKeyIdentifier"]
+
+                if isinstance(spi, str) and isinstance(ski, str):
+                    return spi, ski.encode("utf-8")
+                raise ValueError("Problem with create keypair")
+
+    async def key_labels(
+        self, url: str, http_data: Optional[Dict[str, str]] = None, http_headers: Optional[Dict[str, str]] = None
+    ) -> Dict[str, str]:
+        """Return a dict of key labels as keys and key type as values in the PKCS11 device."""
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=http_data, headers=http_headers, timeout=10) as response:
+                response.raise_for_status()
+                json_body = await response.json()
+                ret = json_body["key_labels"]  # handle errors
+
+                if isinstance(ret, dict):  # handle only
+                    return ret
+                raise ValueError("Problem with key labels")
+
+    async def sign(
+        self,
+        url: str,
+        key_label: str,
+        data: bytes,
+        verify_signature: Optional[bool] = None,
+        key_type: Optional[str] = None,
+        http_data: Optional[Dict[str, str]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
+    ) -> bytes:
+        """Sign the data: bytes using the private key
+        with the label in the PKCS11 device."""
+
+        if key_type is None:
+            key_type = "ed25519"
+
+        if key_type not in key_types:
+            raise ValueError(f"key_type must be in {key_types}")
+
+        http_request_data: Dict[str, Union[str, bool]] = {}
+
+        if http_data is not None:
+            http_request_data.update(http_data)
+
+        http_request_data["data"] = data.decode("utf-8")
+        http_request_data["key_label"] = key_label
+        http_request_data["key_type"] = key_type
+
+        if verify_signature is None or not verify_signature:
+            http_request_data["verify_signature"] = False
+        else:
+            http_request_data["verify_signature"] = True
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=http_request_data, headers=http_headers, timeout=10) as response:
+                response.raise_for_status()
+                json_body = await response.json()
+                ret = json_body["signature"]  # handle errors
+
+                if isinstance(ret, str):
+                    return ret.encode("utf-8")
+                raise ValueError("Problem with signature")
+
+    async def verify(  # pylint: disable-msg=too-many-arguments
+        self,
+        url: str,
+        key_label: str,
+        data: bytes,
+        signature: bytes,
+        key_type: Optional[str] = None,
+        http_data: Optional[Dict[str, str]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
+    ) -> bool:
+        """Verify a signature with its data using the private key
+        with the label in the PKCS11 device."""
+
+        if key_type is None:
+            key_type = "ed25519"
+
+        if key_type not in key_types:
+            raise ValueError(f"key_type must be in {key_types}")
+
+        http_request_data: Dict[str, str] = {}
+
+        if http_data is not None:
+            http_request_data.update(http_data)
+
+        http_request_data["data"] = data.decode("utf-8")
+        http_request_data["signature"] = signature.decode("utf-8")
+        http_request_data["key_label"] = key_label
+        http_request_data["key_type"] = key_type
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=http_request_data, headers=http_headers, timeout=10) as response:
+                response.raise_for_status()
+                json_body = await response.json()
+                ret = json_body["verified"]  # handle errors
+
+                if isinstance(ret, bool):
+                    return ret
+                raise ValueError("Problem with verify")
+
+    async def delete_keypair(
+        self,
+        url: str,
+        key_label: str,
+        key_type: Optional[str] = None,
+        http_data: Optional[Dict[str, str]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """Delete the keypair from the PKCS11 device."""
+
+        if key_type is None:
+            key_type = "ed25519"
+
+        if key_type not in key_types:
+            raise ValueError(f"key_type must be in {key_types}")
+
+        http_request_data: Dict[str, str] = {}
+
+        if http_data is not None:
+            http_request_data.update(http_data)
+
+        http_request_data["key_type"] = key_type
+        http_request_data["key_label"] = key_label
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=http_request_data, headers=http_headers, timeout=10) as response:
+                response.raise_for_status()
+                json_body = await response.json()
+                # ret = json_body["verified"]  # handle errors
+
+    async def public_key_data(
+        self,
+        url: str,
+        key_label: str,
+        key_type: Optional[str] = None,
+        http_data: Optional[Dict[str, str]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
+    ) -> Tuple[str, bytes]:
+        """Returns the public key in PEM form
+        and 'Key Identifier' valid for this keypair."""
+
+        if key_type is None:
+            key_type = "ed25519"
+
+        if key_type not in key_types:
+            raise ValueError(f"key_type must be in {key_types}")
+
+        data: Dict[str, str] = {}
+
+        if http_data is not None:
+            data.update(http_data)
+
+        data["key_label"] = key_label
+        data["key_type"] = key_type
+
+        async with aiohttp.ClientSession(headers=http_headers) as session:
+            async with session.post(url=url, data=data, timeout=10) as response:
+                response.raise_for_status()
+                json_body = await response.json()
+                spi = json_body["subjectPublicKeyInfo"]  # handle errors
+                ski = json_body["subjectKeyIdentifier"]
+
+                if isinstance(spi, str) and isinstance(ski, str):
+                    return spi, ski.encode("utf-8")
+                raise ValueError("Problem with create keypair")
 
 
 class PKCS11Session:
