@@ -165,8 +165,8 @@ class RemotePKCS11:
         if http_data is not None:
             data.update(http_data)
 
-        data["public_key"] = base64.b64encode(public_key).decode("utf-8")
-        data["private_key"] = base64.b64encode(private_key).decode("utf-8")
+        data["public_key_b64"] = base64.b64encode(public_key).decode("utf-8")
+        data["private_key_b64"] = base64.b64encode(private_key).decode("utf-8")
         data["key_label"] = key_label
         data["key_type"] = key_type
 
@@ -204,7 +204,7 @@ class RemotePKCS11:
                 response.raise_for_status()
                 json_body = await response.json()
                 spi = json_body["subjectPublicKeyInfo"]  # handle errors
-                ski = json_body["subjectKeyIdentifier"]
+                ski = json_body["subjectKeyIdentifier_b64"]
 
                 if isinstance(spi, str) and isinstance(ski, str):  # handle errors
                     return spi, base64.b64decode(ski)
@@ -249,7 +249,7 @@ class RemotePKCS11:
         if http_data is not None:
             http_request_data.update(http_data)
 
-        http_request_data["data"] = base64.b64encode(data).decode("utf-8")
+        http_request_data["data_b64"] = base64.b64encode(data).decode("utf-8")
         http_request_data["key_label"] = key_label
         http_request_data["key_type"] = key_type
 
@@ -262,7 +262,7 @@ class RemotePKCS11:
             async with session.post(url=url, json=http_request_data, headers=http_headers, timeout=10) as response:
                 response.raise_for_status()
                 json_body = await response.json()
-                ret = json_body["signature"]  # handle errors
+                ret = json_body["signature_b64"]  # handle errors
 
                 if isinstance(ret, str):
                     return base64.b64decode(ret)
@@ -292,8 +292,8 @@ class RemotePKCS11:
         if http_data is not None:
             http_request_data.update(http_data)
 
-        http_request_data["data"] = base64.b64encode(data).decode("utf-8")
-        http_request_data["signature"] = base64.b64encode(signature).decode("utf-8")
+        http_request_data["data_b64"] = base64.b64encode(data).decode("utf-8")
+        http_request_data["signature_b64"] = base64.b64encode(signature).decode("utf-8")
         http_request_data["key_label"] = key_label
         http_request_data["key_type"] = key_type
 
@@ -367,7 +367,7 @@ class RemotePKCS11:
                 response.raise_for_status()
                 json_body = await response.json()
                 spi = json_body["subjectPublicKeyInfo"]  # handle errors
-                ski = json_body["subjectKeyIdentifier"]
+                ski = json_body["subjectKeyIdentifier_b64"]
 
                 if isinstance(spi, str) and isinstance(ski, str):
                     return spi, base64.b64decode(ski)
