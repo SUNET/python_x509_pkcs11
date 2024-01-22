@@ -55,7 +55,7 @@ from .crypto import (
 from .error import PKCS11UnknownErrorException
 from .lib import DEBUG, key_type_values, key_types
 
-TIMEOUT = 3  # Seconds
+TIMEOUT = 10  # Seconds
 pool = ThreadPoolExecutor()
 
 
@@ -79,6 +79,7 @@ class PKCS11Session:
     _token: Token
     _lib: lib
 
+    support_recreate_session: Optional[bool] = None
     base_url: Optional[str]
     http_data: Optional[Dict[str, str]] = None
     http_headers: Optional[Dict[str, str]] = None
@@ -99,6 +100,50 @@ class PKCS11Session:
 
         if "PKCS11_BASE_URL" in os.environ:
             cls.base_url = os.environ["PKCS11_BASE_URL"]
+            return
+
+        cls.support_recreate_session = False
+        if "PKCS11_TOKEN_SUPPORT_RECREATE_SESSION" in os.environ:
+            if (
+                os.environ["PKCS11_TOKEN_SUPPORT_RECREATE_SESSION"] == "true"
+                or os.environ["PKCS11_TOKEN_SUPPORT_RECREATE_SESSION"] == "TRUE"
+            ):
+                cls.support_recreate_session = True
+
+        if not cls.support_recreate_session:
+            try:
+                if hasattr(cls, "session"):
+                    return
+
+                cls._lib = lib(os.environ["PKCS11_MODULE"])
+                cls._lib.reinitialize()
+
+                # Open the PKCS11 session
+                cls._token = cls._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
+
+                # user_pin need to be a string, not bytes
+                cls.session = cls._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
+                print("created new pkcs11 session")
+
+                # Test get a public key from the PKCS11 device
+                _ = cls.session.get_key(
+                    key_type=KeyType.RSA,
+                    object_class=ObjectClass.PUBLIC_KEY,
+                    label="test_pkcs11_device_do_not_use",
+                )
+
+            except NoSuchKey:
+                try:
+                    _, _ = cls.session.generate_keypair(
+                        KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True
+                    )
+                except GeneralError:
+                    pass
+
+            except GeneralError as exc:
+                if DEBUG:
+                    print("Failed to open PKCS11 session")
+                    print(exc)
 
     @classmethod
     def _get_pub_key(cls, key_label: str, key_type: str) -> Key:
@@ -155,6 +200,7 @@ class PKCS11Session:
                 cls._token = cls._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
                 # user_pin need to be a string, not bytes
                 cls.session = cls._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
+                print("created new pkcs11 session")
 
             # Test get a public key from the PKCS11 device
             _ = cls.session.get_key(
@@ -179,6 +225,9 @@ class PKCS11Session:
     @classmethod
     async def healthy_session(cls, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
         """Run the PKCS11 test command in a thread to easy handle PKCS11 timeouts."""
+
+        if not cls.support_recreate_session:
+            return
 
         thread = Thread(target=cls._open_session, args=([False, simulate_pkcs11_timeout]))
         thread.start()
