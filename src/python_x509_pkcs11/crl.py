@@ -197,7 +197,7 @@ async def _set_signature(key_label: str, key_type: Optional[str], cert_list: Cer
 
     cert_list["tbs_cert_list"]["signature"] = signed_digest_algo(key_type)
     cert_list["signature_algorithm"] = cert_list["tbs_cert_list"]["signature"]
-    cert_list["signature"] = await PKCS11Session.sign(key_label, cert_list["tbs_cert_list"].dump(), key_type=key_type)
+    cert_list["signature"] = await PKCS11Session().sign(key_label, cert_list["tbs_cert_list"].dump(), key_type=key_type)
     return cert_list
 
 

@@ -123,8 +123,8 @@ class TestCa(unittest.TestCase):
             self.assertTrue(len(test_cert["tbs_certificate"]["extensions"]) == 4)
 
             # Delete the test keys
-            asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-1], key_type=key_type))
-            asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-2]))
+            asyncio.run(PKCS11Session().delete_keypair(new_key_label[:-1], key_type=key_type))
+            asyncio.run(PKCS11Session().delete_keypair(new_key_label[:-2]))
 
     def test_create_ca_not_before_not_after(self) -> None:
         """
@@ -167,8 +167,8 @@ class TestCa(unittest.TestCase):
         self.assertTrue(test_c["tbs_certificate"]["validity"]["not_after"].native == not_after)
 
         # Delete the test keys
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-1]))
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-2]))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label[:-1]))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label[:-2]))
 
     def test_create_ca_with_extensions(self) -> None:
         """
@@ -220,8 +220,8 @@ class TestCa(unittest.TestCase):
         self.assertTrue(len(cert_exts) == 5)
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label[:-1]))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label[:-1]))
 
     def test_create_intermediate_ca(self) -> None:
         """
@@ -296,8 +296,8 @@ class TestCa(unittest.TestCase):
             self.assertTrue(ski != aki)
 
             # Delete the test keys
-            asyncio.run(PKCS11Session.delete_keypair(new_key_label, key_type=key_type))
-            asyncio.run(PKCS11Session.delete_keypair(new_key_label2, key_type=key_type))
+            asyncio.run(PKCS11Session().delete_keypair(new_key_label, key_type=key_type))
+            asyncio.run(PKCS11Session().delete_keypair(new_key_label2, key_type=key_type))
 
     def test_create_intermediate_diff_key_type_ca(self) -> None:
         """
@@ -355,5 +355,5 @@ class TestCa(unittest.TestCase):
         )
 
         # Delete the test keys
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label, key_type="ed25519"))
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label2, key_type="secp256r1"))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label, key_type="ed25519"))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label2, key_type="secp256r1"))

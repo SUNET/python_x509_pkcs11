@@ -2,7 +2,7 @@
 
 # Better to keep a pkcs11 session reference all the time
 # and then when it fails to open a new session for performance
-# See PKCS11Session._healthy_session()
+# See PKCS11Session()._healthy_session()
 
 The classes PKCS11Session and RemotePKCS11 exposes the functions:
 - import_keypair()
@@ -74,59 +74,67 @@ async def async_lock(lock: Lock) -> AsyncIterator[None]:
 
 class PKCS11Session:
     """Persistent PKCS11 session wrapper."""
+    # We want a single instance of this class.
+    # Because pkcs11 allows one connection to the pkcs11 device.
+    _self = None
 
     _session_status: int = 9
     _token: Token
     _lib: lib
 
-    support_recreate_session: Optional[bool] = None
-    base_url: Optional[str]
-    http_data: Optional[Dict[str, str]] = None
-    http_headers: Optional[Dict[str, str]] = None
 
-    lock = Lock()
-    session: Session
 
-    @classmethod
+
+    def __new__(cls, *args, **kwargs) -> "PKCS11Session":
+        if cls._self is None:
+            cls._self = super(PKCS11Session, cls).__new__(cls, *args, **kwargs)
+        return cls._self
+
     def __init__(
-        cls,
+        self,
         base_url: Optional[str] = None,
         http_data: Optional[Dict[str, str]] = None,
         http_headers: Optional[Dict[str, str]] = None,
     ) -> None:
-        cls.base_url = base_url
-        cls.http_data = http_data
-        cls.http_headers = http_headers
+        self.lock = Lock()
+
+        self.base_url = base_url
+        self.http_data = http_data
+        self.http_headers = http_headers
+        self.session: Optional[Session] = None
+        self.support_recreate_session = False
 
         if "PKCS11_BASE_URL" in os.environ:
-            cls.base_url = os.environ["PKCS11_BASE_URL"]
+            self.base_url = os.environ["PKCS11_BASE_URL"]
             return
 
-        cls.support_recreate_session = False
+        # TODO: Update the recreate session code in a cleaner way.
+
         if "PKCS11_TOKEN_SUPPORT_RECREATE_SESSION" in os.environ:
             if (
                 os.environ["PKCS11_TOKEN_SUPPORT_RECREATE_SESSION"] == "true"
                 or os.environ["PKCS11_TOKEN_SUPPORT_RECREATE_SESSION"] == "TRUE"
             ):
-                cls.support_recreate_session = True
+                self.support_recreate_session = True
 
-        if not cls.support_recreate_session:
+        if not self.support_recreate_session:
             try:
-                if hasattr(cls, "session"):
+                # If we already have a session, no need to create a new one.
+                if self.session:
                     return
 
-                cls._lib = lib(os.environ["PKCS11_MODULE"])
-                cls._lib.reinitialize()
+                self._lib = lib(os.environ["PKCS11_MODULE"])
+                self._lib.reinitialize()
 
                 # Open the PKCS11 session
-                cls._token = cls._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
+                self._token = self._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
 
                 # user_pin need to be a string, not bytes
-                cls.session = cls._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
+                self.session = self._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
                 print("created new pkcs11 session")
 
                 # Test get a public key from the PKCS11 device
-                _ = cls.session.get_key(
+                _ = self.session.get_key(
                     key_type=KeyType.RSA,
                     object_class=ObjectClass.PUBLIC_KEY,
                     label="test_pkcs11_device_do_not_use",
@@ -134,7 +142,7 @@ class PKCS11Session:
 
             except NoSuchKey:
                 try:
-                    _, _ = cls.session.generate_keypair(
+                    _, _ = self.session.generate_keypair(
                         KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True
                     )
                 except GeneralError:
@@ -145,16 +153,14 @@ class PKCS11Session:
                     print("Failed to open PKCS11 session")
                     print(exc)
 
-    @classmethod
-    def _get_pub_key(cls, key_label: str, key_type: str) -> Key:
-        return cls.session.get_key(
+    def _get_pub_key(self, key_label: str, key_type: str) -> Key:
+        return self.session.get_key(
             key_type=key_type_values[key_type],
             object_class=ObjectClass.PUBLIC_KEY,
             label=key_label,
         )
 
-    @classmethod
-    def _public_key_data(cls, key_pub: Key, key_type: str) -> Tuple[str, bytes]:
+    def _public_key_data(self, key_pub: Key, key_type: str) -> Tuple[str, bytes]:
         if key_type in ["rsa_2048", "rsa_4096"]:
             # Create the PublicKeyInfo object
             rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
@@ -176,8 +182,7 @@ class PKCS11Session:
         key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
         return key_pub_pem.decode("utf-8"), pki.sha1
 
-    @classmethod
-    def _open_session(cls, force: Optional[bool] = None, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
+    def _open_session(self, force: Optional[bool] = None, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
         if simulate_pkcs11_timeout:
             time.sleep(TIMEOUT + 1)
 
@@ -188,32 +193,32 @@ class PKCS11Session:
         if "PKCS11_PIN" not in os.environ:
             print("ERROR: PKCS11_PIN was not an env variable")
 
-        cls._session_status = 9
+        self._session_status = 9
         try:
-            # if force or cls.session is None:
-            if force or not hasattr(cls, "session"):
+            # if force or self.session is None:
+            if force or self.session is None:
                 # Reload the PKCS11 lib
-                cls._lib = lib(os.environ["PKCS11_MODULE"])
-                cls._lib.reinitialize()
+                self._lib = lib(os.environ["PKCS11_MODULE"])
+                self._lib.reinitialize()
 
                 # Open the PKCS11 session
-                cls._token = cls._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
+                self._token = self._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
                 # user_pin need to be a string, not bytes
-                cls.session = cls._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
+                self.session = self._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
                 print("created new pkcs11 session")
 
             # Test get a public key from the PKCS11 device
-            _ = cls.session.get_key(
+            _ = self.session.get_key(
                 key_type=KeyType.RSA,
                 object_class=ObjectClass.PUBLIC_KEY,
                 label="test_pkcs11_device_do_not_use",
             )
-            cls._session_status = 0
+            self._session_status = 0
 
         except NoSuchKey:
             try:
-                _, _ = cls.session.generate_keypair(KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True)
-                cls._session_status = 0
+                _, _ = self.session.generate_keypair(KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True)
+                self._session_status = 0
             except GeneralError:
                 pass
 
@@ -222,39 +227,35 @@ class PKCS11Session:
                 print("Failed to open PKCS11 session")
                 print(exc)
 
-    @classmethod
-    async def healthy_session(cls, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
+    async def healthy_session(self, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
         """Run the PKCS11 test command in a thread to easy handle PKCS11 timeouts."""
 
-        if not cls.support_recreate_session:
+        if not self.support_recreate_session:
             return
-
-        thread = Thread(target=cls._open_session, args=([False, simulate_pkcs11_timeout]))
+        thread = Thread(target=self._open_session, args=(False, simulate_pkcs11_timeout))
         thread.start()
         await sleep(0)
         thread.join(timeout=TIMEOUT)
 
-        if thread.is_alive() or cls._session_status != 0:
-            thread2 = Thread(target=cls._open_session, args=([True, simulate_pkcs11_timeout]))
+        if thread.is_alive() or self._session_status != 0:
+            thread2 = Thread(target=self._open_session, args=(True, simulate_pkcs11_timeout))
             thread2.start()
             # yield to other coroutines while we wait for thread2 to join
             await sleep(0)
             thread2.join(timeout=TIMEOUT)
 
-            if thread2.is_alive() or cls._session_status != 0:
+            if thread2.is_alive() or self._session_status != 0:
                 raise PKCS11UnknownErrorException("ERROR: Could not get a healthy PKCS11 connection in time")
 
-    @classmethod
-    async def get_session(cls) -> Session:
+    async def get_session(self) -> Session:
         """Return the PKCS11 session."""
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
-            return cls.session
+            await self.healthy_session()
+            return self.session
 
-    @classmethod
-    async def import_certificate(cls, cert_pem: str, cert_label: str) -> None:
+    async def import_certificate(self, cert_pem: str, cert_label: str) -> None:
         """Import a certificate into the PKCS11 device with this label.
 
         Parameters:
@@ -265,31 +266,31 @@ class PKCS11Session:
         None
         """
 
-        if cls.base_url is not None:
+        if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
 
-            if cls.http_data is not None:
-                http_request_data.update(cls.http_data)
+            if self.http_data is not None:
+                http_request_data.update(self.http_data)
 
             http_request_data["cert_pem"] = cert_pem
             http_request_data["cert_label"] = cert_label
 
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/import_certificate",
+                    url=f"{self.base_url}/import_certificate",
                     json=http_request_data,
-                    headers=cls.http_headers,
+                    headers=self.http_headers,
                     timeout=10,
                 ) as response:
                     response.raise_for_status()
                     # json_body = await response.json()
                     return
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
-            for cert in cls.session.get_objects(
+            for cert in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.CERTIFICATE,
                     Attribute.LABEL: cert_label,
@@ -304,10 +305,9 @@ class PKCS11Session:
             cert = decode_x509_certificate(data)
             cert[Attribute.TOKEN] = True
             cert[Attribute.LABEL] = cert_label
-            cls.session.create_object(cert)
+            self.session.create_object(cert)
 
-    @classmethod
-    async def export_certificate(cls, cert_label: str) -> str:
+    async def export_certificate(self, cert_label: str) -> str:
         """Export a certificate from the PKCS11 device with this label.
         Returns the PEM encoded cert.
 
@@ -318,19 +318,19 @@ class PKCS11Session:
         str
         """
 
-        if cls.base_url is not None:
+        if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
 
-            if cls.http_data is not None:
-                http_request_data.update(cls.http_data)
+            if self.http_data is not None:
+                http_request_data.update(self.http_data)
 
             http_request_data["cert_label"] = cert_label
 
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/export_certificate",
+                    url=f"{self.base_url}/export_certificate",
                     json=http_request_data,
-                    headers=cls.http_headers,
+                    headers=self.http_headers,
                     timeout=10,
                 ) as response:
                     response.raise_for_status()
@@ -340,11 +340,11 @@ class PKCS11Session:
                         return ret
                     raise ValueError("Problem with cert")
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
-            for cert in cls.session.get_objects(
+            for cert in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.CERTIFICATE,
                     Attribute.LABEL: cert_label,
@@ -361,27 +361,26 @@ class PKCS11Session:
 
             raise ValueError("No such certificate in the PKCS11 device")
 
-    @classmethod
-    async def delete_certificate(cls, cert_label: str) -> None:
+    async def delete_certificate(self, cert_label: str) -> None:
         """Delete a certificate from the PKCS11 device with this label.
 
         Parameters:
         cert_label (str): Certificate label in the PKCS11 device.
         """
 
-        if cls.base_url is not None:
+        if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
 
-            if cls.http_data is not None:
-                http_request_data.update(cls.http_data)
+            if self.http_data is not None:
+                http_request_data.update(self.http_data)
 
             http_request_data["cert_label"] = cert_label
 
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/delete_certificate",
+                    url=f"{self.base_url}/delete_certificate",
                     json=http_request_data,
-                    headers=cls.http_headers,
+                    headers=self.http_headers,
                     timeout=10,
                 ) as response:
                     response.raise_for_status()
@@ -389,11 +388,11 @@ class PKCS11Session:
                     # json_body = await response.json()
                     # return json_body["cert_label"] # handle errors
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
-            for cert in cls.session.get_objects(
+            for cert in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.CERTIFICATE,
                     Attribute.LABEL: cert_label,
@@ -401,8 +400,7 @@ class PKCS11Session:
             ):
                 cert.destroy()
 
-    @classmethod
-    async def import_keypair(cls, public_key: bytes, private_key: bytes, key_label: str, key_type: str) -> None:
+    async def import_keypair(self, public_key: bytes, private_key: bytes, key_label: str, key_type: str) -> None:
         """Import a DER encoded keypair into the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
 
@@ -425,31 +423,31 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        if cls.base_url is not None:
+        if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
 
-            if cls.http_data is not None:
-                http_request_data.update(cls.http_data)
+            if self.http_data is not None:
+                http_request_data.update(self.http_data)
 
             http_request_data["public_key_b64"] = base64.b64encode(public_key).decode("utf-8")
             http_request_data["private_key_b64"] = base64.b64encode(private_key).decode("utf-8")
             http_request_data["key_label"] = key_label
             http_request_data["key_type"] = key_type
 
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/import_keypair", json=http_request_data, headers=cls.http_headers, timeout=10
+                    url=f"{self.base_url}/import_keypair", json=http_request_data, headers=self.http_headers, timeout=10
                 ) as response:
                     response.raise_for_status()
                     return
                     # json_body = await response.json()
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
             try:
-                key_pub = cls._get_pub_key(key_label, key_type)
+                key_pub = self._get_pub_key(key_label, key_type)
                 raise MultipleObjectsReturned
             except NoSuchKey:
                 pass
@@ -471,11 +469,10 @@ class PKCS11Session:
             key_priv[Attribute.TOKEN] = True
             key_priv[Attribute.LABEL] = key_label
 
-            cls.session.create_object(key_pub)
-            cls.session.create_object(key_priv)
+            self.session.create_object(key_pub)
+            self.session.create_object(key_priv)
 
-    @classmethod
-    async def create_keypair(cls, key_label: str, key_type: Optional[str] = None) -> Tuple[str, bytes]:
+    async def create_keypair(self, key_label: str, key_type: Optional[str] = None) -> Tuple[str, bytes]:
         """Create an RSA keypair in the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
         Returns the data for the x509 'Subject Public Key Info'
@@ -498,18 +495,18 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        if cls.base_url is not None:
+        if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
 
-            if cls.http_data is not None:
-                http_request_data.update(cls.http_data)
+            if self.http_data is not None:
+                http_request_data.update(self.http_data)
 
             http_request_data["key_label"] = key_label
             http_request_data["key_type"] = key_type
 
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/create_keypair", json=http_request_data, headers=cls.http_headers, timeout=10
+                    url=f"{self.base_url}/create_keypair", json=http_request_data, headers=self.http_headers, timeout=10
                 ) as response:
                     response.raise_for_status()
                     json_body = await response.json()
@@ -520,23 +517,23 @@ class PKCS11Session:
                         return spi, base64.b64decode(ski)
                     raise ValueError("Problem with create keypair")
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
             # Try to get the key, if not exist then create it
             try:
-                key_pub = cls._get_pub_key(key_label, key_type)
+                key_pub = self._get_pub_key(key_label, key_type)
                 raise MultipleObjectsReturned
             except NoSuchKey:
                 # Generate the rsa keypair
                 if key_type in ["rsa_2048", "rsa_4096"]:
-                    key_pub, _ = cls.session.generate_keypair(
+                    key_pub, _ = self.session.generate_keypair(
                         KeyType.RSA, int(key_type.split("_")[1]), store=True, label=key_label
                     )
 
                 elif key_type in ["ed25519", "ed448"]:
-                    parameters = cls.session.create_domain_parameters(
+                    parameters = self.session.create_domain_parameters(
                         KeyType.EC_EDWARDS,
                         {
                             Attribute.EC_PARAMS: encode_named_curve_parameters(
@@ -550,7 +547,7 @@ class PKCS11Session:
                     )
 
                 elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
-                    parameters = cls.session.create_domain_parameters(
+                    parameters = self.session.create_domain_parameters(
                         KeyType.EC,
                         {Attribute.EC_PARAMS: encode_named_curve_parameters(key_type)},
                         local=True,
@@ -560,20 +557,19 @@ class PKCS11Session:
                         label=key_label,
                     )
 
-            return cls._public_key_data(key_pub, key_type)
+            return self._public_key_data(key_pub, key_type)
 
-    @classmethod
-    async def key_labels(cls) -> Dict[str, str]:
+    async def key_labels(self) -> Dict[str, str]:
         """Return a dict of key labels as keys and key type as values in the PKCS11 device.
 
         Returns:
         Dict[str, str]
         """
 
-        if cls.base_url is not None:
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+        if self.base_url is not None:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/key_labels", json=cls.http_data, headers=cls.http_headers, timeout=10
+                    url=f"{self.base_url}/key_labels", json=self.http_data, headers=self.http_headers, timeout=10
                 ) as response:
                     response.raise_for_status()
                     json_body = await response.json()
@@ -583,14 +579,14 @@ class PKCS11Session:
                         return ret
                     raise ValueError("Problem with key labels")
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
             key_labels: Dict[str, str] = {}
 
             # For rsa
-            for obj in cls.session.get_objects(
+            for obj in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.PUBLIC_KEY,
                     Attribute.KEY_TYPE: key_type_values["rsa_2048"],
@@ -604,7 +600,7 @@ class PKCS11Session:
                     key_labels[obj.label] = "rsa_512"
 
             # For ed25519
-            for obj in cls.session.get_objects(
+            for obj in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.PUBLIC_KEY,
                     Attribute.KEY_TYPE: key_type_values["ed25519"],
@@ -614,7 +610,7 @@ class PKCS11Session:
                 key_labels[obj.label] = "ed25519"
 
             # For ed448
-            for obj in cls.session.get_objects(
+            for obj in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.PUBLIC_KEY,
                     Attribute.KEY_TYPE: key_type_values["ed448"],
@@ -625,7 +621,7 @@ class PKCS11Session:
 
             # for secp256r1, secp384r1, secp521r1
             for curve in ["secp256r1", "secp384r1", "secp521r1"]:
-                for obj in cls.session.get_objects(
+                for obj in self.session.get_objects(
                     {
                         Attribute.CLASS: ObjectClass.PUBLIC_KEY,
                         Attribute.KEY_TYPE: key_type_values[curve],
@@ -636,27 +632,26 @@ class PKCS11Session:
 
             return key_labels
 
-    @classmethod
     async def _sign(  # pylint: disable-msg=too-many-arguments
-        cls,
+        self,
         key_label: str,
         data: bytes,
         verify_signature: Optional[bool],
         mechanism: Mechanism,
         key_type: str,
     ) -> bytes:
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
             # Get private key to sign the data with
-            key_priv = cls.session.get_key(
+            key_priv = self.session.get_key(
                 key_type=key_type_values[key_type],
                 object_class=ObjectClass.PRIVATE_KEY,
                 label=key_label,
             )
             if verify_signature:
-                key_pub = cls._get_pub_key(key_label, key_type)
+                key_pub = self._get_pub_key(key_label, key_type)
 
             # Sign the data
             signature = key_priv.sign(data, mechanism=mechanism)
@@ -670,9 +665,8 @@ class PKCS11Session:
 
             return signature
 
-    @classmethod
     async def sign(
-        cls,
+        self,
         key_label: str,
         data: bytes,
         verify_signature: Optional[bool] = None,
@@ -701,11 +695,11 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        if cls.base_url is not None:
+        if self.base_url is not None:
             http_request_data: Dict[str, Union[str, bool]] = {}
 
-            if cls.http_data is not None:
-                http_request_data.update(cls.http_data)
+            if self.http_data is not None:
+                http_request_data.update(self.http_data)
 
             http_request_data["data_b64"] = base64.b64encode(data).decode("utf-8")
             http_request_data["key_label"] = key_label
@@ -716,9 +710,9 @@ class PKCS11Session:
             else:
                 http_request_data["verify_signature"] = True
 
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/sign", json=http_request_data, headers=cls.http_headers, timeout=10
+                    url=f"{self.base_url}/sign", json=http_request_data, headers=self.http_headers, timeout=10
                 ) as response:
                     response.raise_for_status()
                     json_body = await response.json()
@@ -751,7 +745,7 @@ class PKCS11Session:
             else:
                 mech = Mechanism.SHA512_RSA_PKCS
 
-        signature = await cls._sign(key_label, data, verify_signature, mech, key_type)
+        signature = await self._sign(key_label, data, verify_signature, mech, key_type)
 
         # PKCS11 specific stuff for EC curves, sig is in R&S format, convert it to openssl format
         if key_type in ["secp256r1", "secp384r1", "secp521r1"]:
@@ -759,9 +753,8 @@ class PKCS11Session:
 
         return signature
 
-    @classmethod
     async def verify(  # pylint: disable-msg=too-many-arguments
-        cls,
+        self,
         key_label: str,
         data: bytes,
         signature: bytes,
@@ -788,20 +781,20 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        if cls.base_url is not None:
+        if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
 
-            if cls.http_data is not None:
-                http_request_data.update(cls.http_data)
+            if self.http_data is not None:
+                http_request_data.update(self.http_data)
 
             http_request_data["data_b64"] = base64.b64encode(data).decode("utf-8")
             http_request_data["signature_b64"] = base64.b64encode(signature).decode("utf-8")
             http_request_data["key_label"] = key_label
             http_request_data["key_type"] = key_type
 
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/verify", json=http_request_data, headers=cls.http_headers, timeout=10
+                    url=f"{self.base_url}/verify", json=http_request_data, headers=self.http_headers, timeout=10
                 ) as response:
                     response.raise_for_status()
                     json_body = await response.json()
@@ -811,12 +804,12 @@ class PKCS11Session:
                         return ret
                     raise ValueError("Problem with verify")
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
             # Get public key to sign the data with
-            key_pub = cls._get_pub_key(key_label, key_type)
+            key_pub = self._get_pub_key(key_label, key_type)
 
             if key_type in ["ed25519", "ed448"]:
                 mech = Mechanism.EDDSA
@@ -851,8 +844,7 @@ class PKCS11Session:
                 return True
             return False
 
-    @classmethod
-    async def delete_keypair(cls, key_label: str, key_type: Optional[str] = None) -> None:
+    async def delete_keypair(self, key_label: str, key_type: Optional[str] = None) -> None:
         """Delete the keypair from the PKCS11 device.
 
         Parameters:
@@ -869,43 +861,42 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        if cls.base_url is not None:
+        if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
 
-            if cls.http_data is not None:
-                http_request_data.update(cls.http_data)
+            if self.http_data is not None:
+                http_request_data.update(self.http_data)
 
             http_request_data["key_type"] = key_type
             http_request_data["key_label"] = key_label
 
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/delete_keypair", json=http_request_data, headers=cls.http_headers, timeout=10
+                    url=f"{self.base_url}/delete_keypair", json=http_request_data, headers=self.http_headers, timeout=10
                 ) as response:
                     response.raise_for_status()
                     json_body = await response.json()
                     return
                     # ret = json_body["verified"]  # handle errors
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
             try:
-                cls.session.get_key(
+                self.session.get_key(
                     key_type=key_type_values[key_type],
                     object_class=ObjectClass.PUBLIC_KEY,
                     label=key_label,
                 ).destroy()
             finally:
-                cls.session.get_key(
+                self.session.get_key(
                     key_type=key_type_values[key_type],
                     object_class=ObjectClass.PRIVATE_KEY,
                     label=key_label,
                 ).destroy()
 
-    @classmethod
-    async def public_key_data(cls, key_label: str, key_type: Optional[str] = None) -> Tuple[str, bytes]:
+    async def public_key_data(self, key_label: str, key_type: Optional[str] = None) -> Tuple[str, bytes]:
         """Returns the public key in PEM form
         and 'Key Identifier' valid for this keypair.
 
@@ -923,18 +914,18 @@ class PKCS11Session:
         if key_type not in key_types:
             raise ValueError(f"key_type must be in {key_types}")
 
-        if cls.base_url is not None:
+        if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
 
-            if cls.http_data is not None:
-                http_request_data.update(cls.http_data)
+            if self.http_data is not None:
+                http_request_data.update(self.http_data)
 
             http_request_data["key_label"] = key_label
             http_request_data["key_type"] = key_type
 
-            async with aiohttp.ClientSession(headers=cls.http_headers) as session:
+            async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{cls.base_url}/public_key_data", json=http_request_data, headers=cls.http_headers, timeout=10
+                    url=f"{self.base_url}/public_key_data", json=http_request_data, headers=self.http_headers, timeout=10
                 ) as response:
                     response.raise_for_status()
                     json_body = await response.json()
@@ -949,9 +940,9 @@ class PKCS11Session:
                         return spi, base64.b64decode(ski)
                     raise ValueError("Problem with create keypair")
 
-        async with async_lock(cls.lock):
+        async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
-            await cls.healthy_session()
+            await self.healthy_session()
 
-            key_pub = cls._get_pub_key(key_label, key_type)
-            return cls._public_key_data(key_pub, key_type)
+            key_pub = self._get_pub_key(key_label, key_type)
+            return self._public_key_data(key_pub, key_type)

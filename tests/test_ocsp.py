@@ -212,7 +212,7 @@ class TestOCSP(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
         g_n = asn1_x509.GeneralName(name="directory_name", value=(asn1_ocsp.Name().build(requestor_name_dict)))
 
@@ -245,7 +245,7 @@ class TestOCSP(unittest.TestCase):
         self.assertTrue(len(test_ocsp["optional_signature"]["certs"]) == 2)
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_ocsp_response(self) -> None:
         """
@@ -253,7 +253,7 @@ class TestOCSP(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
         data = asyncio.run(request([(i_name_h, i_key_h, serial)]))
@@ -287,7 +287,7 @@ class TestOCSP(unittest.TestCase):
         )
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_ocsp_response_cert_status(self) -> None:
         """
@@ -295,7 +295,7 @@ class TestOCSP(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
 
@@ -348,7 +348,7 @@ class TestOCSP(unittest.TestCase):
         )
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_ocsp_response_fail(self) -> None:
         """
@@ -356,7 +356,7 @@ class TestOCSP(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
         data = asyncio.run(request([(i_name_h, i_key_h, serial)]))
@@ -388,7 +388,7 @@ class TestOCSP(unittest.TestCase):
             _ = asn1_ocsp.OCSPResponse.load(data)
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_ocsp_response_extensions(self) -> None:
         """
@@ -396,7 +396,7 @@ class TestOCSP(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
         data = asyncio.run(request([(i_name_h, i_key_h, serial)]))
@@ -450,7 +450,7 @@ class TestOCSP(unittest.TestCase):
         )
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_request_nonce(self) -> None:
         """
@@ -662,7 +662,7 @@ FvdQ0EEx2Pssrry0iD5AieGyK2nKW94UA0gQenvtMS9mxQ==
 """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
         data = asyncio.run(request([(i_name_h, i_key_h, serial)]))
@@ -697,4 +697,4 @@ FvdQ0EEx2Pssrry0iD5AieGyK2nKW94UA0gQenvtMS9mxQ==
         )
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))

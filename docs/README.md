@@ -126,8 +126,8 @@ priv = b"0\x82\x04\xa4\x02\x01\x00\x02\x82\x01\x01\x00\xd9\xb6C,O\xc0\x83\xca\xa
 
 
 async def my_func() -> None:
-    await PKCS11Session.import_keypair(pub, priv, "my_rsa_key", "rsa_2048")
-    public_key, identifier = await PKCS11Session.public_key_data(
+    await PKCS11Session().import_keypair(pub, priv, "my_rsa_key", "rsa_2048")
+    public_key, identifier = await PKCS11Session().public_key_data(
         "my_rsa_key",
 	key_type="rsa_2048",
     )
@@ -167,7 +167,7 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key", key_type="ed25519")
+    public_key, identifier = await PKCS11Session().create_keypair("my_ed25519_key", key_type="ed25519")
     print(public_key)
     print(identifier)
 
@@ -186,8 +186,8 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
-    labels = await PKCS11Session.key_labels()
+    public_key, identifier = await PKCS11Session().create_keypair("my_ed25519_key")
+    labels = await PKCS11Session().key_labels()
     print(labels)
 
 
@@ -206,8 +206,8 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 async def my_func() -> None:
     data = b"DATA TO BE SIGNED"
-    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
-    signature = await PKCS11Session.sign("my_ed25519_key", data)
+    public_key, identifier = await PKCS11Session().create_keypair("my_ed25519_key")
+    signature = await PKCS11Session().sign("my_ed25519_key", data)
     print(signature)
 
 
@@ -226,9 +226,9 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 async def my_func() -> None:
     data = b"DATA TO BE SIGNED"
-    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
-    signature = await PKCS11Session.sign("my_ed25519_key", data)
-    if await PKCS11Session.verify("my_ed25519_key", data, signature):
+    public_key, identifier = await PKCS11Session().create_keypair("my_ed25519_key")
+    signature = await PKCS11Session().sign("my_ed25519_key", data)
+    if await PKCS11Session().verify("my_ed25519_key", data, signature):
         print("OK sig")
     else:
         print("BAD sig")
@@ -248,8 +248,8 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
-    await PKCS11Session.delete_keypair("my_ed25519_key")
+    public_key, identifier = await PKCS11Session().create_keypair("my_ed25519_key")
+    await PKCS11Session().delete_keypair("my_ed25519_key")
 
 asyncio.run(my_func())
 ```
@@ -266,10 +266,10 @@ from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 
 async def my_func() -> None:
-    public_key_created, identifier_created = await PKCS11Session.create_keypair(
+    public_key_created, identifier_created = await PKCS11Session().create_keypair(
         "my_ed25519_key"
     )
-    public_key_loaded, identifier_loaded = await PKCS11Session.public_key_data(
+    public_key_loaded, identifier_loaded = await PKCS11Session().public_key_data(
         "my_ed25519_key"
     )
     print(public_key_created)
@@ -313,7 +313,7 @@ OsgGSmMGs3uYjac7+j4CIHisanLIGlny5Kgnrmk5yNiN3ZFimdhSd+ovaqjy3O4x
 -----END CERTIFICATE-----"""
 
 async def my_func() -> None:
-    await PKCS11Session.import_certificate(cert_pem, "my_cert")
+    await PKCS11Session().import_certificate(cert_pem, "my_cert")
 
 asyncio.run(my_func())
 ```
@@ -350,8 +350,8 @@ OsgGSmMGs3uYjac7+j4CIHisanLIGlny5Kgnrmk5yNiN3ZFimdhSd+ovaqjy3O4x
 -----END CERTIFICATE-----"""
 
 async def my_func() -> None:
-    await PKCS11Session.import_certificate(cert_pem, "my_cert")
-    cert = await PKCS11Session.export_certificate("my_cert")
+    await PKCS11Session().import_certificate(cert_pem, "my_cert")
+    cert = await PKCS11Session().export_certificate("my_cert")
     print(cert)
 
 asyncio.run(my_func())
@@ -367,7 +367,7 @@ import asyncio
 from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 async def my_func() -> None:
-    await PKCS11Session.delete_certificate(cert_pem)
+    await PKCS11Session().delete_certificate(cert_pem)
 
 asyncio.run(my_func())
 ```
@@ -446,7 +446,7 @@ async def my_func() -> None:
         "email_address": "soc@sunet.se",
     }
 
-    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
+    public_key, identifier = await PKCS11Session().create_keypair("my_ed25519_key")
     cert_pem = await csr.sign_csr("my_ed25519_key", issuer_name, csr_pem)
     print(cert_pem)
 
@@ -585,7 +585,7 @@ async def my_func() -> None:
         "email_address": "soc@sunet.se",
     }
 
-    public_key, identifier = await PKCS11Session.create_keypair("my_ed25519_key")
+    public_key, identifier = await PKCS11Session().create_keypair("my_ed25519_key")
     crl_pem = await create("my_ed25519_key", name_dict)
     print(crl_pem)
 
@@ -758,7 +758,7 @@ def single_responses(ocsp_request: OCSPRequest) -> Responses:
 
 
 async def my_func() -> None:
-    await PKCS11Session.create_keypair("my_ed25519_key")
+    await PKCS11Session().create_keypair("my_ed25519_key")
     request_certs_data = [
         (
             b"R\x94\xca?\xac`\xf7i\x819\x14\x94\xa7\x085H\x84\xb4&\xcc",
