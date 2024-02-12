@@ -6,6 +6,7 @@ env:
   PKCS11_MODULE: /usr/lib/softhsm/libsofthsm2.so
   PKCS11_TOKEN: my_test_token_1
   PKCS11_PIN: 1234
+  PKCS11_TOKEN_SUPPORT_RECREATE_SESSION: TRUE
 
 jobs:
   test_typecheck_build:

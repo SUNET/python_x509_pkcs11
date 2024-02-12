@@ -82,7 +82,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
         cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, csr_no_exts))
 
         data = cert_pem.encode("utf-8")
@@ -117,7 +117,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         self.assertTrue(test_cert["tbs_certificate"]["validity"]["not_after"].native == not_after)
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_sign_csr_keep_extensions(self) -> None:
         """
@@ -125,7 +125,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
         cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, CSR_PEM))
 
         data = cert_pem.encode("utf-8")
@@ -146,7 +146,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         self.assertTrue(exts[0]["extn_value"].native[0] == "foo.example.org")
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_sign_csr_no_keep_extensions(self) -> None:
         """
@@ -154,7 +154,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
         cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, CSR_PEM, keep_csr_extensions=False))
 
         data = cert_pem.encode("utf-8")
@@ -180,7 +180,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         self.assertTrue(exts[1]["extn_id"].native == "authority_key_identifier")
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_sign_csr_new_extensions(self) -> None:
         """
@@ -206,7 +206,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         ext2["extn_value"] = b_c
         exts.append(ext2)
 
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
         cert_pem = asyncio.run(
             csr.sign_csr(
                 new_key_label,
@@ -241,7 +241,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         self.assertTrue(exts[1]["extn_value"].native["ca"])
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_sign_csr_duplicate_extensions(self) -> None:
         """
@@ -259,7 +259,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         exts.append(ext1)
         exts.append(ext1)
 
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
         with self.assertRaises(DuplicateExtensionException):
             _ = asyncio.run(
                 csr.sign_csr(
@@ -272,4 +272,4 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
             )
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))

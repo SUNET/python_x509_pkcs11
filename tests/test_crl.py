@@ -59,7 +59,7 @@ class TestCrl(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         crl_pem = asyncio.run(crl.create(new_key_label, subject_name))
 
@@ -89,7 +89,7 @@ class TestCrl(unittest.TestCase):
         self.assertTrue(len(tbs["revoked_certificates"]) == 1)
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_add_serial_crl(self) -> None:
         """
@@ -98,7 +98,7 @@ class TestCrl(unittest.TestCase):
 
         # Revoke first
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
         crl_pem1 = asyncio.run(crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=3))
         data = crl_pem1.encode("utf-8")
         if asn1_pem.detect(data):
@@ -142,7 +142,7 @@ class TestCrl(unittest.TestCase):
         self.assertTrue(len(test_crl["tbs_cert_list"]["revoked_certificates"]) == 3)
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_invalid_reason(self) -> None:
         """
@@ -151,12 +151,12 @@ class TestCrl(unittest.TestCase):
 
         # Revoke first
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
         with self.assertRaises(ValueError):
             asyncio.run(crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=33))
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_aki(self) -> None:
         """
@@ -164,8 +164,8 @@ class TestCrl(unittest.TestCase):
         """
 
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
-        _, identifier = asyncio.run(PKCS11Session.public_key_data(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
+        _, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label))
         crl_pem1 = asyncio.run(crl.create(new_key_label, subject_name))
         data = crl_pem1.encode("utf-8")
         if asn1_pem.detect(data):
@@ -184,7 +184,7 @@ class TestCrl(unittest.TestCase):
         self.assertTrue(found)
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
 
     def test_next_update_this_update(self) -> None:
         """
@@ -195,7 +195,7 @@ class TestCrl(unittest.TestCase):
         new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
         next_update = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
         this_update = datetime.datetime(2022, 1, 3, tzinfo=datetime.timezone.utc)
-        asyncio.run(PKCS11Session.create_keypair(new_key_label))
+        asyncio.run(PKCS11Session().create_keypair(new_key_label))
         crl_pem = asyncio.run(crl.create(new_key_label, subject_name, next_update=next_update, this_update=this_update))
         data = crl_pem.encode("utf-8")
         if asn1_pem.detect(data):
@@ -229,4 +229,4 @@ class TestCrl(unittest.TestCase):
         self.assertTrue(tbs["next_update"].native != tbs["this_update"].native)
 
         # Delete the test key
-        asyncio.run(PKCS11Session.delete_keypair(new_key_label))
+        asyncio.run(PKCS11Session().delete_keypair(new_key_label))
