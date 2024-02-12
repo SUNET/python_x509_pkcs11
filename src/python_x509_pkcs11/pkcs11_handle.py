@@ -27,7 +27,7 @@ from email import header
 from hashlib import sha256, sha384, sha512
 from socket import timeout
 from threading import Lock, Thread
-from typing import AsyncIterator, Dict, Optional, Tuple, Union
+from typing import AsyncIterator, Dict, Optional, Tuple, Union, Type, Any
 
 import aiohttp
 from asn1crypto import pem as asn1_pem
@@ -83,9 +83,7 @@ class PKCS11Session:
     _lib: lib
 
 
-
-
-    def __new__(cls, *args, **kwargs) -> "PKCS11Session":
+    def __new__(cls, *args: Any, **kwargs: Any) -> "PKCS11Session":
         if cls._self is None:
             cls._self = super(PKCS11Session, cls).__new__(cls, *args, **kwargs)
         return cls._self
@@ -101,7 +99,6 @@ class PKCS11Session:
         self.base_url = base_url
         self.http_data = http_data
         self.http_headers = http_headers
-        self.session: Optional[Session] = None
         self.support_recreate_session = False
 
         if "PKCS11_BASE_URL" in os.environ:
@@ -117,41 +114,37 @@ class PKCS11Session:
             ):
                 self.support_recreate_session = True
 
-        if not self.support_recreate_session:
+        try:
+
+            self._lib = lib(os.environ["PKCS11_MODULE"])
+            self._lib.reinitialize()
+
+            # Open the PKCS11 session
+            self._token = self._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
+
+            # user_pin need to be a string, not bytes
+            self.session = self._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
+            print("created new pkcs11 session")
+
+            # Test get a public key from the PKCS11 device
+            _ = self.session.get_key(
+                key_type=KeyType.RSA,
+                object_class=ObjectClass.PUBLIC_KEY,
+                label="test_pkcs11_device_do_not_use",
+            )
+
+        except NoSuchKey:
             try:
-                # If we already have a session, no need to create a new one.
-                if self.session:
-                    return
-
-                self._lib = lib(os.environ["PKCS11_MODULE"])
-                self._lib.reinitialize()
-
-                # Open the PKCS11 session
-                self._token = self._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
-
-                # user_pin need to be a string, not bytes
-                self.session = self._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
-                print("created new pkcs11 session")
-
-                # Test get a public key from the PKCS11 device
-                _ = self.session.get_key(
-                    key_type=KeyType.RSA,
-                    object_class=ObjectClass.PUBLIC_KEY,
-                    label="test_pkcs11_device_do_not_use",
+                _, _ = self.session.generate_keypair(
+                    KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True
                 )
+            except GeneralError:
+                pass
 
-            except NoSuchKey:
-                try:
-                    _, _ = self.session.generate_keypair(
-                        KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True
-                    )
-                except GeneralError:
-                    pass
-
-            except GeneralError as exc:
-                if DEBUG:
-                    print("Failed to open PKCS11 session")
-                    print(exc)
+        except GeneralError as exc:
+            if DEBUG:
+                print("Failed to open PKCS11 session")
+                print(exc)
 
     def _get_pub_key(self, key_label: str, key_type: str) -> Key:
         return self.session.get_key(
