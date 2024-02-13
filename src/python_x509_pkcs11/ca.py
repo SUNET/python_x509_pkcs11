@@ -47,10 +47,12 @@ def _set_tbs_subject_pk_info(
 def _set_tbs_basic_constraints(
     tbs: CertificationRequestInfo,
 ) -> CertificationRequestInfo:
+    """Set the basic constraints for the certification request."""
     b_c = BasicConstraints()
     b_c["ca"] = True
 
     ext = Extension()
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/x509.py#L2081
     ext["extn_id"] = ExtensionId("2.5.29.19")
     ext["critical"] = True
     ext["extn_value"] = b_c
@@ -62,6 +64,8 @@ def _set_tbs_basic_constraints(
     ses.append(exts)
 
     cria = CRIAttribute()
+    # Extension request.
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/csr.py#L44
     cria["type"] = CSRAttributeType("1.2.840.113549.1.9.14")
     cria["values"] = ses
 
@@ -77,10 +81,14 @@ def _set_tbs_basic_constraints(
 def _set_tbs_key_usage(
     tbs: CertificationRequestInfo,
 ) -> CertificationRequestInfo:
-    # https://github.com/wbond/asn1crypto/blob/master/asn1crypto/x509.py#L438
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/x509.py#L438
     # Bit 0, 5 ,6, from left to right
+    # 'digital_signature', 'key_cert_sign', 'crl_sign'.
+
     k_u = KeyUsage(("100001100",))
     ext = Extension()
+    # 2.5.29.15 is the key_usage extension id.
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/x509.py#L2077
     ext["extn_id"] = ExtensionId("2.5.29.15")
     ext["critical"] = True
     ext["extn_value"] = k_u
@@ -92,6 +100,8 @@ def _set_tbs_key_usage(
     ses.append(exts)
 
     cria = CRIAttribute()
+    # Extension request.
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/csr.py#L44
     cria["type"] = CSRAttributeType("1.2.840.113549.1.9.14")
     cria["values"] = ses
 
@@ -110,6 +120,8 @@ def _set_tbs_extra_extensions(tbs: CertificationRequestInfo, extra_extensions: E
     ses.append(extra_extensions)
 
     cria = CRIAttribute()
+    # Extension request.
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/csr.py#L44
     cria["type"] = CSRAttributeType("1.2.840.113549.1.9.14")
     cria["values"] = ses
 
@@ -139,6 +151,10 @@ def _create_tbs(
     pk_info: PublicKeyInfo,
     extra_extensions: Extensions,
 ) -> CertificationRequestInfo:
+    """Creates a new CertificationRequestInfo with details.
+
+    https://datatracker.ietf.org/doc/html/rfc2986#section-4
+    """
     tbs = CertificationRequestInfo()
 
     # Set all extensions
@@ -154,6 +170,7 @@ def _create_tbs(
 async def _set_csr_signature(
     key_label: str, key_type: Optional[str], signed_csr: CertificationRequest
 ) -> CertificationRequest:
+    """Signs the given CSR with the given key and returns the signed CSR."""
     if key_type is None:
         key_type = "ed25519"
 
@@ -175,7 +192,7 @@ async def create(  # pylint: disable-msg=too-many-arguments,too-many-locals
     extra_extensions: Optional[Extensions] = None,
     key_type: Optional[str] = None,
 ) -> Tuple[str, str]:
-    """Create and sign a CSR with in the PKCS11 device.
+    """Creates a new HSM signed CA certificate.
 
     Returns the csr and the signed ca.
 
@@ -195,18 +212,31 @@ async def create(  # pylint: disable-msg=too-many-arguments,too-many-locals
     Tuple[str, str]
     """
 
+    # First create a new keypair in the HSM
     pk_info, _ = await PKCS11Session().create_keypair(key_label, key_type=key_type)
     data = pk_info.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
 
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/csr.py#L119
     tbs = _create_tbs(subject_name, PublicKeyInfo.load(data), extra_extensions)
+
+    # https://datatracker.ietf.org/doc/html/rfc2986#section-4
+    # see section 4.2
+    #
+    # CertificationRequest ::= SEQUENCE {
+    #     certificationRequestInfo CertificationRequestInfo,
+    #     signatureAlgorithm AlgorithmIdentifier{{ SignatureAlgorithms }},
+    #     signature          BIT STRING
+    # }
+    #
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/csr.py#L128
     signed_csr = CertificationRequest()
     signed_csr["certification_request_info"] = tbs
     signed_csr = await _set_csr_signature(key_label, key_type, signed_csr)
     pem_enc: bytes = asn1_pem.armor("CERTIFICATE REQUEST", signed_csr.dump())
 
-    # If this will be a root CA or not
+    # It will be a self signed certificate unless we have proper signer_key_label and signer_subject_name and signer_key_type.
     if signer_key_label is not None and signer_subject_name is not None and signer_key_type:
         key_label = signer_key_label
         subject_name = signer_subject_name
