@@ -1,6 +1,7 @@
 """
 Test our PKCS11 session handler
 """
+
 import asyncio
 import os
 import unittest
@@ -465,7 +466,9 @@ class TestPKCS11Handle(unittest.TestCase):
         self.assertTrue(new_key_label[:-3] in key_labels)
         self.assertFalse("should_not_exists_1232353523" in key_labels)
 
-        pk_info3_1, identifier3_1 = asyncio.run(PKCS11Session().public_key_data(new_key_label[:-3], key_type="rsa_4096"))
+        pk_info3_1, identifier3_1 = asyncio.run(
+            PKCS11Session().public_key_data(new_key_label[:-3], key_type="rsa_4096")
+        )
         self.assertTrue(pk_info3 == pk_info3_1)
         self.assertTrue(identifier3 == identifier3_1)
 
@@ -543,7 +546,9 @@ class TestPKCS11Handle(unittest.TestCase):
 
         self.assertFalse(
             asyncio.run(
-                PKCS11Session().verify(new_key_label, data_to_be_signed, b"NOT VALID SIGNATURE HERE", key_type="rsa_2048")
+                PKCS11Session().verify(
+                    new_key_label, data_to_be_signed, b"NOT VALID SIGNATURE HERE", key_type="rsa_2048"
+                )
             )
         )
 
