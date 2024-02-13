@@ -36,6 +36,8 @@ def _check_tbs_duplicate_extensions(tbs: TbsCertList) -> None:
     certificate may contain only one authority key identifier extension
     https://www.rfc-editor.org/rfc/rfc5280#section-4.2
 
+    Raises DuplicateExtensionException if duplicate extensions are found.
+
     Parameters:
     tbs (TbsCertList): The 'To be signed' crl
 
@@ -51,16 +53,28 @@ def _check_tbs_duplicate_extensions(tbs: TbsCertList) -> None:
 
 
 def _set_tbs_version(tbs: TbsCertList) -> TbsCertList:
+    """Sets CRL version to 2 (integer value 1).
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.2.1
+    """
     tbs["version"] = 1
     return tbs
 
 
 def _set_tbs_issuer(tbs: TbsCertList, subject_name: Dict[str, str]) -> TbsCertList:
+    """Sets CRL issuer to the given subject name.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.2.3
+    """
     tbs["issuer"] = Name().build(subject_name)
     return tbs
 
 
 def _set_tbs_next_update(tbs: TbsCertList, next_update: Optional[datetime.datetime]) -> TbsCertList:
+    """Sets the CRL next update time to the given datetime.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.2.5
+    """
     if next_update is None:
         tbs["next_update"] = Time(
             name="utc_time",
@@ -72,6 +86,10 @@ def _set_tbs_next_update(tbs: TbsCertList, next_update: Optional[datetime.dateti
 
 
 def _set_tbs_this_update(tbs: TbsCertList, this_update: Optional[datetime.datetime]) -> TbsCertList:
+    """Sets the CRL this update time to the given datetime.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.2.4
+    """
     if this_update is None:
         # -2 minutes to protect from the certificate readers time skew
         tbs["this_update"] = Time(
@@ -84,9 +102,14 @@ def _set_tbs_this_update(tbs: TbsCertList, this_update: Optional[datetime.dateti
 
 
 def _set_tbs_aki(tbs: TbsCertList, identifier: bytes) -> TbsCertList:
+    """Sets the CRL authority key identifier extension to the given identifier.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-5.2.1
+    """
     aki = AuthorityKeyIdentifier()
     aki["key_identifier"] = identifier
 
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/crl.py#L67
     for _, extension in enumerate(tbs["crl_extensions"]):
         if extension["extn_id"].dotted == "2.5.29.35":
             extension["extn_value"] = aki
@@ -106,11 +129,15 @@ def _set_tbs_aki(tbs: TbsCertList, identifier: bytes) -> TbsCertList:
 
 
 def _set_tbs_update_crl_number(tbs: TbsCertList) -> TbsCertList:
+    """Sets the CRL number extension to the given integer value.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-5.2.3
+    """
     for _, extension in enumerate(tbs["crl_extensions"]):
         if extension["extn_id"].dotted == "2.5.29.20":
             extension["extn_value"] = extension["extn_value"].native + 1
             return tbs
-
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/crl.py#L64
     ext = TBSCertListExtension()
     ext["extn_id"] = TBSCertListExtensionId("2.5.29.20")
     ext["extn_value"] = 1
@@ -125,6 +152,12 @@ def _set_tbs_update_crl_number(tbs: TbsCertList) -> TbsCertList:
 
 
 def _set_tbs_revoke_serial_numer(tbs: TbsCertList, serial_number: int, reason: int) -> TbsCertList:
+    """Sets revocation reason for a certificate.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-5.3.1
+    """
+
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/crl.py#L97
     if reason not in [0, 1, 2, 3, 4, 5, 6, 8, 9, 10]:
         raise ValueError(f"ERROR: CRL reason must be in {[0, 1, 2, 3, 4, 5, 6, 8, 9, 10]}")
 
@@ -136,6 +169,7 @@ def _set_tbs_revoke_serial_numer(tbs: TbsCertList, serial_number: int, reason: i
     )
 
     ext = CRLEntryExtension()
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/crl.py#L136
     ext["extn_id"] = CRLEntryExtensionId("2.5.29.21")
     ext["critical"] = False
     ext["extn_value"] = reason
@@ -184,6 +218,7 @@ def _create_tbs_cert_list(
 
 
 def _load_crl(crl_pem: str) -> CertificateList:
+    """Load a CRL from a PEM string."""
     data = crl_pem.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
@@ -192,11 +227,21 @@ def _load_crl(crl_pem: str) -> CertificateList:
 
 
 async def _set_signature(key_label: str, key_type: Optional[str], cert_list: CertificateList) -> CertificateList:
+    """Sign a CertificateList with the key with the key_label in the PKCS11 device.
+
+    Parameters:
+    key_label str: Keypair label.
+    key_type Optional[str]: Key type.
+    cert_list CertificateList: CertificateList to be signed.
+    """
     if key_type is None:
         key_type = "ed25519"
 
+    # https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.1
     cert_list["tbs_cert_list"]["signature"] = signed_digest_algo(key_type)
+    # https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.1.2
     cert_list["signature_algorithm"] = cert_list["tbs_cert_list"]["signature"]
+    # https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.1.3
     cert_list["signature"] = await PKCS11Session().sign(key_label, cert_list["tbs_cert_list"].dump(), key_type=key_type)
     return cert_list
 
