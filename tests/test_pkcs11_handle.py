@@ -12,7 +12,7 @@ from pkcs11 import Session
 from pkcs11.exceptions import MultipleObjectsReturned, NoSuchKey
 
 from src.python_x509_pkcs11.error import PKCS11UnknownErrorException
-from src.python_x509_pkcs11.lib import key_type_values, key_types
+from src.python_x509_pkcs11.lib import KEY_TYPE_VALUES, KEY_TYPES
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
@@ -37,7 +37,7 @@ class TestPKCS11Handle(unittest.TestCase):
 
         assert isinstance(sess, Session)
         with self.assertRaises(NoSuchKey):
-            sess.get_key(label="test_not_exist", key_type=key_type_values["rsa_2048"])
+            sess.get_key(label="test_not_exist", key_type=KEY_TYPE_VALUES["rsa_2048"])
 
     def test_import_keypair_rsa(self) -> None:
         """Import keypair with key_label in the PKCS11 device.
@@ -486,7 +486,7 @@ class TestPKCS11Handle(unittest.TestCase):
         with self.assertRaises(ValueError):
             asyncio.run(PKCS11Session().delete_keypair("dummy", key_type="dummy_key_type"))
 
-        for key_type in key_types:
+        for key_type in KEY_TYPES:
             new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
             with self.assertRaises(NoSuchKey):
@@ -506,7 +506,7 @@ class TestPKCS11Handle(unittest.TestCase):
         with self.assertRaises(ValueError):
             asyncio.run(PKCS11Session().public_key_data("dummy", key_type="dummy_key_type"))
 
-        for key_type in key_types:
+        for key_type in KEY_TYPES:
             new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
             asyncio.run(PKCS11Session().create_keypair(new_key_label, key_type=key_type))
             pk_info, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label, key_type=key_type))

@@ -54,7 +54,7 @@ from .crypto import (
     encode_eddsa_public_key,
 )
 from .error import PKCS11UnknownErrorException
-from .lib import DEBUG, key_type_values, key_types
+from .lib import DEBUG, KEY_TYPE_VALUES, KEY_TYPES
 
 TIMEOUT = 10  # Seconds
 pool = ThreadPoolExecutor()
@@ -149,7 +149,7 @@ class PKCS11Session:
 
     def _get_pub_key(self, key_label: str, key_type: str) -> Key:
         return self.session.get_key(
-            key_type=key_type_values[key_type],
+            key_type=KEY_TYPE_VALUES[key_type],
             object_class=ObjectClass.PUBLIC_KEY,
             label=key_label,
         )
@@ -171,7 +171,7 @@ class PKCS11Session:
         elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
             pki = PublicKeyInfo.load(encode_ec_public_key(key_pub))
         else:
-            raise ValueError(f"key_type must be in {key_types}")
+            raise ValueError(f"key_type must be in {KEY_TYPES}")
 
         key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
         return key_pub_pem.decode("utf-8"), pki.sha1
@@ -416,8 +416,8 @@ class PKCS11Session:
         None
         """
 
-        if key_type not in key_types:
-            raise ValueError(f"key_type must be in {key_types}")
+        if key_type not in KEY_TYPES:
+            raise ValueError(f"key_type must be in {KEY_TYPES}")
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
@@ -488,8 +488,8 @@ class PKCS11Session:
         if key_type is None:
             key_type = "ed25519"
 
-        if key_type not in key_types:
-            raise ValueError(f"key_type must be in {key_types}")
+        if key_type not in KEY_TYPES:
+            raise ValueError(f"key_type must be in {KEY_TYPES}")
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
@@ -585,7 +585,7 @@ class PKCS11Session:
             for obj in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                    Attribute.KEY_TYPE: key_type_values["rsa_2048"],
+                    Attribute.KEY_TYPE: KEY_TYPE_VALUES["rsa_2048"],
                 }
             ):
                 if obj.key_length == 2048:
@@ -599,7 +599,7 @@ class PKCS11Session:
             for obj in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                    Attribute.KEY_TYPE: key_type_values["ed25519"],
+                    Attribute.KEY_TYPE: KEY_TYPE_VALUES["ed25519"],
                     Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.112"),
                 }
             ):
@@ -609,7 +609,7 @@ class PKCS11Session:
             for obj in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                    Attribute.KEY_TYPE: key_type_values["ed448"],
+                    Attribute.KEY_TYPE: KEY_TYPE_VALUES["ed448"],
                     Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.113"),
                 }
             ):
@@ -620,7 +620,7 @@ class PKCS11Session:
                 for obj in self.session.get_objects(
                     {
                         Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                        Attribute.KEY_TYPE: key_type_values[curve],
+                        Attribute.KEY_TYPE: KEY_TYPE_VALUES[curve],
                         Attribute.EC_PARAMS: encode_named_curve_parameters(curve),
                     }
                 ):
@@ -642,7 +642,7 @@ class PKCS11Session:
 
             # Get private key to sign the data with
             key_priv = self.session.get_key(
-                key_type=key_type_values[key_type],
+                key_type=KEY_TYPE_VALUES[key_type],
                 object_class=ObjectClass.PRIVATE_KEY,
                 label=key_label,
             )
@@ -688,8 +688,8 @@ class PKCS11Session:
         if key_type is None:
             key_type = "ed25519"
 
-        if key_type not in key_types:
-            raise ValueError(f"key_type must be in {key_types}")
+        if key_type not in KEY_TYPES:
+            raise ValueError(f"key_type must be in {KEY_TYPES}")
 
         if self.base_url is not None:
             http_request_data: Dict[str, Union[str, bool]] = {}
@@ -774,8 +774,8 @@ class PKCS11Session:
         if key_type is None:
             key_type = "ed25519"
 
-        if key_type not in key_types:
-            raise ValueError(f"key_type must be in {key_types}")
+        if key_type not in KEY_TYPES:
+            raise ValueError(f"key_type must be in {KEY_TYPES}")
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
@@ -854,8 +854,8 @@ class PKCS11Session:
         if key_type is None:
             key_type = "ed25519"
 
-        if key_type not in key_types:
-            raise ValueError(f"key_type must be in {key_types}")
+        if key_type not in KEY_TYPES:
+            raise ValueError(f"key_type must be in {KEY_TYPES}")
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
@@ -881,13 +881,13 @@ class PKCS11Session:
 
             try:
                 self.session.get_key(
-                    key_type=key_type_values[key_type],
+                    key_type=KEY_TYPE_VALUES[key_type],
                     object_class=ObjectClass.PUBLIC_KEY,
                     label=key_label,
                 ).destroy()
             finally:
                 self.session.get_key(
-                    key_type=key_type_values[key_type],
+                    key_type=KEY_TYPE_VALUES[key_type],
                     object_class=ObjectClass.PRIVATE_KEY,
                     label=key_label,
                 ).destroy()
@@ -907,8 +907,8 @@ class PKCS11Session:
         if key_type is None:
             key_type = "ed25519"
 
-        if key_type not in key_types:
-            raise ValueError(f"key_type must be in {key_types}")
+        if key_type not in KEY_TYPES:
+            raise ValueError(f"key_type must be in {KEY_TYPES}")
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}

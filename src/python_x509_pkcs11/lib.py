@@ -8,7 +8,7 @@ from pkcs11 import KeyType
 DEBUG = False
 
 # Key types and sizes we support
-key_types: List[str] = [
+KEY_TYPES: List[str] = [
     "ed25519",
     "ed448",
     "secp256r1",
@@ -18,7 +18,7 @@ key_types: List[str] = [
     "rsa_4096",
 ]
 
-key_type_values: Dict[str, KeyType] = {
+KEY_TYPE_VALUES: Dict[str, KeyType] = {
     "ed25519": KeyType.EC_EDWARDS,
     "ed448": KeyType.EC_EDWARDS,
     "secp256r1": KeyType.EC,
@@ -61,6 +61,6 @@ def signed_digest_algo(key_type: str) -> SignedDigestAlgorithm:
         algo = SignedDigestAlgorithm()
         algo["algorithm"] = SignedDigestAlgorithmId("sha512_rsa")
     else:
-        raise ValueError(f"key_type must be in {key_types}")
+        raise ValueError(f"key_type must be in {KEY_TYPES}")
 
     return algo
