@@ -1,4 +1,5 @@
 """Our crypto module"""
+
 from typing import Dict, Tuple, Union
 
 from asn1crypto.algos import SignedDigestAlgorithmId
@@ -182,9 +183,9 @@ def decode_eddsa_private_key(der: bytes) -> Dict[int, Union[str, int, bytes]]:
         Attribute.CLASS: ObjectClass.PRIVATE_KEY,
         Attribute.EC_PARAMS: encode_named_curve_parameters(SignedDigestAlgorithmId(asn1.algorithm).dotted),
         # Only the last 32/57 bytes is the private key values
-        Attribute.VALUE: asn1["private_key"].contents[-32:]
-        if asn1.algorithm == "ed25519"
-        else asn1["private_key"].contents[-57:],
+        Attribute.VALUE: (
+            asn1["private_key"].contents[-32:] if asn1.algorithm == "ed25519" else asn1["private_key"].contents[-57:]
+        ),
     }
 
 

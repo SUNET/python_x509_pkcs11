@@ -40,12 +40,20 @@ def _append_extensions(exts: Extensions, extensions: Extensions, ignore_auth_ext
 def _request_to_tbs_certificate(
     csr_pem: str, keep_csr_extensions: Optional[bool], ignore_auth_exts: Optional[bool]
 ) -> TbsCertificate:
+    "This function converts a CSR into a TBSCertificate."
     data = csr_pem.encode("utf-8")
     if asn1_pem.detect(data):
         _, _, data = asn1_pem.unarmor(data)
 
     req = CertificationRequest.load(data)
 
+    # https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2
+    # The sequence TBSCertificate contains information associated with the
+    # subject of the certificate and the CA that issued it.  Every
+    # BSCertificate contains the names of the subject and issuer, a public
+    # key associated with the subject, a validity period, a version number,
+    # and a serial number; some MAY contain optional unique identifier
+    # fields.
     tbs = TbsCertificate()
     tbs["subject"] = req["certification_request_info"]["subject"]
     tbs["subject_public_key_info"] = req["certification_request_info"]["subject_pk_info"]
@@ -86,16 +94,34 @@ def _check_tbs_duplicate_extensions(tbs: TbsCertificate) -> None:
 
 
 def _set_tbs_issuer(tbs: TbsCertificate, issuer_name: Dict[str, str]) -> TbsCertificate:
+    """Sets the issuer of the TBSCertificate.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.4
+    """
     tbs["issuer"] = Name().build(issuer_name)
     return tbs
 
 
 def _set_tbs_version(tbs: TbsCertificate) -> TbsCertificate:
+    """Sets the version of the TBSCertificate, version MUST be 3 (Integer value 2) for certificates with extensions.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.1
+    """
     tbs["version"] = 2
     return tbs
 
 
 def _set_tbs_serial(tbs: TbsCertificate) -> TbsCertificate:
+    """Sets the serial number of the TBSCertificate.
+
+    The serial number MUST be a positive integer assigned by the CA to
+    each certificate.  It MUST be unique for each certificate issued by a
+    given CA (i.e., the issuer name and serial number identify a unique
+    certificate).  CAs MUST force the serialNumber to be a non-negative
+    integer.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.2
+    """
     # Same code as python cryptography lib
     tbs["serial_number"] = int.from_bytes(os.urandom(20), "big") >> 1
     return tbs
@@ -106,6 +132,13 @@ def _set_tbs_validity(
     not_before: Optional[datetime.datetime],
     not_after: Optional[datetime.datetime],
 ) -> TbsCertificate:
+    """Sets the validity period of the TBSCertificate.
+
+    Currently it is UTC time, after 2050 it will GeneralizedTime.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.5.1
+    """
+
     val = Validity()
 
     if not_before is None:
@@ -138,6 +171,17 @@ def _set_tbs_validity(
 
 
 def _set_tbs_ski(tbs: TbsCertificate) -> TbsCertificate:
+    """Sets the Subject Key Identifier (SKI) extension of the TBSCertificate.
+
+    The subject key identifier extension provides a means of identifying
+    certificates that contain a particular public key.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.2
+    """
+
+    # The keyIdentifier is composed of the 160-bit SHA-1 hash of the
+    # value of the BIT STRING subjectPublicKey (excluding the tag,
+    # length, and number of unused bits).
     ski = OctetString()
     ski.set(tbs["subject_public_key_info"].sha1)
 
@@ -160,6 +204,18 @@ def _set_tbs_ski(tbs: TbsCertificate) -> TbsCertificate:
 
 
 def _set_tbs_aki(tbs: TbsCertificate, identifier: bytes) -> TbsCertificate:
+    """Sets the Authority Key Identifier (AKI) extension of the TBSCertificate.
+
+    The authority key identifier extension provides a means of
+    identifying the public key corresponding to the private key used to
+    sign a certificate.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.1
+    """
+
+    # The value of the keyIdentifier field SHOULD be derived from the
+    # public key used to verify the certificate's signature or a method
+    # that generates unique values.
     aki = AuthorityKeyIdentifier()
     aki["key_identifier"] = identifier
 
@@ -182,6 +238,10 @@ def _set_tbs_aki(tbs: TbsCertificate, identifier: bytes) -> TbsCertificate:
 
 
 def _set_tbs_extra_extensions(tbs: TbsCertificate, extra_extensions: Extensions) -> TbsCertificate:
+    """Sets the extra extensions of the TBSCertificate.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-4.2
+    """
     if len(tbs["extensions"]) == 0:
         exts = Extensions()
     else:
@@ -195,21 +255,35 @@ def _set_tbs_extra_extensions(tbs: TbsCertificate, extra_extensions: Extensions)
 
 
 def _set_tbs_extensions(tbs: TbsCertificate, aki: bytes, extra_extensions: Optional[Extensions]) -> TbsCertificate:
+    "Takes the TBSCertificate and sets the extensions and AKI and SKI extensions."
+
+    # First set the extensions
     if extra_extensions is not None and len(extra_extensions) > 0:
         tbs = _set_tbs_extra_extensions(tbs, extra_extensions)
 
+    # Sets Subject Key Identifier (SKI) extension
     tbs = _set_tbs_ski(tbs)
+    # Sets Authority Key Identifier (AKI) extension
     tbs = _set_tbs_aki(tbs, aki)
+    # Check for any duplicate extensions and raise exception if found.
     _check_tbs_duplicate_extensions(tbs)
     return tbs
 
 
 async def _set_signature(key_label: str, key_type: Optional[str], signed_cert: Certificate) -> Certificate:
+    """Signs the TBSCertificate with the private key corresponding to the key_label.
+
+    https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.3
+    """
     if key_type is None:
         key_type = "ed25519"
 
     signed_cert["tbs_certificate"]["signature"] = signed_digest_algo(key_type)
+
+    # https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.1.2
     signed_cert["signature_algorithm"] = signed_cert["tbs_certificate"]["signature"]
+
+    # https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.1.3
     signed_cert["signature_value"] = await PKCS11Session().sign(
         key_label, signed_cert["tbs_certificate"].dump(), key_type=key_type
     )
@@ -224,13 +298,18 @@ def _create_tbs_certificate(  # pylint: disable-msg=too-many-arguments
     not_after: Optional[datetime.datetime],
     extra_extensions: Optional[Extensions],
 ) -> TbsCertificate:
+    """Creates the TBSCertificate from the input.s"""
+
     # Set all extensions
     tbs = _set_tbs_extensions(tbs, aki, extra_extensions)
 
-    # Set non extensions
+    # Sets version
     tbs = _set_tbs_version(tbs)
+    # Sets issuer
     tbs = _set_tbs_issuer(tbs, issuer_name)
+    # Sets unique serial number
     tbs = _set_tbs_serial(tbs)
+    # Sets validity period
     tbs = _set_tbs_validity(tbs, not_before, not_after)
     return tbs
 
@@ -262,11 +341,15 @@ async def sign_csr(  # pylint: disable-msg=too-many-arguments
     str
     """
 
+    # Gets Authority Key Identifier (AKI) value
     _, aki = await PKCS11Session().public_key_data(key_label, key_type)
 
+    # Creates the TBSCertificate from the CSR
     tbs = _request_to_tbs_certificate(csr_pem, keep_csr_extensions, ignore_auth_exts)
     tbs = _create_tbs_certificate(tbs, issuer_name, aki, not_before, not_after, extra_extensions)
 
+    # Creates an empty certificate
+    # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/x509.py#L2162
     signed_cert = Certificate()
     signed_cert["tbs_certificate"] = tbs
     signed_cert = await _set_signature(key_label, key_type, signed_cert)

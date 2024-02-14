@@ -17,6 +17,7 @@ The classes PKCS11Session and RemotePKCS11 exposes the functions:
 - delete_certificate()
 - get_session()
 """
+
 import base64
 import os
 import time
@@ -27,7 +28,7 @@ from email import header
 from hashlib import sha256, sha384, sha512
 from socket import timeout
 from threading import Lock, Thread
-from typing import AsyncIterator, Dict, Optional, Tuple, Union, Type, Any
+from typing import Any, AsyncIterator, Dict, Optional, Tuple, Type, Union
 
 import aiohttp
 from asn1crypto import pem as asn1_pem
@@ -74,6 +75,7 @@ async def async_lock(lock: Lock) -> AsyncIterator[None]:
 
 class PKCS11Session:
     """Persistent PKCS11 session wrapper."""
+
     # We want a single instance of this class.
     # Because pkcs11 allows one connection to the pkcs11 device.
     _self = None
@@ -81,7 +83,6 @@ class PKCS11Session:
     _session_status: int = 9
     _token: Token
     _lib: lib
-
 
     def __new__(cls, *args: Any, **kwargs: Any) -> "PKCS11Session":
         if cls._self is None:
@@ -210,7 +211,9 @@ class PKCS11Session:
 
         except NoSuchKey:
             try:
-                _, _ = self.session.generate_keypair(KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True)
+                _, _ = self.session.generate_keypair(
+                    KeyType.RSA, 512, label="test_pkcs11_device_do_not_use", store=True
+                )
                 self._session_status = 0
             except GeneralError:
                 pass
@@ -918,7 +921,10 @@ class PKCS11Session:
 
             async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
-                    url=f"{self.base_url}/public_key_data", json=http_request_data, headers=self.http_headers, timeout=10
+                    url=f"{self.base_url}/public_key_data",
+                    json=http_request_data,
+                    headers=self.http_headers,
+                    timeout=10,
                 ) as response:
                     response.raise_for_status()
                     json_body = await response.json()
