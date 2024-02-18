@@ -10,6 +10,10 @@ ON_GITHUB = bool(os.getenv("GITHUB_ACTIONS", False))
 
 async def delete_keys():
     "We delete keys in a loop"
+
+    # No need to delete keys in github actions.
+    if ON_GITHUB:
+        return
     session = PKCS11Session()
     keys = await session.key_labels()
     for key_label, key_type in keys.items():
@@ -17,7 +21,6 @@ async def delete_keys():
             continue
         if key_label.startswith("testpkcs"):
             await session.delete_keypair(key_label, key_type)
-            print(f"Deleted key {key_label=}")
 
 
 def pytest_sessionfinish(session: pytest.Session) -> None:
