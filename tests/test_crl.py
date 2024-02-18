@@ -59,7 +59,7 @@ class TestCrl(unittest.TestCase):
         Create and sign a CRL with the key_label in the pkcs11 device.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         crl_pem = asyncio.run(crl.create(new_key_label, subject_name))
@@ -98,7 +98,7 @@ class TestCrl(unittest.TestCase):
         """
 
         # Revoke first
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
         crl_pem1 = asyncio.run(crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=3))
         data = crl_pem1.encode("utf-8")
@@ -151,7 +151,7 @@ class TestCrl(unittest.TestCase):
         """
 
         # Revoke first
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
         with self.assertRaises(ValueError):
             asyncio.run(crl.create(new_key_label, subject_name, serial_number=2342342342343456, reason=33))
@@ -164,7 +164,7 @@ class TestCrl(unittest.TestCase):
         Create and sign a CRL with AKI.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
         _, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label))
         crl_pem1 = asyncio.run(crl.create(new_key_label, subject_name))
@@ -193,7 +193,7 @@ class TestCrl(unittest.TestCase):
         """
 
         # Both
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         next_update = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
         this_update = datetime.datetime(2022, 1, 3, tzinfo=datetime.timezone.utc)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))

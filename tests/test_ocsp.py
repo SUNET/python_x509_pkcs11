@@ -212,7 +212,7 @@ class TestOCSP(unittest.TestCase):
         Create a signed_ocsp request.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
         g_n = asn1_x509.GeneralName(name="directory_name", value=(asn1_ocsp.Name().build(requestor_name_dict)))
@@ -253,7 +253,7 @@ class TestOCSP(unittest.TestCase):
         Create an ocsp response.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
@@ -295,7 +295,7 @@ class TestOCSP(unittest.TestCase):
         Create an ocsp responses with different cert status
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
@@ -356,7 +356,7 @@ class TestOCSP(unittest.TestCase):
         Create an unsuccessful ocsp response.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
@@ -396,7 +396,7 @@ class TestOCSP(unittest.TestCase):
         Create an ocsp response with extra extensions.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)
@@ -662,7 +662,7 @@ FvdQ0EEx2Pssrry0iD5AieGyK2nKW94UA0gQenvtMS9mxQ==
 -----END CERTIFICATE-----
 """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
 
         i_name_h, i_key_h, serial, _ = certificate_ocsp_data(TEST_CERT)

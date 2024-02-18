@@ -81,7 +81,7 @@ eHqaFEFZApnEybHb7JgdpW5TsnvPN1O5YC6bgbRTgLmwGe+pJ5cEtTwrSvWJra8G
 grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
 -----END CERTIFICATE REQUEST-----"""
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
         cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, csr_no_exts))
@@ -125,7 +125,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
         cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, CSR_PEM))
 
@@ -154,7 +154,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label))
         cert_pem = asyncio.run(csr.sign_csr(new_key_label, issuer_name, CSR_PEM, keep_csr_extensions=False))
 
@@ -188,7 +188,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         exts = asn1_csr.Extensions()
 
         k_u = asn1_x509.KeyUsage(("100001100",))
@@ -249,7 +249,7 @@ grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
         Sign a CSR with the key with the key_label in the pkcs11 device.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         exts = asn1_csr.Extensions()
 
         k_u = asn1_x509.KeyUsage(("100001100",))

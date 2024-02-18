@@ -12,7 +12,7 @@ from pkcs11 import Session
 from pkcs11.exceptions import MultipleObjectsReturned, NoSuchKey
 
 from src.python_x509_pkcs11.error import PKCS11UnknownErrorException
-from src.python_x509_pkcs11.lib import KEY_TYPE_VALUES, KEY_TYPES
+from src.python_x509_pkcs11.lib import KEY_TYPE_VALUES, KEYTYPES
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
@@ -37,7 +37,7 @@ class TestPKCS11Handle(unittest.TestCase):
 
         assert isinstance(sess, Session)
         with self.assertRaises(NoSuchKey):
-            sess.get_key(label="test_not_exist", key_type=KEY_TYPE_VALUES["rsa_2048"])
+            sess.get_key(label="test_not_exist", key_type=KEY_TYPE_VALUES[KEYTYPES.RSA2048])
 
     def test_import_keypair_rsa(self) -> None:
         """Import keypair with key_label in the PKCS11 device.
@@ -139,9 +139,9 @@ class TestPKCS11Handle(unittest.TestCase):
         priv = b"0.\x02\x01\x000\x05\x06\x03+ep\x04\"\x04 ~n\xc3\xf5\x93\xb7\x1dYgO\x88\x90K\x9b\xe1&h\x0f\x0e@\xddh\xcc'\x98\xd2\xe7\xe7\xfb\x03T\xd1"  # pylint: disable=C0301
         pub = b"0*0\x05\x06\x03+ep\x03!\x00\x8b\x07J\x99[\xe4g\x9c\xd9\xfa'\x03\x9a\xb8\x01>&\x10\x1cay~\xadf\x80j\x9eq;\xb3\xf3\x9c"  # pylint: disable=C0301
 
-        for key_type in ["ed25519", None]:
+        for key_type in ["ed25519", KEYTYPES.ED25519]:
             imported_key_label = "imported_keypair_label_ed25519"
-            new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+            new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
             asyncio.run(PKCS11Session().create_keypair(new_key_label, key_type=key_type))
             pk_info, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label, key_type))
@@ -201,8 +201,8 @@ class TestPKCS11Handle(unittest.TestCase):
         priv = b"0G\x02\x01\x000\x05\x06\x03+eq\x04;\x049@\x02h\x89\xb4\xfdk\x05\xeblM\xe2\x8fT\x90QH\xacF\x8f\x9c\xd5\xf0b6U\x91Gu\x119Q\xff\x10\xae\x9fG\xe1\x7fiUu\xf3-\xdf\x9di(\xa26.\x93\x0f\xd6{#?"  # pylint: disable=C0301
         pub = b"0C0\x05\x06\x03+eq\x03:\x00N\x9e/u\xd35x]8k\xad\xbf\xf4\x06D\xf83\xcf\xea0\x91WS\xc0o\x17\x9f\xdc\xc7\xd8\xb2\x96\x07a\x14\xea\xf5\xcd\xe2D\xde\x8d\x15\xeb\x9b\xf6\xa7\xbe\r\x81\xa0\xfd\x10\xb2G \x80"  # pylint: disable=C0301
 
-        imported_key_label = "imported_keypair_label_ed448"
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        imported_key_label = "testpkcsimported_keypair_label_ed448"
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
         asyncio.run(PKCS11Session().create_keypair(new_key_label, key_type="ed448"))
         pk_info, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label, "ed448"))
@@ -262,8 +262,8 @@ class TestPKCS11Handle(unittest.TestCase):
         priv = b"0w\x02\x01\x01\x04 \xc1\x96a \xd3M\xe2\x04\xaaY\xe8{%F\x0eTt?\xa7\x0c\x85\xf3Hh\xbd,&\xe5\x8c\xb5\xa3[\xa0\n\x06\x08*\x86H\xce=\x03\x01\x07\xa1D\x03B\x00\x04\xae-\x90\t\xee-\x8d\xe4\x1b\xcfC\xb4TJ\x89[\x89\x82\x85+9\xb7\x96\xef\x12\xae\xfeG\x1f\xf7aX\x88\xca\xcf\xab9\x0b\xcd>\xb8\xfc\x95g\xa4\xca \r\x9d_\xa2\x1b1*\x17\x11\xc2\x8b\xd0\x98\x94Za\x82"  # pylint: disable=C0301
         pub = b"0Y0\x13\x06\x07*\x86H\xce=\x02\x01\x06\x08*\x86H\xce=\x03\x01\x07\x03B\x00\x04\xae-\x90\t\xee-\x8d\xe4\x1b\xcfC\xb4TJ\x89[\x89\x82\x85+9\xb7\x96\xef\x12\xae\xfeG\x1f\xf7aX\x88\xca\xcf\xab9\x0b\xcd>\xb8\xfc\x95g\xa4\xca \r\x9d_\xa2\x1b1*\x17\x11\xc2\x8b\xd0\x98\x94Za\x82"  # pylint: disable=C0301
 
-        imported_key_label = "imported_keypair_label_secp256r1"
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        imported_key_label = "testpkcsimported_keypair_label_secp256r1"
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
         asyncio.run(PKCS11Session().create_keypair(new_key_label, key_type="secp256r1"))
         pk_info, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label, "secp256r1"))
@@ -320,8 +320,8 @@ class TestPKCS11Handle(unittest.TestCase):
         priv = b'0\x81\xa4\x02\x01\x01\x040:-e\x12#\xab\xcb\xa3v\xfd\xc5\xe2W\x87\x82\x17\x1d\x7f\xbcg\x92\x7f\xc9\xe0G\xdde\x9e0\xf6\x00\x97\xcc\xda\x04\xa0\xda\xf9\x13\x86\x8e7x^\xa8\xbe\xd8\xd7\xa0\x07\x06\x05+\x81\x04\x00"\xa1d\x03b\x00\x04>\x11_\x9f\xb6z\xe6\xdc\xfc\xa7\x1a]\x02\x82\xbe\xdfh\xee\xca\xa6\xd6\xd9\x84\x87[m\x15\x11\xa7\xbea\x94<\x07!\xcb%7\xedFv\xaa\xe0\xf6\x9b\x9c\x00Bo\x1c\xc8\n\x8a\x86\xf6\x82\x15\xf5\x0e\xb98\xdf\x9f+\xb4\xfdG\x17\xc0O$a\xedz-\xc1[\xf1\xa5\xab\t\x1a\xdb>\x9d\xf5^\xb0 ,\xe4A\x9e\xfb\x17e'  # pylint: disable=C0301
         pub = b'0v0\x10\x06\x07*\x86H\xce=\x02\x01\x06\x05+\x81\x04\x00"\x03b\x00\x04>\x11_\x9f\xb6z\xe6\xdc\xfc\xa7\x1a]\x02\x82\xbe\xdfh\xee\xca\xa6\xd6\xd9\x84\x87[m\x15\x11\xa7\xbea\x94<\x07!\xcb%7\xedFv\xaa\xe0\xf6\x9b\x9c\x00Bo\x1c\xc8\n\x8a\x86\xf6\x82\x15\xf5\x0e\xb98\xdf\x9f+\xb4\xfdG\x17\xc0O$a\xedz-\xc1[\xf1\xa5\xab\t\x1a\xdb>\x9d\xf5^\xb0 ,\xe4A\x9e\xfb\x17e'  # pylint: disable=C0301
 
-        imported_key_label = "imported_keypair_label_secp384r1"
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        imported_key_label = "testpkcsimported_keypair_label_secp384r1"
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
         asyncio.run(PKCS11Session().create_keypair(new_key_label, key_type="secp384r1"))
         pk_info, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label, "secp384r1"))
@@ -382,8 +382,8 @@ class TestPKCS11Handle(unittest.TestCase):
         priv = b'0\x81\xdc\x02\x01\x01\x04B\x00T\xc7"\xc9&\xdb\xe8e\xb8\xf6\xb0\x8c\xd4\xd0\xc0\xbc\xf8\xd8?g\x17Bb:\xeeI\x86\xe6\x86\xb25W\x12\xa9F\x00\xbf\xee\xd7\xb7\xb5}\x9b]\x1a\xce\x97U\x05\x0cX\x19c\x1b\'?i\x94s0,\x175\xfe\x88\xa0\x07\x06\x05+\x81\x04\x00#\xa1\x81\x89\x03\x81\x86\x00\x04\x01\x04\x95"\xe0"\xc6g\xee\xa2:\\\xd9\xa0\x8f\xfa\xad\x07\xeco\t\xa7\x00~3}1\x949\x83\xef\x16-T\x1c\x90\x96) \x8e\x16\xa3\xc1\xd7\xcb\xa0I?\xdf\x07\x8e\xa0\xb8\x82F\xf0\x15\xaf4\x9d\xbb\xd7\xb85\xce\xd4\x01\xc6`\xbd?\xfc]\xa1\x18\x8c\xb9\xb8Z\x10\xb6\x9a&\xa9[\xc9{\xf9\x99\xcc\xe5\xb6\x80!R\xd6(\xa0\x08\xda%\xd45\x0ec[\x87^\xfa\xf7;\x10\t\x95\xbcf\xf1\x97\xd9B7\t\xb6w\x0ce\xec\x81\xe4\xd6~T'  # pylint: disable=C0301
         pub = b'0\x81\x9b0\x10\x06\x07*\x86H\xce=\x02\x01\x06\x05+\x81\x04\x00#\x03\x81\x86\x00\x04\x01\x04\x95"\xe0"\xc6g\xee\xa2:\\\xd9\xa0\x8f\xfa\xad\x07\xeco\t\xa7\x00~3}1\x949\x83\xef\x16-T\x1c\x90\x96) \x8e\x16\xa3\xc1\xd7\xcb\xa0I?\xdf\x07\x8e\xa0\xb8\x82F\xf0\x15\xaf4\x9d\xbb\xd7\xb85\xce\xd4\x01\xc6`\xbd?\xfc]\xa1\x18\x8c\xb9\xb8Z\x10\xb6\x9a&\xa9[\xc9{\xf9\x99\xcc\xe5\xb6\x80!R\xd6(\xa0\x08\xda%\xd45\x0ec[\x87^\xfa\xf7;\x10\t\x95\xbcf\xf1\x97\xd9B7\t\xb6w\x0ce\xec\x81\xe4\xd6~T'  # pylint: disable=C0301
 
-        imported_key_label = "imported_keypair_label_secp521r1"
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        imported_key_label = "testpkcsimported_keypair_label_secp521r1"
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
         asyncio.run(PKCS11Session().create_keypair(new_key_label, key_type="secp521r1"))
         pk_info, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label, "secp521r1"))
@@ -433,7 +433,7 @@ class TestPKCS11Handle(unittest.TestCase):
         with self.assertRaises(ValueError):
             asyncio.run(PKCS11Session().create_keypair("dummy", key_type="dummy_key_type"))
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label, key_type="rsa_2048"))
         pk_info, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label, key_type="rsa_2048"))
         self.assertTrue(isinstance(identifier, bytes))
@@ -486,8 +486,8 @@ class TestPKCS11Handle(unittest.TestCase):
         with self.assertRaises(ValueError):
             asyncio.run(PKCS11Session().delete_keypair("dummy", key_type="dummy_key_type"))
 
-        for key_type in KEY_TYPES:
-            new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        for key_type in KEYTYPES:
+            new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
             with self.assertRaises(NoSuchKey):
                 asyncio.run(PKCS11Session().delete_keypair(new_key_label, key_type=key_type))
@@ -506,8 +506,8 @@ class TestPKCS11Handle(unittest.TestCase):
         with self.assertRaises(ValueError):
             asyncio.run(PKCS11Session().public_key_data("dummy", key_type="dummy_key_type"))
 
-        for key_type in KEY_TYPES:
-            new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        for key_type in KEYTYPES:
+            new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
             asyncio.run(PKCS11Session().create_keypair(new_key_label, key_type=key_type))
             pk_info, identifier = asyncio.run(PKCS11Session().public_key_data(new_key_label, key_type=key_type))
             self.assertTrue(isinstance(identifier, bytes))
@@ -530,7 +530,7 @@ class TestPKCS11Handle(unittest.TestCase):
         with self.assertRaises(ValueError):
             asyncio.run(PKCS11Session().verify("dummy", b"dummy_data", b"dummy_sig", key_type="dummy_key_type"))
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().create_keypair(new_key_label, key_type="rsa_2048"))
         data_to_be_signed = b"MY TEST DATA TO BE SIGNED HERE"
 
@@ -594,7 +594,7 @@ tnmQdMO1DA==
 -----END CERTIFICATE-----
 """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         asyncio.run(PKCS11Session().import_certificate(cert_pem, new_key_label))
         with self.assertRaises(ValueError):
             asyncio.run(PKCS11Session().import_certificate(cert_pem, new_key_label))
