@@ -15,7 +15,7 @@ from asn1crypto import x509 as asn1_x509
 from asn1crypto.core import GeneralizedTime
 
 from src.python_x509_pkcs11.ca import create
-from src.python_x509_pkcs11.lib import KEY_TYPES
+from src.python_x509_pkcs11.lib import KEYTYPES
 from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
 # Replace the above with this should you use this code
@@ -79,8 +79,8 @@ class TestCa(unittest.TestCase):
         Create and self sign a CSR with the key_label in the pkcs11 device.
         """
 
-        for key_type in KEY_TYPES:
-            new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        for key_type in KEYTYPES:
+            new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
             # Test non default key size
             _, root_cert_pem = asyncio.run(create(new_key_label[:-1], name_dict, key_type=key_type))
             data = root_cert_pem.encode("utf-8")
@@ -133,7 +133,7 @@ class TestCa(unittest.TestCase):
         with non default not_before and not_after.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
 
         # Test not_before parameter
         not_before = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
@@ -176,7 +176,7 @@ class TestCa(unittest.TestCase):
         Create and selfsign a CSR with the key_label in the pkcs11 device.
         """
 
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         exts = asn1_csr.Extensions()
 
         pkup = asn1_x509.PrivateKeyUsagePeriod()
@@ -229,11 +229,11 @@ class TestCa(unittest.TestCase):
         Create an intermediate CA in the pkcs11 device.
         """
 
-        for key_type in KEY_TYPES:
-            new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        for key_type in KEYTYPES:
+            new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
             _, root_ca_pem = asyncio.run(create(new_key_label, signer_name_dict, key_type=key_type))
 
-            new_key_label2 = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+            new_key_label2 = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
             _, im_cert_pem = asyncio.run(
                 create(
                     new_key_label2,
@@ -304,10 +304,10 @@ class TestCa(unittest.TestCase):
         """
         Create an intermediate CA with different key label in the pkcs11 device.
         """
-        new_key_label = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         _, root_ca_pem = asyncio.run(create(new_key_label, signer_name_dict, key_type="ed25519"))
 
-        new_key_label2 = hex(int.from_bytes(os.urandom(20), "big") >> 1)
+        new_key_label2 = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         _, im_cert_pem = asyncio.run(
             create(
                 new_key_label2,

@@ -6,7 +6,7 @@ Exposes the functions:
 """
 
 import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from asn1crypto import pem as asn1_pem
 from asn1crypto.crl import (
@@ -26,7 +26,7 @@ from asn1crypto.crl import (
 )
 
 from .error import DuplicateExtensionException
-from .lib import signed_digest_algo
+from .lib import DEFAULT_KEY_TYPE, KEYTYPES, get_keytypes_enum, signed_digest_algo
 from .pkcs11_handle import PKCS11Session
 
 
@@ -226,23 +226,25 @@ def _load_crl(crl_pem: str) -> CertificateList:
     return cert_list
 
 
-async def _set_signature(key_label: str, key_type: Optional[str], cert_list: CertificateList) -> CertificateList:
+async def _set_signature(
+    key_label: str, cert_list: CertificateList, key_type: KEYTYPES = DEFAULT_KEY_TYPE
+) -> CertificateList:
     """Sign a CertificateList with the key with the key_label in the PKCS11 device.
 
     Parameters:
     key_label str: Keypair label.
-    key_type Optional[str]: Key type.
+    key_type KEYTYPES: Key type, default is KEYTYPES.ED25519
     cert_list CertificateList: CertificateList to be signed.
     """
-    if key_type is None:
-        key_type = "ed25519"
 
     # https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.1
     cert_list["tbs_cert_list"]["signature"] = signed_digest_algo(key_type)
     # https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.1.2
     cert_list["signature_algorithm"] = cert_list["tbs_cert_list"]["signature"]
     # https://datatracker.ietf.org/doc/html/rfc5280#section-5.1.1.3
-    cert_list["signature"] = await PKCS11Session().sign(key_label, cert_list["tbs_cert_list"].dump(), key_type=key_type)
+    cert_list["signature"] = await PKCS11Session().sign(
+        key_label, cert_list["tbs_cert_list"].dump(), key_type=key_type.value
+    )
     return cert_list
 
 
@@ -254,7 +256,7 @@ async def create(  # pylint: disable-msg=too-many-arguments
     reason: Optional[int] = None,
     this_update: Optional[datetime.datetime] = None,
     next_update: Optional[datetime.datetime] = None,
-    key_type: Optional[str] = None,
+    key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE,
 ) -> str:
     """Create a CRL signed by the key with the key_label in the PKCS11 device.
 
@@ -266,11 +268,14 @@ async def create(  # pylint: disable-msg=too-many-arguments
     reason (Optional[int] = None]): The reason for revocation, skip if None.
     this_update (Optional[datetime.datetime] = None): The CRLs timestamp.
     next_update (Optional[datetime.datetime] = None): The next CRLs timestamp.
-    key_type (Optional[str] = None): Key type to use, ed25519 is default.
+    key_type str: Key type to use, ed25519 is default.
 
     Returns:
     str
     """
+    if isinstance(key_type, str):
+        key_type = get_keytypes_enum(key_type)
+
     _, aki = await PKCS11Session().public_key_data(key_label, key_type=key_type)
 
     # If appending to existing crl or creating a new empty crl
@@ -287,6 +292,6 @@ async def create(  # pylint: disable-msg=too-many-arguments
 
     cert_list = CertificateList()
     cert_list["tbs_cert_list"] = tbs
-    cert_list = await _set_signature(key_label, key_type, cert_list)
+    cert_list = await _set_signature(key_label, cert_list, key_type)
     pem_enc: bytes = asn1_pem.armor("X509 CRL", cert_list.dump())
     return pem_enc.decode("utf-8")

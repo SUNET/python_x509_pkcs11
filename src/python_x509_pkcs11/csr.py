@@ -6,7 +6,7 @@ Exposes the functions:
 
 import datetime
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from asn1crypto import pem as asn1_pem
 from asn1crypto.core import OctetString
@@ -24,7 +24,7 @@ from asn1crypto.x509 import (
 )
 
 from .error import DuplicateExtensionException
-from .lib import signed_digest_algo
+from .lib import DEFAULT_KEY_TYPE, KEYTYPES, get_keytypes_enum, signed_digest_algo
 from .pkcs11_handle import PKCS11Session
 
 
@@ -270,13 +270,13 @@ def _set_tbs_extensions(tbs: TbsCertificate, aki: bytes, extra_extensions: Optio
     return tbs
 
 
-async def _set_signature(key_label: str, key_type: Optional[str], signed_cert: Certificate) -> Certificate:
+async def _set_signature(
+    key_label: str, signed_cert: Certificate, key_type: KEYTYPES = DEFAULT_KEY_TYPE
+) -> Certificate:
     """Signs the TBSCertificate with the private key corresponding to the key_label.
 
     https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.3
     """
-    if key_type is None:
-        key_type = "ed25519"
 
     signed_cert["tbs_certificate"]["signature"] = signed_digest_algo(key_type)
 
@@ -285,7 +285,7 @@ async def _set_signature(key_label: str, key_type: Optional[str], signed_cert: C
 
     # https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.1.3
     signed_cert["signature_value"] = await PKCS11Session().sign(
-        key_label, signed_cert["tbs_certificate"].dump(), key_type=key_type
+        key_label, signed_cert["tbs_certificate"].dump(), key_type=key_type.value
     )
     return signed_cert
 
@@ -323,7 +323,7 @@ async def sign_csr(  # pylint: disable-msg=too-many-arguments
     keep_csr_extensions: Optional[bool] = None,
     extra_extensions: Optional[Extensions] = None,
     ignore_auth_exts: Optional[bool] = None,
-    key_type: Optional[str] = None,
+    key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE,
 ) -> str:
     """Sign a CSR by the key with the key_label in the PKCS11 device.
 
@@ -335,11 +335,14 @@ async def sign_csr(  # pylint: disable-msg=too-many-arguments
     not_after (Optional[datetime.datetime] = None): The certificate is not valid after this time.
     keep_csr_extensions (Optional[bool] = None]): Should we keep or remove the x509 extensions in the CSR. Default true.
     extra_extensions (Optional[asn1crypto.x509.Extensions] = None]): x509 extensions to write into the certificate.
-    key_type (Optional[str] = None): Key type to use, ed25519 is default.
+    key_type (Union[str, KEYTYPES]): Key type to use, KEYTYPES.ED25519 is default.
 
     Returns:
     str
     """
+
+    if isinstance(key_type, str):
+        key_type = get_keytypes_enum(key_type)
 
     # Gets Authority Key Identifier (AKI) value
     _, aki = await PKCS11Session().public_key_data(key_label, key_type)
@@ -352,6 +355,6 @@ async def sign_csr(  # pylint: disable-msg=too-many-arguments
     # https://github.com/wbond/asn1crypto/blob/b763a757bb2bef2ab63620611ddd8006d5e9e4a2/asn1crypto/x509.py#L2162
     signed_cert = Certificate()
     signed_cert["tbs_certificate"] = tbs
-    signed_cert = await _set_signature(key_label, key_type, signed_cert)
+    signed_cert = await _set_signature(key_label, signed_cert, key_type)
     pem_enc: bytes = asn1_pem.armor("CERTIFICATE", signed_cert.dump())
     return pem_enc.decode("utf-8")

@@ -36,7 +36,7 @@ from asn1crypto.ocsp import (
 )
 
 from .error import DuplicateExtensionException, OCSPMissingExtensionException
-from .lib import signed_digest_algo
+from .lib import DEFAULT_KEY_TYPE, KEYTYPES, get_keytypes_enum, signed_digest_algo
 from .pkcs11_handle import PKCS11Session
 
 
@@ -130,12 +130,10 @@ def _set_response_data(  # pylint: disable-msg=too-many-branches
 
 async def _set_response_signature(
     key_label: str,
-    key_type: Optional[str],
     extra_certs: Optional[List[str]],
     basic_ocsp_response: BasicOCSPResponse,
+    key_type: KEYTYPES = DEFAULT_KEY_TYPE,
 ) -> BasicOCSPResponse:
-    if key_type is None:
-        key_type = "ed25519"
 
     basic_ocsp_response["signature_algorithm"] = signed_digest_algo(key_type)
     basic_ocsp_response["signature"] = await PKCS11Session().sign(
@@ -158,13 +156,11 @@ async def _set_response_signature(
 
 async def _set_request_signature(
     key_label: str,
-    key_type: Optional[str],
     signature: Signature,
     data: TBSRequest,
     certs: Optional[List[str]],
+    key_type: KEYTYPES = DEFAULT_KEY_TYPE,
 ) -> Signature:
-    if key_type is None:
-        key_type = "ed25519"
 
     signature["signature_algorithm"] = signed_digest_algo(key_type)
     signature["signature"] = await PKCS11Session().sign(key_label, data.dump(), key_type=key_type)
@@ -278,7 +274,7 @@ async def request(  # pylint: disable-msg=too-many-arguments
     requestor_name: Optional[GeneralName] = None,
     certs: Optional[List[str]] = None,
     extra_extensions: Optional[TBSRequestExtensions] = None,
-    key_type: Optional[str] = None,
+    key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE,
 ) -> bytes:
     """Create an OCSP request.
     See https://www.rfc-editor.org/rfc/rfc6960#section-4.1.1
@@ -298,6 +294,9 @@ async def request(  # pylint: disable-msg=too-many-arguments
     Returns:
     bytes
     """
+
+    if isinstance(key_type, str):
+        key_type = get_keytypes_enum(key_type)
 
     # Ensure input data has least one cert data tuple
     if not request_certs_data:
@@ -326,7 +325,7 @@ async def request(  # pylint: disable-msg=too-many-arguments
             raise ValueError("signing a request requires the requestor_name parameter")
 
         ocsp_request["optional_signature"] = await _set_request_signature(
-            key_label, key_type, Signature(), ocsp_request["tbs_request"], certs
+            key_label, Signature(), ocsp_request["tbs_request"], certs, key_type
         )
 
     ret: bytes = ocsp_request.dump()
@@ -341,7 +340,7 @@ async def response(  # pylint: disable-msg=too-many-arguments
     extra_extensions: Optional[ResponseDataExtensions] = None,
     produced_at: Optional[datetime.datetime] = None,
     extra_certs: Optional[List[str]] = None,
-    key_type: Optional[str] = None,
+    key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE,
 ) -> bytes:
     """Create an OCSP response with the key_label key in the PKCS11 device.
     See https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1
@@ -357,13 +356,16 @@ async def response(  # pylint: disable-msg=too-many-arguments
     It must be in UTC timezone. If None then it will be 2 minutes before UTC now.
     extra_certs (Optional[List[str]] = None): List of PEM encoded certs
     for the client to verify the signature chain.
-    key_type (Optional[str] = None): Key type to use, ed25519 is default.
+    key_type (Union[str, KEYTYPES]): Key type to use, KEYTPES.ED25519 is default.
 
     Returns:
     bytes
     """
 
     ret: bytes
+
+    if isinstance(key_type, str):
+        key_type = get_keytypes_enum(key_type)
 
     # Ensure valid response status
     if response_status not in [0, 1, 2, 3, 5, 6]:  # 4 is not used
@@ -389,7 +391,7 @@ async def response(  # pylint: disable-msg=too-many-arguments
     )
 
     # Sign the response
-    basic_ocsp_response = await _set_response_signature(key_label, key_type, extra_certs, basic_ocsp_response)
+    basic_ocsp_response = await _set_response_signature(key_label, extra_certs, basic_ocsp_response, key_type)
 
     # Response bytes
     response_bytes = ResponseBytes()

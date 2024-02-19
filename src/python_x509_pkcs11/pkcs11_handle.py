@@ -54,7 +54,7 @@ from .crypto import (
     encode_eddsa_public_key,
 )
 from .error import PKCS11UnknownErrorException
-from .lib import DEBUG, KEY_TYPE_VALUES, KEY_TYPES
+from .lib import DEBUG, DEFAULT_KEY_TYPE, KEY_TYPE_VALUES, KEYTYPES, get_keytypes_enum
 
 TIMEOUT = 10  # Seconds
 pool = ThreadPoolExecutor()
@@ -147,15 +147,15 @@ class PKCS11Session:
                 print("Failed to open PKCS11 session")
                 print(exc)
 
-    def _get_pub_key(self, key_label: str, key_type: str) -> Key:
+    def _get_pub_key(self, key_label: str, key_type: KEYTYPES = DEFAULT_KEY_TYPE) -> Key:
         return self.session.get_key(
             key_type=KEY_TYPE_VALUES[key_type],
             object_class=ObjectClass.PUBLIC_KEY,
             label=key_label,
         )
 
-    def _public_key_data(self, key_pub: Key, key_type: str) -> Tuple[str, bytes]:
-        if key_type in ["rsa_2048", "rsa_4096"]:
+    def _public_key_data(self, key_pub: Key, key_type: KEYTYPES) -> Tuple[str, bytes]:
+        if key_type in [KEYTYPES.RSA2048, KEYTYPES.RSA4096]:
             # Create the PublicKeyInfo object
             rsa_pub = RSAPublicKey.load(encode_rsa_public_key(key_pub))
 
@@ -165,13 +165,11 @@ class PKCS11Session:
             pki["algorithm"] = pka
             pki["public_key"] = rsa_pub
 
-        elif key_type in ["ed25519", "ed448"]:
+        elif key_type in [KEYTYPES.ED25519, KEYTYPES.ED448]:
             pki = PublicKeyInfo.load(encode_eddsa_public_key(key_pub))
 
-        elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+        elif key_type in [KEYTYPES.SECP256r1, KEYTYPES.SECP384r1, KEYTYPES.SECP521r1]:
             pki = PublicKeyInfo.load(encode_ec_public_key(key_pub))
-        else:
-            raise ValueError(f"key_type must be in {KEY_TYPES}")
 
         key_pub_pem: bytes = asn1_pem.armor("PUBLIC KEY", pki.dump())
         return key_pub_pem.decode("utf-8"), pki.sha1
@@ -396,7 +394,9 @@ class PKCS11Session:
             ):
                 cert.destroy()
 
-    async def import_keypair(self, public_key: bytes, private_key: bytes, key_label: str, key_type: str) -> None:
+    async def import_keypair(
+        self, public_key: bytes, private_key: bytes, key_label: str, key_type: Union[str, KEYTYPES]
+    ) -> None:
         """Import a DER encoded keypair into the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
 
@@ -410,14 +410,14 @@ class PKCS11Session:
         public_key (bytes): Public RSA key in DER form.
         private_key (bytes): Private RSA key in DER form.
         key_label (str): Keypair label.
-        key_type (str): Key type.
+        key_type Union[str, KEYTYPES]: Key type in string or enum.
 
         Returns:
         None
         """
 
-        if key_type not in KEY_TYPES:
-            raise ValueError(f"key_type must be in {KEY_TYPES}")
+        if isinstance(key_type, str):
+            key_type = get_keytypes_enum(key_type)
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
@@ -428,7 +428,7 @@ class PKCS11Session:
             http_request_data["public_key_b64"] = base64.b64encode(public_key).decode("utf-8")
             http_request_data["private_key_b64"] = base64.b64encode(private_key).decode("utf-8")
             http_request_data["key_label"] = key_label
-            http_request_data["key_type"] = key_type
+            http_request_data["key_type"] = key_type.value
 
             async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
@@ -448,15 +448,15 @@ class PKCS11Session:
             except NoSuchKey:
                 pass
 
-            if key_type in ["rsa_2048", "rsa_4096"]:
+            if key_type in [KEYTYPES.RSA2048, KEYTYPES.RSA4096]:
                 key_pub = decode_rsa_public_key(public_key)
                 key_priv = decode_rsa_private_key(private_key)
 
-            elif key_type in ["ed25519", "ed448"]:
+            elif key_type in [KEYTYPES.ED25519, KEYTYPES.ED448]:
                 key_pub = decode_eddsa_public_key(public_key)
                 key_priv = decode_eddsa_private_key(private_key)
 
-            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+            elif key_type in [KEYTYPES.SECP256r1, KEYTYPES.SECP384r1, KEYTYPES.SECP521r1]:
                 key_pub = decode_ec_public_key(public_key)
                 key_priv = decode_ec_private_key(private_key)
 
@@ -468,7 +468,9 @@ class PKCS11Session:
             self.session.create_object(key_pub)
             self.session.create_object(key_priv)
 
-    async def create_keypair(self, key_label: str, key_type: Optional[str] = None) -> Tuple[str, bytes]:
+    async def create_keypair(
+        self, key_label: str, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE
+    ) -> Tuple[str, bytes]:
         """Create an RSA keypair in the PKCS11 device with this label.
         If the label already exists in the PKCS11 device then raise pkcs11.MultipleObjectsReturned.
         Returns the data for the x509 'Subject Public Key Info'
@@ -478,18 +480,15 @@ class PKCS11Session:
 
         Parameters:
         key_label (str): Keypair label.
-        key_type (str = None): Key type.
+        key_type str: Key type, defaults to "ed25519".
 
 
         Returns:
         Tuple[str, bytes]
         """
 
-        if key_type is None:
-            key_type = "ed25519"
-
-        if key_type not in KEY_TYPES:
-            raise ValueError(f"key_type must be in {KEY_TYPES}")
+        if isinstance(key_type, str):
+            key_type = get_keytypes_enum(key_type)
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
@@ -498,7 +497,7 @@ class PKCS11Session:
                 http_request_data.update(self.http_data)
 
             http_request_data["key_label"] = key_label
-            http_request_data["key_type"] = key_type
+            http_request_data["key_type"] = key_type.value
 
             async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
@@ -523,17 +522,17 @@ class PKCS11Session:
                 raise MultipleObjectsReturned
             except NoSuchKey:
                 # Generate the rsa keypair
-                if key_type in ["rsa_2048", "rsa_4096"]:
+                if key_type in [KEYTYPES.RSA2048, KEYTYPES.RSA4096]:
                     key_pub, _ = self.session.generate_keypair(
-                        KeyType.RSA, int(key_type.split("_")[1]), store=True, label=key_label
+                        KeyType.RSA, int(key_type.value.split("_")[1]), store=True, label=key_label
                     )
 
-                elif key_type in ["ed25519", "ed448"]:
+                elif key_type in [KEYTYPES.ED25519, KEYTYPES.ED448]:
                     parameters = self.session.create_domain_parameters(
                         KeyType.EC_EDWARDS,
                         {
                             Attribute.EC_PARAMS: encode_named_curve_parameters(
-                                SignedDigestAlgorithmId(key_type).dotted
+                                SignedDigestAlgorithmId(key_type.value).dotted
                             ),
                         },
                         local=True,
@@ -542,10 +541,10 @@ class PKCS11Session:
                         mechanism=Mechanism.EC_EDWARDS_KEY_PAIR_GEN, store=True, label=key_label
                     )
 
-                elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+                elif key_type in [KEYTYPES.SECP256r1, KEYTYPES.SECP384r1, KEYTYPES.SECP521r1]:
                     parameters = self.session.create_domain_parameters(
                         KeyType.EC,
-                        {Attribute.EC_PARAMS: encode_named_curve_parameters(key_type)},
+                        {Attribute.EC_PARAMS: encode_named_curve_parameters(key_type.value)},
                         local=True,
                     )
                     key_pub, _ = parameters.generate_keypair(
@@ -583,10 +582,7 @@ class PKCS11Session:
 
             # For rsa
             for obj in self.session.get_objects(
-                {
-                    Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                    Attribute.KEY_TYPE: KEY_TYPE_VALUES["rsa_2048"],
-                }
+                {Attribute.CLASS: ObjectClass.PUBLIC_KEY, Attribute.KEY_TYPE: KEY_TYPE_VALUES[KEYTYPES.RSA2048]}
             ):
                 if obj.key_length == 2048:
                     key_labels[obj.label] = "rsa_2048"
@@ -599,7 +595,7 @@ class PKCS11Session:
             for obj in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                    Attribute.KEY_TYPE: KEY_TYPE_VALUES["ed25519"],
+                    Attribute.KEY_TYPE: KEY_TYPE_VALUES[KEYTYPES.ED25519],
                     Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.112"),
                 }
             ):
@@ -609,33 +605,29 @@ class PKCS11Session:
             for obj in self.session.get_objects(
                 {
                     Attribute.CLASS: ObjectClass.PUBLIC_KEY,
-                    Attribute.KEY_TYPE: KEY_TYPE_VALUES["ed448"],
+                    Attribute.KEY_TYPE: KEY_TYPE_VALUES[KEYTYPES.ED448],
                     Attribute.EC_PARAMS: encode_named_curve_parameters("1.3.101.113"),
                 }
             ):
                 key_labels[obj.label] = "ed448"
 
             # for secp256r1, secp384r1, secp521r1
-            for curve in ["secp256r1", "secp384r1", "secp521r1"]:
+            for curve in [KEYTYPES.SECP256r1, KEYTYPES.SECP384r1, KEYTYPES.SECP521r1]:
                 for obj in self.session.get_objects(
                     {
                         Attribute.CLASS: ObjectClass.PUBLIC_KEY,
                         Attribute.KEY_TYPE: KEY_TYPE_VALUES[curve],
-                        Attribute.EC_PARAMS: encode_named_curve_parameters(curve),
+                        Attribute.EC_PARAMS: encode_named_curve_parameters(curve.value),
                     }
                 ):
-                    key_labels[obj.label] = curve
+                    key_labels[obj.label] = curve.value
 
             return key_labels
 
     async def _sign(  # pylint: disable-msg=too-many-arguments
-        self,
-        key_label: str,
-        data: bytes,
-        verify_signature: Optional[bool],
-        mechanism: Mechanism,
-        key_type: str,
+        self, key_label: str, data: bytes, verify_signature: Optional[bool], mechanism: Mechanism, key_type: KEYTYPES
     ) -> bytes:
+
         async with async_lock(self.lock):
             # Ensure we get a healthy pkcs11 session
             await self.healthy_session()
@@ -666,7 +658,7 @@ class PKCS11Session:
         key_label: str,
         data: bytes,
         verify_signature: Optional[bool] = None,
-        key_type: Optional[str] = None,
+        key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE,
     ) -> bytes:
         """Sign the data: bytes using the private key
         with the label in the PKCS11 device.
@@ -679,17 +671,14 @@ class PKCS11Session:
         data (bytes): Bytes to be signed.
         verify_signature (Union[bool, None] = None):
         If we should verify the signature. PKCS11 operations can be expensive, default None (False)
-        key_type (Union[str, None] = None): Key type.
+        key_type Union[str, KEYTYPES]: Key type, defaults to "ed25519".
 
         Returns:
         bytes
         """
 
-        if key_type is None:
-            key_type = "ed25519"
-
-        if key_type not in KEY_TYPES:
-            raise ValueError(f"key_type must be in {KEY_TYPES}")
+        if isinstance(key_type, str):
+            key_type = get_keytypes_enum(key_type)
 
         if self.base_url is not None:
             http_request_data: Dict[str, Union[str, bool]] = {}
@@ -699,7 +688,7 @@ class PKCS11Session:
 
             http_request_data["data_b64"] = base64.b64encode(data).decode("utf-8")
             http_request_data["key_label"] = key_label
-            http_request_data["key_type"] = key_type
+            http_request_data["key_type"] = key_type.value
 
             if verify_signature is None or not verify_signature:
                 http_request_data["verify_signature"] = False
@@ -718,16 +707,16 @@ class PKCS11Session:
                         return base64.b64decode(ret)
                     raise ValueError("Problem with signature")
 
-        if key_type in ["ed25519", "ed448"]:
+        if key_type in [KEYTYPES.ED25519, KEYTYPES.ED448]:
             mech = Mechanism.EDDSA
 
-        elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+        elif key_type in [KEYTYPES.SECP256r1, KEYTYPES.SECP384r1, KEYTYPES.SECP521r1]:
             mech = Mechanism.ECDSA
 
             # Set hash alg
-            if key_type == "secp256r1":
+            if key_type == KEYTYPES.SECP256r1:
                 hash_obj = sha256()
-            elif key_type == "secp384r1":
+            elif key_type == KEYTYPES.SECP384r1:
                 hash_obj = sha384()
             else:
                 hash_obj = sha512()
@@ -736,7 +725,7 @@ class PKCS11Session:
             data = hash_obj.digest()
 
         else:
-            if key_type == "rsa_2048":
+            if key_type == KEYTYPES.RSA2048:
                 mech = Mechanism.SHA256_RSA_PKCS
             else:
                 mech = Mechanism.SHA512_RSA_PKCS
@@ -744,17 +733,13 @@ class PKCS11Session:
         signature = await self._sign(key_label, data, verify_signature, mech, key_type)
 
         # PKCS11 specific stuff for EC curves, sig is in R&S format, convert it to openssl format
-        if key_type in ["secp256r1", "secp384r1", "secp521r1"]:
-            signature = convert_rs_ec_signature(signature, key_type)
+        if key_type in [KEYTYPES.SECP256r1, KEYTYPES.SECP384r1, KEYTYPES.SECP521r1]:
+            signature = convert_rs_ec_signature(signature, key_type.value)
 
         return signature
 
     async def verify(  # pylint: disable-msg=too-many-arguments
-        self,
-        key_label: str,
-        data: bytes,
-        signature: bytes,
-        key_type: Optional[str] = None,
+        self, key_label: str, data: bytes, signature: bytes, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE
     ) -> bool:
         """Verify a signature with its data using the private key
         with the label in the PKCS11 device.
@@ -765,17 +750,14 @@ class PKCS11Session:
         key_label (str): Keypair label.
         data (bytes): Bytes to be signed.
         signature (bytes): The signature.
-        key_type (Union[str, None] = None): Key type.
+        key_type str: Key type, defaults to "ed25519".
 
         Returns:
         bool
         """
 
-        if key_type is None:
-            key_type = "ed25519"
-
-        if key_type not in KEY_TYPES:
-            raise ValueError(f"key_type must be in {KEY_TYPES}")
+        if isinstance(key_type, str):
+            key_type = get_keytypes_enum(key_type)
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
@@ -786,7 +768,7 @@ class PKCS11Session:
             http_request_data["data_b64"] = base64.b64encode(data).decode("utf-8")
             http_request_data["signature_b64"] = base64.b64encode(signature).decode("utf-8")
             http_request_data["key_label"] = key_label
-            http_request_data["key_type"] = key_type
+            http_request_data["key_type"] = key_type.value
 
             async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
@@ -807,16 +789,16 @@ class PKCS11Session:
             # Get public key to sign the data with
             key_pub = self._get_pub_key(key_label, key_type)
 
-            if key_type in ["ed25519", "ed448"]:
+            if key_type in [KEYTYPES.ED25519, KEYTYPES.ED448]:
                 mech = Mechanism.EDDSA
 
-            elif key_type in ["secp256r1", "secp384r1", "secp521r1"]:
+            elif key_type in [KEYTYPES.SECP256r1, KEYTYPES.SECP384r1, KEYTYPES.SECP521r1]:
                 mech = Mechanism.ECDSA
 
                 # Set hash alg
-                if key_type == "secp256r1":
+                if key_type == KEYTYPES.SECP256r1:
                     hash_obj = sha256()
-                elif key_type == "secp384r1":
+                elif key_type == KEYTYPES.SECP384r1:
                     hash_obj = sha384()
                 else:
                     hash_obj = sha512()
@@ -825,13 +807,13 @@ class PKCS11Session:
                 data = hash_obj.digest()
 
                 try:
-                    signature = convert_asn1_ec_signature(signature, key_type)
+                    signature = convert_asn1_ec_signature(signature, key_type.value)
                 except (IndexError, ValueError):
                     # Signature was not in ASN1 format, signature verification will probably fail.
                     pass
 
             else:  # rsa
-                if key_type == "rsa_2048":
+                if key_type == KEYTYPES.RSA2048:
                     mech = Mechanism.SHA256_RSA_PKCS
                 else:
                     mech = Mechanism.SHA512_RSA_PKCS
@@ -840,22 +822,19 @@ class PKCS11Session:
                 return True
             return False
 
-    async def delete_keypair(self, key_label: str, key_type: Optional[str] = None) -> None:
+    async def delete_keypair(self, key_label: str, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE) -> None:
         """Delete the keypair from the PKCS11 device.
 
         Parameters:
         key_label (str): Keypair label.
-        key_type (Union[str, None] = None): Key type.
+        key_type (Union[str, KEYTYPES] = None): Key type.
 
         Returns:
         None
         """
 
-        if key_type is None:
-            key_type = "ed25519"
-
-        if key_type not in KEY_TYPES:
-            raise ValueError(f"key_type must be in {KEY_TYPES}")
+        if isinstance(key_type, str):
+            key_type = get_keytypes_enum(key_type)
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
@@ -863,7 +842,7 @@ class PKCS11Session:
             if self.http_data is not None:
                 http_request_data.update(self.http_data)
 
-            http_request_data["key_type"] = key_type
+            http_request_data["key_type"] = key_type.value
             http_request_data["key_label"] = key_label
 
             async with aiohttp.ClientSession(headers=self.http_headers) as session:
@@ -892,23 +871,20 @@ class PKCS11Session:
                     label=key_label,
                 ).destroy()
 
-    async def public_key_data(self, key_label: str, key_type: Optional[str] = None) -> Tuple[str, bytes]:
+    async def public_key_data(self, key_label: str, key_type: KEYTYPES = DEFAULT_KEY_TYPE) -> Tuple[str, bytes]:
         """Returns the public key in PEM form
         and 'Key Identifier' valid for this keypair.
 
         Parameters:
         key_label (str): Keypair label.
-        key_type (Union[str, None] = None): Key type.
+        key_type (Union[str, KEYTYPES]: Key type, default value is KEYTYPES.ED25519.
 
         Returns:
         Tuple[str, bytes]
         """
 
-        if key_type is None:
-            key_type = "ed25519"
-
-        if key_type not in KEY_TYPES:
-            raise ValueError(f"key_type must be in {KEY_TYPES}")
+        if isinstance(key_type, str):
+            key_type = get_keytypes_enum(key_type)
 
         if self.base_url is not None:
             http_request_data: Dict[str, str] = {}
@@ -917,7 +893,7 @@ class PKCS11Session:
                 http_request_data.update(self.http_data)
 
             http_request_data["key_label"] = key_label
-            http_request_data["key_type"] = key_type
+            http_request_data["key_type"] = key_type.value
 
             async with aiohttp.ClientSession(headers=self.http_headers) as session:
                 async with session.post(
