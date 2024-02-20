@@ -22,7 +22,8 @@ home-page = "https://github.com/SUNET/python_x509_pkcs11"
 requires = [
     "asn1crypto>=1.5.1",
     "python-pkcs11>=0.7.0",
-    "aiohttp"
+    "aiohttp",
+    "cryptography"
 ]
 
 [tool.mypy]

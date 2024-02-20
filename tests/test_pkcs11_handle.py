@@ -18,11 +18,26 @@ from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 # Replace the above with this should you use this code
 # from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
+async def delete_keys():
+    "We delete keys in a loop"
+
+    # No need to delete keys in github actions.
+    session = PKCS11Session()
+    keys = await session.key_labels()
+    for key_label, key_type in keys.items():
+        if key_label == "test_pkcs11_device_do_not_use":
+            continue
+        if key_label.startswith("testpkcs"):
+            await session.delete_keypair(key_label, key_type)
 
 class TestPKCS11Handle(unittest.TestCase):
     """
     Test our PKCS11 session handler.
     """
+
+    def tearDown(self):
+        "Cleans up test keys."
+        asyncio.run(delete_keys())
 
     def test_session(self) -> None:
         """Test PKCS11 session"""

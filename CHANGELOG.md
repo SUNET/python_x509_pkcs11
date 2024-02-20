@@ -5,6 +5,7 @@
 ### Added
 
 - Code comments added with RFC 5280 links for explanation.
+- Fixed #12 Add different Private Key types for cryptography module.
 
 
 ### Changed
