@@ -17,4 +17,5 @@
 ### Fixed
 
 - Fixed #10 all test keys are prefixed with "testpkcs".
+- Fixed #14 uses newstyle metadata for flit.
 
