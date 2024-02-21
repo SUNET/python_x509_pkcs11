@@ -38,15 +38,18 @@ jobs:
         run: |
           python3 -m venv .venv && . .venv/bin/activate && \
           python3 -m pip install --upgrade pip && \
-          pip3 install -r requirements.txt -r test_requirements.txt
+          python -m pip install -r requirements.txt -r test_requirements.txt
 
       - name: Setup softhsm2
         run: |
           make new_softhsm
 
+      # https://github.com/pyauth/python-pkcs11/issues/171
+      # . .venv/bin/activate && make test
       - name: Test
         run: |
-          . .venv/bin/activate && make test
+          . .venv/bin/activate && pytest -vv -s --ignore tests/test_privatekeys.py
+          . .venv/bin/activate && pytest -vv -s tests/test_privatekeys.py
 
       - name: Mark github workspace as safe
         run: |
