@@ -54,7 +54,7 @@ class PKCS11RSAPrivateKey(rsa.RSAPrivateKey):
 
     @property
     def key_size(self) -> int:
-        raise NotImplementedError()
+        return self.public_key().key_size
 
     def public_key(self) -> "rsa.RSAPublicKey":
         "Returns the public key."
@@ -107,23 +107,23 @@ class PKCS11ECPrivateKey(ec.EllipticCurvePrivateKey):
         public_key, _ = asyncio.run(PKCS11Session().public_key_data(self.key_label, self.key_type))
         # This is the issuer public key
         key = load_pem_public_key(public_key.encode("utf-8"))
-        if isinstance(key, ec.EllipticCurvePublicKey):
-            return key
-        raise ValueError("Wrong Public key value.")
+        if not isinstance(key, ec.EllipticCurvePublicKey):
+            raise ValueError("Wrong Public key value.")
+        return key
 
     @property
     def curve(self) -> EllipticCurve:
         """
         The EllipticCurve that this key is on.
         """
-        raise NotImplementedError()
+        return self.public_key().curve
 
     @property
     def key_size(self) -> int:
         """
         Bit size of a secret scalar for the curve.
         """
-        raise NotImplementedError()
+        return self.public_key().key_size
 
     def private_numbers(self) -> EllipticCurvePrivateNumbers:
         """
@@ -157,9 +157,9 @@ class PKCS11ED25519PrivateKey(Ed25519PrivateKey):
         public_key, _ = asyncio.run(PKCS11Session().public_key_data(self.key_label, self.key_type))
         # This is the issuer public key
         key = load_pem_public_key(public_key.encode("utf-8"))
-        if isinstance(key, Ed25519PublicKey):
-            return key
-        raise ValueError("Wrong Public key value.")
+        if not isinstance(key, Ed25519PublicKey):
+            raise ValueError("Wrong Public key value.")
+        return key
 
     def private_bytes(
         self,
