@@ -10,6 +10,8 @@ Welcome to python_x509_pkcs11's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   installation
+   api
 
 
 Indices and tables
