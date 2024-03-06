@@ -371,9 +371,66 @@ Below are the various class and functions available in the module.
 
 
 
+.. class:: PKCS11RSAPrivateKey:
+    :canonical: `python_x509_pkcs11.PKCS11RSAPrivateKey`
+
+    This class represents a
+    :class:`cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey` object which can
+    be used in `cryptography` module sign operations.
+
+    This class exposes `sign`, `key_size` and `public_key` methods.
+
+    :param key_label: The key label to be used in HSM.
+    :type key_label: str
+
+    :param key_type: The type of the key to be used, RSA2048 or RSA4096.
+    :type key_type: KEYTYPES
 
 
 
+.. class:: PKCS11ECPrivateKey
+    :canonical: `python_x509_pkcs11.PKCS11ECPrivateKey`
+
+    This class represents a
+    :class:`cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey` object which can be used in `cryptography` module sign operations.
+
+    This class exposes `sign`, `key_size`, `public_key` methods.
+
+    :param key_label: The key label to be used in HSM.
+    :type key_label: str
+
+    :param key_type: The type of the key to be used, SECP256r1, SECP384r1, SECP512r1.
+    :type key_type: KEYTYPES
+
+
+.. class:: PKCS11ED25519PrivateKey
+    :canonical: `python_x509_pkcs11.PKCS11ED25519PrivateKey`
+
+    This class represents a
+    :class:`cryptography.hazmat.primitives.asymmetric.ed25519.ED22519PrivateKey` object which can be used in `cryptography` module sign operations.
+
+    This class exposes `sign`, public_key` methods.
+
+    :param key_label: The key label to be used in HSM.
+    :type key_label: str
+
+    :param key_type: The type of the key to be used, ED22519 in this case.
+    :type key_type: KEYTYPES
+
+
+.. class:: PKCS11ED448PrivateKey
+    :canonical: `python_x509_pkcs11.PKCS11ED448PrivateKey`
+
+    This class represents a
+    :class:`cryptography.hazmat.primitives.asymmetric.ed448.ED448PrivateKey` object which can be used in `cryptography` module sign operations.
+
+    This class exposes `sign`, public_key` methods.
+
+    :param key_label: The key label to be used in HSM.
+    :type key_label: str
+
+    :param key_type: The type of the key to be used, ED448 in this case.
+    :type key_type: KEYTYPES
 
 
 
