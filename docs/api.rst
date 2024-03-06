@@ -414,7 +414,7 @@ Below are the various class and functions available in the module.
     :param key_label: The key label to be used in HSM.
     :type key_label: str
 
-    :param key_type: The type of the key to be used, ED22519 in this case.
+    :param key_type: The type of the key to be used, ED22519 in the default value.
     :type key_type: KEYTYPES
 
 
@@ -429,7 +429,7 @@ Below are the various class and functions available in the module.
     :param key_label: The key label to be used in HSM.
     :type key_label: str
 
-    :param key_type: The type of the key to be used, ED448 in this case.
+    :param key_type: The type of the key to be used, ED448 is the default value.
     :type key_type: KEYTYPES
 
 
