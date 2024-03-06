@@ -433,18 +433,492 @@ Below are the various class and functions available in the module.
     :type key_type: KEYTYPES
 
 
+CSR module
+-----------
+
+.. function:: sign_csr( key_label: str, issuer_name: Dict[str, str], csr_pem: str, not_before: Optional[datetime.datetime] = None, not_after: Optional[datetime.datetime] = None, keep_csr_extensions: Optional[bool] = None,  extra_extensions: Optional[Extensions] = None, ignore_auth_exts: Optional[bool] = None, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE)
+
+    Signs the pem_encoded CSR, writes the 'Subject Key Identifier' and 'Authority Key Identifier' extensions into the signed certificate based on the public key from the CSR and the public key from key_label in the PKCS11 device.
+
+    :param key_label: The key label to be used in the HSM.
+    :type key_label: str
+
+    :param issuer_name: The Issuer
+    :type issuer_name: Dict[str, str]
+
+    :param csr_pem: The PEM encoded CSR
+    :type csr_pem: str
+
+    :param not_before: The not before date
+    :type not_before: Optional[datetime.datetime]
+
+    :param not_after: The not after date
+    :type not_after: Optional[datetime.datetime]
+
+    :param keep_csr_extensions: If we want to keep the CSR extensions.
+    :type keep_csr_extensions: Optional[bool]
+
+    :param extra_extensions: Extra extensions to be added to the CSR.
+    :type extra_extensions: Optional[Extensions]
+
+    :param ignore_auth_exts: If we want to ignore the Authority Key Identifier.
+    :type ignore_auth_exts: Optional[bool]
+
+    :param key_type: The type of the key to be used.
+    :type key_type: Union[str, KEYTYPES]
+
+    :returns: str
 
 
+    keep_csr_extensions is True by default.
+
+    The not_before and not_after parameters must be in UTC timezone, for example:
+
+    .. code-block:: python
+
+        import datetime
+        datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
+
+    Example of `sign_csr`:
+
+    .. code-block:: python
+
+        import asyncio
+        from python_x509_pkcs11 import csr
+        from python_x509_pkcs11 import PKCS11Session
+
+        csr_pem = """-----BEGIN CERTIFICATE REQUEST-----
+        MIICwzCCAasCAQAwfjELMAkGA1UEBhMCU0UxEjAQBgNVBAgMCVN0b2NraG9sbTEh
+        MB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMRswGQYDVQQDDBJjYS10
+        ZXN0LTJAc3VuZXQuc2UxGzAZBgkqhkiG9w0BCQEWDHNvY0BzdW5ldC5zZTCCASIw
+        DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALDZWJtcRC/xhft4956paxXhHn95
+        09XqJvMGDM8ToYNIw8BIH8Id774RjLjaa2Z9UU6OSN0IoTiH/h3wq1hTH9IovkvG
+        /rNwieo1cvZ0Q3YJblEJ3R450t04w11fp+fOsZSA8NOoINav3b15Zd0ugYYFip+7
+        4/Meni73FYkrKs8ctsw1bVudDwbRwnPoWcHEEbZwOgMSifgk9k8ST+1OlfdKeUr4
+        LO+ss/pU516wQoVN0W0gQhahrL5plP8M1a0qo6yaNF68hXa/LmFDi7z6078S6Mpm
+        fUpLQJ2CiIQL5jFaXaQhp6Uwjbmm+Mnyn+Gqb8NDd5STIG1FhMurjAC+Q6MCAwEA
+        AaAAMA0GCSqGSIb3DQEBCwUAA4IBAQBSeA9xgZSuEUenuNsYqe9pDm0xagBCuSgo
+        ROBkrutn/L4cP1y2ZTSkcKScezPeMcYhK3A9ktpXxVVSwjFOvCJT1Lz+JN4Vn3kG
+        23TCqfTOxgB+ecHKPyKA3112WdXu5B0yRDHrecumxEJDtn3H823xn1WpxzCvqvWX
+        IgukK0VlN7pUPKMtAx1Y+sY8z4bwgOmZRQVvYaRbsMJHyjBl/I4XU+W0nOyq6nAW
+        eHqaFEFZApnEybHb7JgdpW5TsnvPN1O5YC6bgbRTgLmwGe+pJ5cEtTwrSvWJra8G
+        grASjklC2MWbAnXculQuvhPg5F54CK9WldMvd7oYAmbdGIWiffiL
+        -----END CERTIFICATE REQUEST-----
+        """
+
+        async def my_func() -> None:
+
+            issuer_name = {
+                "country_name": "SE",
+                "state_or_province_name": "Stockholm",
+                "locality_name": "Stockholm",
+                "organization_name": "SUNET",
+                "organizational_unit_name": "SUNET Infrastructure",
+                "common_name": "ca-test.sunet.se",
+                "email_address": "soc@sunet.se",
+            }
+
+            public_key, identifier = await PKCS11Session().create_keypair("my_ed25519_key")
+            cert_pem = await csr.sign_csr("my_ed25519_key", issuer_name, csr_pem)
+            print(cert_pem)
+
+        asyncio.run(my_func())
 
 
+CA module
+----------
+
+.. function:: ca.create(key_label: str, subject_name: Dict[str, str],signer_subject_name: Optional[Dict[str, str]] = None, signer_key_label: Optional[str] = None, signer_key_type: Optional[Union[str, KEYTYPES]] = None, not_before: Optional[datetime.datetime] = None,   not_after: Optional[datetime.datetime] = None, extra_extensions: Optional[Extensions] = None,key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE)
+
+    This generates a CSR and then signs it with the same key from the key_label in the pkcs11 device.
+
+    :param key_label: The key label to be used in the HSM.
+    :type key_label: str
+
+    :param subject_name: The Subject
+    :type subject_name: Dict[str, str]
+
+    :param signer_subject_name: The signer's subject name, if `None` then it will be self signed CA.
+    :type signer_subject_name: Optional[Dict[str, str]]
+
+    :param signer_key_label: The signer's key label.
+    :type signer_key_label: Optional[str]
+
+    :param signer_key_type: The signer's key type.
+    :type signer_key_type: Optional[Union[str, KEYTYPES]]
+
+    :param not_before: The not before date.
+    :type not_before: Optional[datetime.datetime]
+
+    :param not_after: The not after date.
+    :type not_after: Optional[datetime.datetime]
+
+    :param extra_extensions: Extra extensions to be added to the CSR.
+    :type extra_extensions: Optional[Extensions]
+
+    :param key_type: The type of the key to be used.
+    :type key_type: Union[str, KEYTYPES]
+
+    :returns: Tuple[str, str]
+
+    If `extra_extensions`` is not `None`` then those extensions will be written into the CA certificate.
+
+    The `not_before` and `not_after`` parameters must be in UTC timezone, for example:
+
+    .. code-block:: python
+
+        import datetime
+        datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
 
 
+    Example for `create`:
+
+    .. code-block:: python
+
+        import asyncio
+        from python_x509_pkcs11.ca import create
 
 
+        async def my_func() -> None:
+            root_ca_name_dict = {
+                "country_name": "SE",
+                "state_or_province_name": "Stockholm",
+                "locality_name": "Stockholm",
+                "organization_name": "SUNET",
+                "organizational_unit_name": "SUNET Infrastructure",
+                "common_name": "ca-test.sunet.se",
+                "email_address": "soc@sunet.se",
+            }
+            csr_pem, root_cert_pem = await create("my_ed25519_key", root_ca_name_dict)
+
+            print("CSR which was selfsigned into root CA")
+            print(csr_pem)
+
+            print("root CA")
+            print(root_cert_pem)
 
 
+        asyncio.run(my_func())
 
 
+CRL module
+-----------
 
 
+.. function:: crl.create(key_label: str, subject_name: Dict[str, str], old_crl_pem: Optional[str] = None, serial_number: Optional[int] = None, reason: Optional[int] = None, this_update: Optional[datetime.datetime] = None, next_update: Optional[datetime.datetime] = None, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE)
+    :canonical: `python_x509_pkcs11.crl.create`
+
+    This generates a CRL and then signs it with the key from the key_label in the pkcs11 device.
+
+    If `old_crl_pem`, a pem encoded CRL, is not None then this function will take
+    that CRLs with its revoked serial numbers and extensions and simply
+    overwrite its version, timestamps and signature related fields.      
+
+    If serial_number and reason is not None then this serial number with its reason
+    will be added to the revocation list in the CRL.
+
+    `this_update` and `next_update` parameters must be in UTC timezone, for example:
+
+    .. code-block:: python
+
+        import datetime
+        datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
+
+    Example of `create`:
+
+    .. code-block:: python
+
+        import asyncio
+        from python_x509_pkcs11.crl import create
+        from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+        async def my_func() -> None:
+            name_dict = {
+                "country_name": "SE",
+                "state_or_province_name": "Stockholm",
+                "locality_name": "Stockholm",
+                "organization_name": "SUNET",
+                "organizational_unit_name": "SUNET Infrastructure",
+                "common_name": "ca-test.sunet.se",
+                "email_address": "soc@sunet.se",
+            }
+
+            public_key, identifier = await PKCS11Session().create_keypair("my_ed25519_key")
+            crl_pem = await create("my_ed25519_key", name_dict)
+            print(crl_pem)
+
+        asyncio.run(my_func())
+
+    
+OCSP module
+------------
+
+.. function:: certificate_ocsp_data(pem: str)
+
+    Get OCSP data from a PEM encoded certificate.
+
+    .. warning:: The certificate MUST have the AKI extension (2.5.29.35) and the AIA extension with ocsp method (1.3.6.1.5.5.7.1.1) raises OCSPMissingExtensionException if not.
+
+    :returns: A tuple of sha1hash of issuer name, sha1hash of issuer public key, serial number, OCSP URL.
+
+    Example:
+
+    .. code-block:: python
+
+        from python_x509_pkcs11.ocsp import certificate_ocsp_data
+
+        cert = """-----BEGIN CERTIFICATE-----
+        MIIFTjCCBDagAwIBAgIUTSCngZMLWEY0NsmHifr/Pu2bsicwDQYJKoZIhvcNAQEL
+        BQAwgZwxCzAJBgNVBAYTAlNFMRIwEAYDVQQIDAlTdG9ja2hvbG0xEjAQBgNVBAcM
+        CVN0b2NraG9sbTEOMAwGA1UECgwFU1VORVQxHTAbBgNVBAsMFFNVTkVUIEluZnJh
+        c3RydWN0dXJlMRkwFwYDVQQDDBBjYS10ZXN0LnN1bmV0LnNlMRswGQYJKoZIhvcN
+        AQkBFgxzb2NAc3VuZXQuc2UwHhcNMjIwOTI3MDYzODQwWhcNMjUwOTI2MDY0MDQw
+        WjCBqzELMAkGA1UEBhMCU0UxEjAQBgNVBAgMCVN0b2NraG9sbTEXMBUGA1UEBwwO
+        U3RvY2tob2xtX3Rlc3QxDjAMBgNVBAoMBVNVTkVUMR0wGwYDVQQLDBRTVU5FVCBJ
+        bmZyYXN0cnVjdHVyZTEjMCEGA1UEAwwaY2EtdGVzdC1jcmVhdGUtMjAuc3VuZXQu
+        c2UxGzAZBgkqhkiG9w0BCQEWDHNvY0BzdW5ldC5zZTCCASIwDQYJKoZIhvcNAQEB
+        BQADggEPADCCAQoCggEBALZdE70YSvQgHIhWw+LQ47M9lEEeFjC0xKoptV6G586m
+        yHKS4ti2NclE82sPrFiUye3/FitLT7Pf+eTKZ4rAU+P/LuirL5XYsTgf6Pf6UsKw
+        9T9DDycO2llMmOHCGa+qPlMzDAJ/9Vffzr/bFz+Cv/n1/TWZhTMzAk4aGWfXvWbq
+        CHpGhPLuB1TXfmRBOB8cUCfbrfUJ+i0lD8oivrJtAdEEJDLuAQ5sZ7YI5Xw1AFPZ
+        fYHMY5Nw5PWydUI3OnpLL4rrAGDvHEvwtLro6znd8elHiK3SjgpMyTAgD4F2oZqQ
+        zBrO/cUksMCkQiwPa0kgfRNu91vq2SpKo47eYdPFo1cCAwEAAaOCAXUwggFxMA4G
+        A1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MIGgBggrBgEFBQcBAQSBkzCB
+        kDBlBggrBgEFBQcwAoZZaHR0cDovL2xvY2FsaG9zdDo4MDAwL2NhLzNhOWU1ZTYy
+        ZjFlN2IzZTIxN2RiMWUzNTNmMjA4MzNmZDI4NzI4ZThhZWMzZTEzOWU3OTRkMDFj
+        NTE5ZGU5MTcwJwYIKwYBBQUHMAGGG2h0dHA6Ly9sb2NhbGhvc3Q6ODAwMC9vY3Nw
+        LzBrBgNVHR8EZDBiMGCgXqBchlpodHRwOi8vbG9jYWxob3N0OjgwMDAvY3JsLzNh
+        OWU1ZTYyZjFlN2IzZTIxN2RiMWUzNTNmMjA4MzNmZDI4NzI4ZThhZWMzZTEzOWU3
+        OTRkMDFjNTE5ZGU5MTcwHQYDVR0OBBYEFFmrno6DYIVpbwUvhaMPr242LhmYMB8G
+        A1UdIwQYMBaAFK3QiERXlifO9CLGxzdXye9ppFuLMA0GCSqGSIb3DQEBCwUAA4IB
+        AQAkh+ijRkxjABqfkw4+fr8ZYAbdaZdXdZ2NgXGeB3DAFPYp6xZIREB+bE4YRd5n
+        xIsYWZTya1oTTCcMA2oLMO7Jv5KqJgkS5jDKM+SK3QIK68HfCW2ZrhkcGAmYmxOY
+        4eUkhFY3axEJ501/PqVxBRCj/FJbXsoI72v7lFj6MdESxEtJCj8lz5DdH3OHDgDd
+        4SQomVowm8nIfuxIuuoSoZR4DluPeWMDUoiKky8ocVxEymtE1tJYdrrL3f0ZcFey
+        mF+JNgr8wdkW7fMy3HpRk7QOvJ2calp9V2THBZ8T+UPKmCkBxdW511hDzLpIb7rA
+        lgIDB0Y1AZDNLKuq6QWifdf3
+        -----END CERTIFICATE-----
+        """
+
+        i_n_h, i_k_h, serial, ocsp_url = certificate_ocsp_data(cert)
+        print(i_n_h)
+        print(i_k_h)
+        print(serial)
+        print(ocsp_url)
+
+        # View the cert with:
+        # openssl x509 -text -noout -in cert.pem
+
+.. function:: request(request_certs_data: List[Tuple[bytes, bytes, int]], key_label: Optional[str] = None, requestor_name: Optional[GeneralName] = None, erts: Optional[List[str]] = None, extra_extensions: Optional[TBSRequestExtensions] = None, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE)
+
+    This generates a OCSP request and then signs it with the given key.
+    See `RFC6960 section-4.1.1 <https://www.rfc-editor.org/rfc/rfc6960#section-4.1.1>`_ for details.
+
+    :param request_certs_data: A list of tuples of data.
+    :type request_certs_data: List[Tuple[bytes, bytes, int]]
+
+    :param key_label: The key label to be used in the HSM.
+    :type key_label: Optional[str]
+
+    :param requestor_name: The requestor's name.
+    :type requestor_name: Optional[GeneralName]
+    
+    :param certs: A list of strings of PEM encoded certificates to write into the request.
+    :type certs: Optional[List[str]]
+
+    :param extra_extensions: Extra extensions to be added to the request.
+    :type extra_extensions: Optional[TBSRequestExtensions]
+
+    :param key_type: The type of the key to be used.
+    :type key_type: Union[str, KEYTYPES]
+
+    :returns: bytes
+
+    Example of `requestor_name`:
+
+    .. code-block:: python
+
+        from asn1crypto.ocsp import GeneralName, Name
+
+        requestor_name_dict = {
+            "country_name": "SE",
+            "state_or_province_name": "Stockholm",
+            "locality_name": "Stockholm",
+            "organization_name": "SUNET",
+            "organizational_unit_name": "SUNET Infrastructure",
+            "common_name": "ca-test.sunet.se",
+            "email_address": "soc@sunet.se",
+        }
+
+        # https://github.com/wbond/asn1crypto/blob/b5f03e6f9797c691a3b812a5bb1acade3a1f4eeb/asn1crypto/x509.py#L1414
+        requestor_name = GeneralName(name="directory_name", value=(Name().build(requestor_name_dict)))
+        print(requestor_name)
+
+
+    Example of `nonce`:
+
+    .. code-block:: python
+
+        from secrets import token_bytes
+        from asn1crypto.ocsp import TBSRequestExtensions, TBSRequestExtension, TBSRequestExtensionId
+
+        nonce_ext = TBSRequestExtension()
+        nonce_ext["extn_id"] = TBSRequestExtensionId("1.3.6.1.5.5.7.48.1.2")
+        nonce_ext["extn_value"] = token_bytes(32) # The nonce
+        extra_extensions = TBSRequestExtensions()
+        extra_extensions.append(nonce_ext)
+
+        print(extra_extensions)
+
+
+    Example of `request`:
+
+    .. code-block:: python
+
+        import asyncio
+        from python_x509_pkcs11.ocsp import request
+
+        async def my_func() -> None:
+            request_certs_data = [(b'R\x94\xca?\xac`\xf7i\x819\x14\x94\xa7\x085H\x84\xb4&\xcc', b'\xad\xd0\x88DW\x96\'\xce\xf4"\xc6\xc77W\xc9\xefi\xa4[\x8b', 440320505043419981128735462508870123525487964711)]
+            ocsp_request = await request(request_certs_data)
+            print(ocsp_request)
+
+        asyncio.run(my_func())
+
+
+.. function:: response(key_label: str, responder_id: Union[Dict[str, str], bytes], single_responses: Responses, response_status: int, extra_extensions: Optional[ResponseDataExtensions] = None, produced_at: Optional[datetime.datetime] = None, extra_certs: Optional[List[str]] = None, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE)
+
+    This generates a OCSP response and then signs it with the given key.
+    See `RFC6960 <https://www.rfc-editor.org/rfc/rfc6960#section-4.2.1>`_ for more details.
+
+
+    :param key_label: The key label to be used in the HSM.
+    :type key_label: str
+
+    :param responder_id: Dict with the responders x509 Names.
+    :type responder_id: Union[Dict[str, str], bytes]
+
+    :param single_responses: Responses for all the certs in the request.
+    :type single_responses: Responses
+
+    :param response_status: The response status.
+    :type response_status: int
+
+    :param extra_extensions: Extra extensions to be added to the response.
+    :type extra_extensions: Optional[ResponseDataExtensions]
+
+    :param produced_at: The time at which the response was produced. It must be in UTC timezone. If `None` then it will be 2 minutes before UTC now.
+    :type produced_at: Optional[datetime.datetime]
+
+    :param extra_certs: A list of PEM encoded certificates to write into the response for the client to verify the signature data.
+    :type extra_certs: Optional[List[str]]
+
+    :param key_type: The type of the key to be used.
+    :type key_type: Union[str, KEYTYPES]
+
+
+    :returns: bytes
+
+
+    Example of `nonce`:
+
+    .. code-block:: python
+
+        from asn1crypto.ocsp import ResponseDataExtensions, ResponseDataExtension, ResponseDataExtensionId
+
+        nonce_ext = ResponseDataExtension()
+        nonce_ext["extn_id"] = ResponseDataExtensionId("1.3.6.1.5.5.7.48.1.2")
+        nonce_ext["extn_value"] = token_bytes(32)
+        extra_extensions = ResponseDataExtensions()
+        extra_extensions.append(nonce_ext)
+
+    Example of `response`:
+
+    .. code-block:: python
+
+        import datetime
+        import asyncio
+        from asn1crypto.ocsp import Responses, SingleResponse, CertStatus, OCSPRequest
+        from python_x509_pkcs11.ocsp import response, request
+        from python_x509_pkcs11.pkcs11_handle import PKCS11Session
+
+        name_dict = {
+            "country_name": "SE",
+            "state_or_province_name": "Stockholm",
+            "locality_name": "Stockholm",
+            "organization_name": "SUNET",
+            "organizational_unit_name": "SUNET Infrastructure",
+            "common_name": "ca-test.sunet.se",
+            "email_address": "soc@sunet.se",
+        }
+
+        # Set all cert_statuses to good as a demonstration
+        def single_responses(ocsp_request: OCSPRequest) -> Responses:
+            responses = Responses()
+
+            for _, curr_req in enumerate(ocsp_request["tbs_request"]["request_list"]):
+                curr_response = SingleResponse()
+                curr_response["cert_id"] = curr_req["req_cert"]
+                curr_response["cert_status"] = CertStatus("good")
+                curr_response["this_update"] = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+                responses.append(curr_response)
+            return responses
+
+        async def my_func() -> None:
+            await PKCS11Session().create_keypair("my_ed25519_key")
+            request_certs_data = [
+                (
+                    b"R\x94\xca?\xac`\xf7i\x819\x14\x94\xa7\x085H\x84\xb4&\xcc",
+                    b"\xad\xd0\x88DW\x96'\xce\xf4\"\xc6\xc77W\xc9\xefi\xa4[\x8b",
+                    440320505043419981128735462508870123525487964711,
+                )
+            ]
+            ocsp_request_bytes = await request(request_certs_data)
+            ocsp_request = OCSPRequest.load(ocsp_request_bytes)
+
+            ocsp_response = await response("my_ed25519_key", name_dict, single_responses(ocsp_request), 0)
+            print(ocsp_response)
+
+        asyncio.run(my_func())
+
+
+.. function:: request_nonce(data: bytes)
+
+    Get nonce from teh OCSP request. If you have an :class:`asn1crypto.ocsp.OCSPRequest` then call `dump()` on it to get the bytes.
+
+    :param data: The OCSP request.
+    :type data: bytes
+
+    :returns: Optional[bytes]
+
+    Example:
+
+    .. code-block:: python
+
+        import asyncio
+        from secrets import token_bytes
+        from asn1crypto.ocsp import TBSRequestExtensions, TBSRequestExtension, TBSRequestExtensionId
+        from python_x509_pkcs11.ocsp import request, request_nonce
+
+
+        async def my_func() -> None:
+            nonce_ext = TBSRequestExtension()
+            nonce_ext["extn_id"] = TBSRequestExtensionId("1.3.6.1.5.5.7.48.1.2")
+            nonce_ext["extn_value"] = token_bytes(32)  # The nonce
+            extra_extensions = TBSRequestExtensions()
+            extra_extensions.append(nonce_ext)
+
+            request_certs_data = [
+                (
+                    b"R\x94\xca?\xac`\xf7i\x819\x14\x94\xa7\x085H\x84\xb4&\xcc",
+                    b"\xad\xd0\x88DW\x96'\xce\xf4\"\xc6\xc77W\xc9\xefi\xa4[\x8b",
+                    440320505043419981128735462508870123525487964711,
+                )
+            ]
+            ocsp_request_bytes = await request(request_certs_data, extra_extensions=extra_extensions)
+
+            nonce = request_nonce(ocsp_request_bytes)
+            print(nonce)
+
+        asyncio.run(my_func())
 
