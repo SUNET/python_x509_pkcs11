@@ -4,6 +4,7 @@ import asyncio
 from typing import Union
 
 from cryptography.hazmat.primitives import _serialization, hashes
+from cryptography.hazmat.primitives._asymmetric import AsymmetricPadding as AsymmetricPadding
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric import utils as asym_utils
 from cryptography.hazmat.primitives.asymmetric.ec import (
@@ -15,9 +16,6 @@ from cryptography.hazmat.primitives.asymmetric.ec import (
 )
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey, Ed448PublicKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-from cryptography.hazmat.primitives._asymmetric import (
-    AsymmetricPadding as AsymmetricPadding,
-)
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
 from .lib import KEYTYPES
