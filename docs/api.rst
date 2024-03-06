@@ -37,7 +37,7 @@ Below are the various class and functions available in the module.
 
     Defaults to :class:`python_x509_pkcs11.KEYTYPES.ED22519`.
 
-.. function:: get_keytypes_enum(value: str):
+.. function:: get_keytypes_enum(value: str)
 
    Takes the keytype as a string and returns the corresponding KEYTYPES enumeration value.
 
@@ -59,7 +59,7 @@ Below are the various class and functions available in the module.
 
     All methods for this class are asyncronous.
 
-    .. method:: create_keypair(key_label: str, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE):
+    .. method:: create_keypair(key_label: str, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE)
 
         Creates a new key pair in the HSM with the given key label and given key type.
 
@@ -87,7 +87,7 @@ Below are the various class and functions available in the module.
             asyncio.run(my_func())
 
 
-    .. method:: delete_keypair(key_label: str, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE):
+    .. method:: delete_keypair(key_label: str, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE)
 
         Deletes a given key pair from the HSM.
 
@@ -111,7 +111,7 @@ Below are the various class and functions available in the module.
             asyncio.run(my_func())
 
 
-    .. method:: export_certificate(cert_label: str):
+    .. method:: export_certificate(cert_label: str)
 
         Exports an existing certificate from the as PEM encoded string.
 
@@ -157,7 +157,7 @@ Below are the various class and functions available in the module.
             asyncio.run(my_func())
 
 
-    .. method:: import_certificate(cert_pem: str, cert_label: str):
+    .. method:: import_certificate(cert_pem: str, cert_label: str)
 
         Imports a PEM encoded certificate to the HSM.
 
@@ -204,7 +204,7 @@ Below are the various class and functions available in the module.
             asyncio.run(my_func())
 
 
-    .. method:: import_keypair(public_key: bytes, private_key: bytes, key_label: str, key_type: Union[str, KEYTYPES]):
+    .. method:: import_keypair(public_key: bytes, private_key: bytes, key_label: str, key_type: Union[str, KEYTYPES])
 
         Imports a given keypair to the HSM.
 
@@ -264,7 +264,7 @@ Below are the various class and functions available in the module.
                 asyncio.run(my_func()
 
 
-    .. method:: key_labels():
+    .. method:: key_labels()
 
         Returns a dictionary of the key labels available on the HSM.
 
@@ -333,7 +333,7 @@ Below are the various class and functions available in the module.
 
 
 
-    .. method:: verify(key_label: str, data: bytes, signature: bytes, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE):
+    .. method:: verify(key_label: str, data: bytes, signature: bytes, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE)
 
         Verifies a given data and signature on the HSM, returns `True` or `False`.
 
@@ -371,7 +371,7 @@ Below are the various class and functions available in the module.
 
 
 
-.. class:: PKCS11RSAPrivateKey:
+.. class:: PKCS11RSAPrivateKey
     :canonical: `python_x509_pkcs11.PKCS11RSAPrivateKey`
 
     This class represents a
