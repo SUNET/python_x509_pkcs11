@@ -11,13 +11,15 @@ DEBUG = False
 
 # Enum for Key types and sizes we support
 class KEYTYPES(Enum):
-    ED25519 = "ed25519"
-    ED448 = "ed448"
-    SECP256r1 = "secp256r1"
-    SECP384r1 = "secp384r1"
-    SECP521r1 = "secp521r1"
-    RSA2048 = "rsa_2048"
-    RSA4096 = "rsa_4096"
+    """This is the enumeration of different keytypes available for HSM."""
+
+    ED25519 = "ed25519"  # doc: ED25519 key type
+    ED448 = "ed448"  # doc: ED448 key type
+    SECP256r1 = "secp256r1"  # doc: SECP256r1 key type
+    SECP384r1 = "secp384r1"  # doc: SECP384r1 key type
+    SECP521r1 = "secp521r1"  # doc: SECP521r1 key type
+    RSA2048 = "rsa_2048"  # doc: RSA2048 key type
+    RSA4096 = "rsa_4096"  # doc: RSA4096 key type
 
 
 # This is the default key type

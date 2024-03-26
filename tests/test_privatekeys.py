@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import os
-import unittest
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -33,6 +32,17 @@ name = x509.Name(
 )
 
 
+async def delete_keys():
+    "We delete keys in a loop"
+    session = PKCS11Session()
+    keys = await session.key_labels()
+    for key_label, key_type in keys.items():
+        if key_label == "test_pkcs11_device_do_not_use":
+            continue
+        if key_label.startswith("testpkcs"):
+            await session.delete_keypair(key_label, key_type)
+
+
 def get_builder() -> x509.CertificateBuilder:
     "Helper function for test"
     builder = (
@@ -55,12 +65,13 @@ def get_builder() -> x509.CertificateBuilder:
     return builder
 
 
-class TestPrivateKeys(unittest.TestCase):
+class TestPrivateKeys:
 
     def test_rsa_private_key(self) -> None:
         "Tests HSM based RSA private key usage."
         key_label = "testpkcs" + hex(int.from_bytes(os.urandom(8), "big") >> 1)
         # First let us create an RSA4096 private key.
+        asyncio.run(delete_keys())
         asyncio.run(PKCS11Session().create_keypair(key_label, key_type=KEYTYPES.RSA4096))
 
         issuer_private_key = PKCS11RSAPrivateKey(key_label, KEYTYPES.RSA4096)
@@ -73,7 +84,7 @@ class TestPrivateKeys(unittest.TestCase):
         # "1.2.840.113549.1.1.13"
         # https://cryptography.io/en/latest/x509/reference/#cryptography.x509.oid.SignatureAlgorithmOID.RSA_WITH_SHA512
         oid = ObjectIdentifier("1.2.840.113549.1.1.13")
-        self.assertEqual(cert.signature_algorithm_oid, oid)
+        assert cert.signature_algorithm_oid == oid
 
         # Now verify the signature of the certificate
         issuer_public_key.verify(
@@ -96,7 +107,7 @@ class TestPrivateKeys(unittest.TestCase):
         # "1.2.840.10045.4.3.4" is for ECDSA wtih SHA512 hash
         # https://cryptography.io/en/latest/x509/reference/#cryptography.x509.oid.SignatureAlgorithmOID.ECDSA_WITH_SHA512
         oid = ObjectIdentifier("1.2.840.10045.4.3.4")
-        self.assertEqual(cert.signature_algorithm_oid, oid)
+        assert cert.signature_algorithm_oid == oid
 
         # Now verify the signature of the certificate
         issuer_public_key.verify(cert.signature, cert.tbs_certificate_bytes, ec.ECDSA(cert.signature_hash_algorithm))
@@ -117,7 +128,7 @@ class TestPrivateKeys(unittest.TestCase):
         # "1.3.101.112" is for ED25519 keys
         # https://cryptography.io/en/latest/x509/reference/#cryptography.x509.oid.SignatureAlgorithmOID.ED25519
         oid = ObjectIdentifier("1.3.101.112")
-        self.assertEqual(cert.signature_algorithm_oid, oid)
+        assert cert.signature_algorithm_oid == oid
 
         # Now verify the signature of the certificate
         issuer_public_key.verify(cert.signature, cert.tbs_certificate_bytes)
@@ -138,7 +149,7 @@ class TestPrivateKeys(unittest.TestCase):
         # "1.3.101.113" is for ED448 keys
         # https://cryptography.io/en/latest/x509/reference/#cryptography.x509.oid.SignatureAlgorithmOID.ED448
         oid = ObjectIdentifier("1.3.101.113")
-        self.assertEqual(cert.signature_algorithm_oid, oid)
+        assert cert.signature_algorithm_oid == oid
 
         # Now verify the signature of the certificate
         issuer_public_key.verify(cert.signature, cert.tbs_certificate_bytes)

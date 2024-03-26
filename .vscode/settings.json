@@ -6,5 +6,6 @@
         "typecheck",
         "venv",
         "aiohttp"
-    ]
+    ],
+    "esbonio.sphinx.confDir": ""
 }
