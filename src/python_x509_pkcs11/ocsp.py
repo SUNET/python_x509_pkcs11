@@ -8,7 +8,10 @@ Exposes the functions:
 """
 
 import datetime
+import logging
 from typing import Dict, List, Optional, Tuple, Union
+
+logger = logging.getLogger(__name__)
 
 from asn1crypto import pem as asn1_pem
 from asn1crypto.algos import DigestAlgorithm, DigestAlgorithmId
@@ -69,8 +72,8 @@ def _set_extra_response_extensions(
             if len(ext["extn_value"].native) < 1 or len(ext["extn_value"].native) > 32:
                 raise ValueError("Nonce length error, https://datatracker.ietf.org/doc/html/rfc8954")
             if len(ext["extn_value"].native) < 16:
-                print("Warning: Ignoring nonce since its smaller than 16 bytes")
-                print("https://datatracker.ietf.org/doc/html/rfc8954")
+                logger.warn("Warning: Ignoring nonce since its smaller than 16 bytes")
+                logger.warn("https://datatracker.ietf.org/doc/html/rfc8954")
                 continue
 
         exts.append(ext)
