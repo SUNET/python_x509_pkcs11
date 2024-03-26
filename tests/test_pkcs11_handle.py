@@ -18,6 +18,7 @@ from src.python_x509_pkcs11.pkcs11_handle import PKCS11Session
 # Replace the above with this should you use this code
 # from python_x509_pkcs11.pkcs11_handle import PKCS11Session
 
+
 async def delete_keys():
     "We delete keys in a loop"
 
@@ -29,6 +30,7 @@ async def delete_keys():
             continue
         if key_label.startswith("testpkcs"):
             await session.delete_keypair(key_label, key_type)
+
 
 class TestPKCS11Handle(unittest.TestCase):
     """

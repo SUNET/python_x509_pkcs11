@@ -19,6 +19,7 @@ The classes PKCS11Session and RemotePKCS11 exposes the functions:
 """
 
 import base64
+import logging
 import os
 import time
 from asyncio import get_event_loop, sleep
@@ -29,6 +30,8 @@ from hashlib import sha256, sha384, sha512
 from socket import timeout
 from threading import Lock, Thread
 from typing import Any, AsyncIterator, Dict, Optional, Tuple, Type, Union
+
+logger = logging.getLogger(__name__)
 
 import aiohttp
 from asn1crypto import pem as asn1_pem
@@ -125,7 +128,7 @@ class PKCS11Session:
 
             # user_pin need to be a string, not bytes
             self.session = self._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
-            print("created new pkcs11 session")
+            logger.debug("created new pkcs11 session")
 
             # Test get a public key from the PKCS11 device
             _ = self.session.get_key(
@@ -143,9 +146,8 @@ class PKCS11Session:
                 pass
 
         except GeneralError as exc:
-            if DEBUG:
-                print("Failed to open PKCS11 session")
-                print(exc)
+            logger.error("Failed to open PKCS11 session")
+            logger.error(exc)
 
     def _get_pub_key(self, key_label: str, key_type: KEYTYPES = DEFAULT_KEY_TYPE) -> Key:
         return self.session.get_key(
@@ -179,11 +181,11 @@ class PKCS11Session:
             time.sleep(TIMEOUT + 1)
 
         if "PKCS11_MODULE" not in os.environ:
-            print("ERROR: PKCS11_MODULE was not an env variable")
+            logger.error("ERROR: PKCS11_MODULE was not an env variable")
         if "PKCS11_TOKEN" not in os.environ:
-            print("ERROR: PKCS11_TOKEN was not an env variable")
+            logger.error("ERROR: PKCS11_TOKEN was not an env variable")
         if "PKCS11_PIN" not in os.environ:
-            print("ERROR: PKCS11_PIN was not an env variable")
+            logger.error("ERROR: PKCS11_PIN was not an env variable")
 
         self._session_status = 9
         try:
@@ -197,7 +199,7 @@ class PKCS11Session:
                 self._token = self._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
                 # user_pin need to be a string, not bytes
                 self.session = self._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
-                print("created new pkcs11 session")
+                logger.debug("created new pkcs11 session")
 
             # Test get a public key from the PKCS11 device
             _ = self.session.get_key(
@@ -217,9 +219,8 @@ class PKCS11Session:
                 pass
 
         except GeneralError as exc:
-            if DEBUG:
-                print("Failed to open PKCS11 session")
-                print(exc)
+            logger.error("Failed to open PKCS11 session")
+            logger.error(exc)
 
     async def healthy_session(self, simulate_pkcs11_timeout: Optional[bool] = None) -> None:
         """Run the PKCS11 test command in a thread to easy handle PKCS11 timeouts."""
