@@ -370,6 +370,10 @@ Below are the various class and functions available in the module.
                 asyncio.run(my_func())
 
 
+Private Key implementations
+---------------------------
+
+The following are the private key implementations which can be used in the place of `cryptography` module's private keys.
 
 .. class:: PKCS11RSAPrivateKey
     :canonical: `python_x509_pkcs11.PKCS11RSAPrivateKey`
@@ -386,6 +390,7 @@ Below are the various class and functions available in the module.
     :param key_type: The type of the key to be used, RSA2048 or RSA4096.
     :type key_type: KEYTYPES
 
+.. note:: Please remember to use `hashes.SHA256()` with the `RSA2048` keytype.
 
 
 .. class:: PKCS11ECPrivateKey
