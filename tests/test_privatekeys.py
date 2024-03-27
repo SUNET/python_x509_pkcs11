@@ -67,7 +67,31 @@ def get_builder() -> x509.CertificateBuilder:
 
 class TestPrivateKeys:
 
-    def test_rsa_private_key(self) -> None:
+    def test_rsa2048_private_key(self) -> None:
+        "Tests HSM based RSA private key usage."
+        key_label = "testpkcs" + hex(int.from_bytes(os.urandom(8), "big") >> 1)
+        # First let us create an RSA2048 private key.
+        asyncio.run(delete_keys())
+        asyncio.run(PKCS11Session().create_keypair(key_label, key_type=KEYTYPES.RSA2048))
+
+        issuer_private_key = PKCS11RSAPrivateKey(key_label, KEYTYPES.RSA2048)
+        # This is the issuer public key
+        issuer_public_key = issuer_private_key.public_key()
+
+        builder = get_builder()
+        cert = builder.sign(issuer_private_key, hashes.SHA256())
+
+        # "1.2.840.113549.1.1.11"
+        # https://cryptography.io/en/latest/x509/reference/#cryptography.x509.oid.SignatureAlgorithmOID.RSA_WITH_SHA256
+        oid = ObjectIdentifier("1.2.840.113549.1.1.11")
+        assert cert.signature_algorithm_oid == oid
+
+        # Now verify the signature of the certificate
+        issuer_public_key.verify(
+            cert.signature, cert.tbs_certificate_bytes, padding.PKCS1v15(), cert.signature_hash_algorithm
+        )
+
+    def test_rsa4096_private_key(self) -> None:
         "Tests HSM based RSA private key usage."
         key_label = "testpkcs" + hex(int.from_bytes(os.urandom(8), "big") >> 1)
         # First let us create an RSA4096 private key.
