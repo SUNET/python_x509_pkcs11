@@ -57,6 +57,8 @@ Below are the various class and functions available in the module.
     `PKCS11_TOKEN`, that points to the exact TOKEN in the HSM, and
     `PKCS11_PIN`, which is the PIN to the HSM.
 
+    You can also pass these values as arguments to the `__init__`.
+
     All methods for this class are asyncronous.
 
     .. method:: create_keypair(key_label: str, key_type: Union[str, KEYTYPES] = DEFAULT_KEY_TYPE)
