@@ -97,6 +97,10 @@ class PKCS11Session:
         base_url: Optional[str] = None,
         http_data: Optional[Dict[str, str]] = None,
         http_headers: Optional[Dict[str, str]] = None,
+        pkcs11_module: Optional[str] = None,
+        pkcs11_token: Optional[str] = None,
+        pkcs11_pin: Optional[str] = None,
+        pkcs11_recreate_session: Optional[bool] = False,
     ) -> None:
         self.lock = Lock()
 
@@ -118,17 +122,28 @@ class PKCS11Session:
             ):
                 self.support_recreate_session = True
 
-        try:
+        # From argument
+        if pkcs11_recreate_session:
+            self.support_recreate_session = True
 
-            self._lib = lib(os.environ["PKCS11_MODULE"])
+        try:
+            # First let us get all 3 PKCS11 variables
+            if not pkcs11_module:
+                pkcs11_module = os.environ["PKCS11_MODULE"]
+            if not pkcs11_token:
+                pkcs11_token = os.environ["PKCS11_TOKEN"]
+            if not pkcs11_pin:
+                pkcs11_pin = os.environ["PKCS11_PIN"]
+
+            self._lib = lib(pkcs11_module)
             self._lib.reinitialize()
 
             # Open the PKCS11 session
-            self._token = self._lib.get_token(token_label=os.environ["PKCS11_TOKEN"])
+            self._token = self._lib.get_token(token_label=pkcs11_token)
 
             # user_pin need to be a string, not bytes
-            self.session = self._token.open(rw=True, user_pin=os.environ["PKCS11_PIN"])
-            logger.debug("created new pkcs11 session")
+            self.session = self._token.open(rw=True, user_pin=pkcs11_pin)
+            logger.debug("Created new pkcs11 session")
 
             # Test get a public key from the PKCS11 device
             _ = self.session.get_key(

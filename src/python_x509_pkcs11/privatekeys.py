@@ -191,7 +191,7 @@ class PKCS11ED25519PrivateKey(Ed25519PrivateKey):
 class PKCS11ED448PrivateKey(Ed448PrivateKey):
     "ED448 private key implementation for HSM."
 
-    def __init__(self, key_label: str, key_type: KEYTYPES= KEYTYPES.ED448):
+    def __init__(self, key_label: str, key_type: KEYTYPES = KEYTYPES.ED448):
         self.key_label = key_label
         self.key_type = key_type
 
