@@ -25,7 +25,8 @@ from .pkcs11_handle import PKCS11Session
 class PKCS11RSAPrivateKey(rsa.RSAPrivateKey):
     "RSA private key implementation for HSM."
 
-    def __init__(self, key_label: str, key_type: KEYTYPES):
+    def __init__(self, session: PKCS11Session, key_label: str, key_type: KEYTYPES):
+        self.session = session
         self.key_label = key_label
         self.key_type = key_type
 
@@ -43,8 +44,7 @@ class PKCS11RSAPrivateKey(rsa.RSAPrivateKey):
 
         :returns: signature in bytes
         """
-        pkcs = PKCS11Session()
-        return asyncio.run(pkcs.sign(key_label=self.key_label, data=data, key_type=self.key_type))
+        return asyncio.run(self.session.sign(key_label=self.key_label, data=data, key_type=self.key_type))
 
     # Following methods are not implemented.
     def decrypt(self, ciphertext: bytes, padding: AsymmetricPadding) -> bytes:
@@ -78,7 +78,8 @@ class PKCS11RSAPrivateKey(rsa.RSAPrivateKey):
 class PKCS11ECPrivateKey(ec.EllipticCurvePrivateKey):
     "EC private key implementation for HSM."
 
-    def __init__(self, key_label: str, key_type: KEYTYPES):
+    def __init__(self, session: PKCS11Session, key_label: str, key_type: KEYTYPES):
+        self.session = session
         self.key_label = key_label
         self.key_type = key_type
 
@@ -94,8 +95,7 @@ class PKCS11ECPrivateKey(ec.EllipticCurvePrivateKey):
 
         :returns: signature in bytes
         """
-        pkcs = PKCS11Session()
-        return asyncio.run(pkcs.sign(key_label=self.key_label, data=data, key_type=self.key_type))
+        return asyncio.run(self.session.sign(key_label=self.key_label, data=data, key_type=self.key_type))
 
     def exchange(self, algorithm: ECDH, peer_public_key: EllipticCurvePublicKey) -> bytes:
         raise NotImplementedError()
@@ -144,7 +144,8 @@ class PKCS11ECPrivateKey(ec.EllipticCurvePrivateKey):
 class PKCS11ED25519PrivateKey(Ed25519PrivateKey):
     "ED25519 private key implementation for HSM."
 
-    def __init__(self, key_label: str, key_type: KEYTYPES = KEYTYPES.ED25519):
+    def __init__(self, session: PKCS11Session, key_label: str, key_type: KEYTYPES = KEYTYPES.ED25519):
+        self.session = session
         self.key_label = key_label
         self.key_type = key_type
 
@@ -184,14 +185,14 @@ class PKCS11ED25519PrivateKey(Ed25519PrivateKey):
 
         :returns: signature in bytes
         """
-        pkcs = PKCS11Session()
-        return asyncio.run(pkcs.sign(key_label=self.key_label, data=data, key_type=self.key_type))
+        return asyncio.run(self.session.sign(key_label=self.key_label, data=data, key_type=self.key_type))
 
 
 class PKCS11ED448PrivateKey(Ed448PrivateKey):
     "ED448 private key implementation for HSM."
 
-    def __init__(self, key_label: str, key_type: KEYTYPES = KEYTYPES.ED448):
+    def __init__(self, session: PKCS11Session, key_label: str, key_type: KEYTYPES = KEYTYPES.ED448):
+        self.session = session
         self.key_label = key_label
         self.key_type = key_type
 
@@ -202,8 +203,7 @@ class PKCS11ED448PrivateKey(Ed448PrivateKey):
 
         :returns: signature in bytes
         """
-        pkcs = PKCS11Session()
-        return asyncio.run(pkcs.sign(key_label=self.key_label, data=data, key_type=self.key_type))
+        return asyncio.run(self.session.sign(key_label=self.key_label, data=data, key_type=self.key_type))
 
     def public_key(self) -> Ed448PublicKey:
         """
