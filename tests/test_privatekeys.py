@@ -69,12 +69,13 @@ class TestPrivateKeys:
 
     def test_rsa2048_private_key(self) -> None:
         "Tests HSM based RSA private key usage."
+        session = PKCS11Session()
         key_label = "testpkcs" + hex(int.from_bytes(os.urandom(8), "big") >> 1)
         # First let us create an RSA2048 private key.
         asyncio.run(delete_keys())
-        asyncio.run(PKCS11Session().create_keypair(key_label, key_type=KEYTYPES.RSA2048))
+        asyncio.run(session.create_keypair(key_label, key_type=KEYTYPES.RSA2048))
 
-        issuer_private_key = PKCS11RSAPrivateKey(key_label, KEYTYPES.RSA2048)
+        issuer_private_key = PKCS11RSAPrivateKey(session, key_label, KEYTYPES.RSA2048)
         # This is the issuer public key
         issuer_public_key = issuer_private_key.public_key()
 
@@ -93,12 +94,13 @@ class TestPrivateKeys:
 
     def test_rsa4096_private_key(self) -> None:
         "Tests HSM based RSA private key usage."
+        session = PKCS11Session()
         key_label = "testpkcs" + hex(int.from_bytes(os.urandom(8), "big") >> 1)
         # First let us create an RSA4096 private key.
         asyncio.run(delete_keys())
-        asyncio.run(PKCS11Session().create_keypair(key_label, key_type=KEYTYPES.RSA4096))
+        asyncio.run(session.create_keypair(key_label, key_type=KEYTYPES.RSA4096))
 
-        issuer_private_key = PKCS11RSAPrivateKey(key_label, KEYTYPES.RSA4096)
+        issuer_private_key = PKCS11RSAPrivateKey(session, key_label, KEYTYPES.RSA4096)
         # This is the issuer public key
         issuer_public_key = issuer_private_key.public_key()
 
@@ -117,11 +119,12 @@ class TestPrivateKeys:
 
     def test_ec_private_key(self) -> None:
         "Tests HSM based ec private key usage."
+        session = PKCS11Session()
         key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         # First let us create an SECP521r1 private key.
-        asyncio.run(PKCS11Session().create_keypair(key_label, key_type=KEYTYPES.SECP521r1))
+        asyncio.run(session.create_keypair(key_label, key_type=KEYTYPES.SECP521r1))
 
-        issuer_private_key = PKCS11ECPrivateKey(key_label, KEYTYPES.SECP521r1)
+        issuer_private_key = PKCS11ECPrivateKey(session, key_label, KEYTYPES.SECP521r1)
         # This is the issuer public key
         issuer_public_key = issuer_private_key.public_key()
 
@@ -138,11 +141,12 @@ class TestPrivateKeys:
 
     def test_ed25519_private_key(self) -> None:
         "Tests HSM based ed25519 private key usage."
+        session = PKCS11Session()
         key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         # First let us create an ED25519 private key.
-        asyncio.run(PKCS11Session().create_keypair(key_label, key_type=KEYTYPES.ED25519))
+        asyncio.run(session.create_keypair(key_label, key_type=KEYTYPES.ED25519))
 
-        issuer_private_key = PKCS11ED25519PrivateKey(key_label, KEYTYPES.ED25519)
+        issuer_private_key = PKCS11ED25519PrivateKey(session, key_label, KEYTYPES.ED25519)
         # This is the issuer public key
         issuer_public_key = issuer_private_key.public_key()
 
@@ -159,11 +163,12 @@ class TestPrivateKeys:
 
     def test_ed448_private_key(self) -> None:
         "Tests HSM based ed448 private key usage."
+        session = PKCS11Session()
         key_label = "testpkcs" + hex(int.from_bytes(os.urandom(20), "big") >> 1)
         # First let us create an ED25519 private key.
-        asyncio.run(PKCS11Session().create_keypair(key_label, key_type=KEYTYPES.ED448))
+        asyncio.run(session.create_keypair(key_label, key_type=KEYTYPES.ED448))
 
-        issuer_private_key = PKCS11ED448PrivateKey(key_label, KEYTYPES.ED448)
+        issuer_private_key = PKCS11ED448PrivateKey(session, key_label, KEYTYPES.ED448)
         # This is the issuer public key
         issuer_public_key = issuer_private_key.public_key()
 
